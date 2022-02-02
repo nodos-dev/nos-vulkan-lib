@@ -24,7 +24,7 @@ struct Buffer
     VmaAllocation allocation;
 
 
-    void unmapped(struct RenderResources& res, vector<pair<u64, u8*>> raws, VkBufferUsageFlags usage = Buffer::Vertex | Buffer::Index);
+    void unmapped(VmaAllocator allocator, vector<pair<u64, u8*>> raws, VkBufferUsageFlags usage = Buffer::Vertex | Buffer::Index);
 
 
     void bind_vertex(u64 offset, u32 binding, VkCommandBuffer cmd)

@@ -12,6 +12,8 @@
 #include <unordered_map>
 #include <vector>
 #include <fstream>
+#include <variant>
+#include <optional>
 
 
 using std::pair;
@@ -35,6 +37,8 @@ typedef double   f64;
 struct f32x2 { f32 x, y; };
 struct i32x2 { i32 x, y; };
 struct f32x4 { f32 x, y, z, w; };
+
+
 
 
 inline const char* vk_result_string(VkResult re)
