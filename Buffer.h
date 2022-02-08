@@ -1,6 +1,8 @@
 #pragma once
 
-#include "Common.h"
+#include "Allocator.h"
+
+#include "assert.h"
 
 struct Buffer
 {
@@ -12,48 +14,37 @@ struct Buffer
         Index   = VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
         Uniform = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
     };
-    
-    enum Mapping
+
+    VkDevice device;
+
+    VkBuffer       handle;
+    VkDeviceMemory memory;
+    u64            size;
+
+    HANDLE osHandle;
+
+    u8* mapping;
+
+    void Copy(size_t len, void* pp, size_t offset = 0)
     {
-        Mapped,
-        Unmapped,
-    };
-
-    VkBuffer      handle;
-    u8*           mapping;
-    VmaAllocation allocation;
-
-
-    void unmapped(VmaAllocator allocator, vector<pair<u64, u8*>> raws, VkBufferUsageFlags usage = Buffer::Vertex | Buffer::Index);
-
-
-    void bind_vertex(u64 offset, u32 binding, VkCommandBuffer cmd)
-    {
-        vkCmdBindVertexBuffers(cmd, binding, 1, &handle, &offset);
-    }
-
-    void bind_index(u64 offset, VkCommandBuffer cmd)
-    {
-        vkCmdBindIndexBuffer(cmd, handle, offset, VK_INDEX_TYPE_UINT32);
-    }
-
-    void copy(size_t len, void* pp, size_t offset)
-    {
+        assert(offset + len < this->size);
         memcpy(mapping + offset, pp, len);
     }
 
     template <class T>
-    void copy(T const& obj, size_t offset)
+    void Copy(T const& obj, size_t offset = 0)
     {
+        assert(offset + sizeof(T) < this->size);
         memcpy(mapping + offset, &obj, sizeof(T));
     }
 
-    void free(VmaAllocator allocator)
+    void Free()
     {
-        vmaDestroyBuffer(allocator, handle, allocation);
+        vkDestroyBuffer(device, handle, 0);
+        vkFreeMemory(device, memory, 0);
     }
 
-    void bind_to_set(VkDevice dev, VkDescriptorType type, u32 bind, VkDescriptorSet set)
+    void Bind(VkDescriptorType type, u32 bind, VkDescriptorSet set)
     {
         VkDescriptorBufferInfo info = {
             .buffer = handle,
@@ -70,39 +61,35 @@ struct Buffer
             .pBufferInfo     = &info,
         };
 
-        vkUpdateDescriptorSets(dev, 1, &write, 0, 0);
+        vkUpdateDescriptorSets(device, 1, &write, 0, 0);
     }
 
-    size_t hash()
+    size_t Hash()
     {
         return (size_t)handle;
     }
 
-    void create(VmaAllocator allocator, u64 size, VkBufferUsageFlags usage, Mapping map)
+    void Create(Allocator allocator, u64 size, VkBufferUsageFlags usage, bool map)
     {
+        device = allocator.device;
+
         VkBufferCreateInfo buffer_info = {
             .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
             .size  = size,
-            .usage = usage};
+            .usage = usage,
+        };
 
-        VmaAllocationCreateInfo allocation_info;
-        switch (map)
+        CHECKRE(vkCreateBuffer(device, &buffer_info, 0, &handle));
+        memory = allocator.AllocateBufferMemory(handle, &size);
+
+        mapping = 0;
+
+        if (map)
         {
-        case Mapped:
-            allocation_info = {
-                .flags = VMA_ALLOCATION_CREATE_MAPPED_BIT,
-                .usage = VMA_MEMORY_USAGE_CPU_TO_GPU,
-            };
-            break;
-        case Unmapped:
-            allocation_info = {
-                .usage = VMA_MEMORY_USAGE_GPU_ONLY,
-            };
-            break;
+            CHECKRE(vkMapMemory(device, memory, 0, VK_WHOLE_SIZE, 0, (void**)&mapping));
         }
-        VmaAllocationInfo alloc_info;
-        CHECKRE(vmaCreateBuffer(allocator, &buffer_info, &allocation_info, &handle, &allocation, &alloc_info));
 
-        mapping = (u8*)alloc_info.pMappedData;
+        VkMemoryGetWin32HandleInfoKHR handleInfo;
+        CHECKRE(vkGetMemoryWin32HandleKHR(device, &handleInfo, &osHandle));
     }
 };

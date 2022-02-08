@@ -2,46 +2,15 @@
 #pragma once
 
 #include "Common.h"
-#include "vulkan/vulkan_core.h"
 
-struct Device
+struct CommandPool
 {
-    VkDevice device;
-    Device(VkDevice device)
-        : device(device)
-    {
-    }
-};
-
-struct Fence : Device
-{
-    VkFence handle;
-
-    Fence(VkDevice device)
-        : Device(device)
-    {
-        VkFenceCreateInfo info = {.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
-        vkCreateFence(device, &info, 0, &handle);
-    }
-
-    ~Fence()
-    {
-        vkDestroyFence(device, handle, 0);
-    }
-};
-
-struct CmdBuf : Device 
-{
-
-};
-
-struct CommandPool : Device
-{
+    VkDevice      device;
     VkCommandPool handle;
     u32           family;
 
     CommandPool(VkDevice device, u32 family)
-        : Device(device), family(family)
+        : device(device), family(family)
     {
         VkCommandPoolCreateInfo info = {
             .sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
@@ -101,50 +70,37 @@ struct CommandPool : Device
     }
 
     template <class F>
-    void Exec()
+    void Exec(VkQueue queue, F&& f)
     {
         if (auto mbyCmd = AllocCommandBuffer())
         {
             VkCommandBuffer cmd = mbyCmd.value();
+
+            VkFenceCreateInfo fenceInfo = {.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
+            VkFence           fence;
+
+            CHECKRE(vkCreateFence(device, &fenceInfo, 0, &fence));
+
+            VkCommandBufferBeginInfo begin_info = {
+                .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+                .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+            };
+
+            CHECKRE(vkBeginCommandBuffer(cmd, &begin_info));
+
+            f(cmd);
+
+            CHECKRE(vkEndCommandBuffer(cmd));
+
+            VkSubmitInfo submit_info = {
+                .sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+                .commandBufferCount = 1,
+                .pCommandBuffers    = &cmd,
+            };
+
+            CHECKRE(vkQueueSubmit(queue, 1, &submit_info, fence));
+            CHECKRE(vkWaitForFences(device, 1, &fence, 1, -1));
+            vkDestroyFence(device, fence, 0);
         }
     }
 };
-
-template <class F>
-void execute(CommandPool pool)
-{
-    VkCommandBuffer cmd = AllocCommandBuffer();
-
-    CHECKRE(pool.alloc(dev, 1, &cmd));
-
-    VkFenceCreateInfo fence_info = {.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
-    VkFence           fence;
-
-    CHECKRE(vkCreateFence(dev, &fence_info, 0, &fence));
-
-    VkCommandBufferBeginInfo begin_info = {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-    };
-
-    CHECKRE(vkBeginCommandBuffer(cmd, &begin_info));
-
-    f(cmd);
-
-    CHECKRE(vkEndCommandBuffer(cmd));
-
-    VkSubmitInfo submit_info = {
-        .sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-        .commandBufferCount = 1,
-        .pCommandBuffers    = &cmd,
-    };
-
-    CHECKRE(vkQueueSubmit(render_queue.handle, 1, &submit_info, fence));
-
-    thread_pool.enqueue([=]() {
-        CHECKRE(vkWaitForFences(dev, 1, &fence, 1, -1));
-        vkDestroyFence(dev, fence, 0);
-        render_pool.reset(dev);
-        c();
-    });
-}
