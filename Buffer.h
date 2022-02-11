@@ -81,7 +81,7 @@ struct Buffer
         };
 
         CHECKRE(vkCreateBuffer(device, &buffer_info, 0, &handle));
-        memory = allocator.AllocateBufferMemory(handle);
+        memory = allocator.AllocateResourceMemory(handle, &osHandle);
 
         mapping = 0;
 
