@@ -71,7 +71,8 @@ struct Buffer
 
     void Create(Allocator allocator, u64 size, VkBufferUsageFlags usage, bool map)
     {
-        device = allocator.device;
+        device     = allocator.device;
+        this->size = size;
 
         VkBufferCreateInfo buffer_info = {
             .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
@@ -80,7 +81,7 @@ struct Buffer
         };
 
         CHECKRE(vkCreateBuffer(device, &buffer_info, 0, &handle));
-        memory = allocator.AllocateBufferMemory(handle, &size);
+        memory = allocator.AllocateBufferMemory(handle);
 
         mapping = 0;
 
