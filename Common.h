@@ -1,24 +1,22 @@
 #pragma once
 
-
 #include <vkl.h>
-
 
 #include <numeric>
 #include <queue>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
+#include <map>
+#include <set>
 #include <vector>
 #include <fstream>
 #include <variant>
 #include <optional>
+#include <assert.h>
 
-
-using std::pair;
-using std::queue;
-using std::string;
-using std::unordered_map;
-using std::vector;
+#include <memory>
+#include <unordered_map>
 
 typedef int8_t   i8;
 typedef int16_t  i16;
@@ -31,11 +29,18 @@ typedef uint64_t u64;
 typedef float    f32;
 typedef double   f64;
 
-
-struct f32x2 { f32 x, y; };
-struct i32x2 { i32 x, y; };
-struct f32x4 { f32 x, y, z, w; };
-
+struct f32x2
+{
+    f32 x, y;
+};
+struct i32x2
+{
+    i32 x, y;
+};
+struct f32x4
+{
+    f32 x, y, z, w;
+};
 
 inline const char* vk_result_string(VkResult re)
 {
@@ -122,7 +127,6 @@ inline const char* vk_result_string(VkResult re)
     }
     return "";
 }
-
 
 #define CHECKRE(expr)                                                                       \
     {                                                                                       \

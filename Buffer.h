@@ -1,10 +1,9 @@
 #pragma once
 
 #include "Allocator.h"
+#include <memory>
 
-#include "assert.h"
-
-struct Buffer
+struct Buffer : std::enable_shared_from_this<Buffer>
 {
     enum
     {
@@ -15,33 +14,30 @@ struct Buffer
         Uniform = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
     };
 
-    VkDevice device;
-
-    VkBuffer       handle;
-    VkDeviceMemory memory;
-    u64            size;
+    std::shared_ptr<VulkanDevice> Vk;
+    VkBuffer                      handle;
+    Allocation                    allocation;
 
     HANDLE osHandle;
-
-    u8* mapping;
+    u8*    mapping;
 
     void Copy(size_t len, void* pp, size_t offset = 0)
     {
-        assert(offset + len < this->size);
+        assert(offset + len < allocation.Size);
         memcpy(mapping + offset, pp, len);
     }
 
     template <class T>
     void Copy(T const& obj, size_t offset = 0)
     {
-        assert(offset + sizeof(T) < this->size);
+        assert(offset + sizeof(T) < allocation.Size);
         memcpy(mapping + offset, &obj, sizeof(T));
     }
 
     void Free()
     {
-        vkDestroyBuffer(device, handle, 0);
-        vkFreeMemory(device, memory, 0);
+        Vk->DestroyBuffer(handle, 0);
+        allocation.Free();
     }
 
     void Bind(VkDescriptorType type, u32 bind, VkDescriptorSet set)
@@ -61,7 +57,7 @@ struct Buffer
             .pBufferInfo     = &info,
         };
 
-        vkUpdateDescriptorSets(device, 1, &write, 0, 0);
+        Vk->UpdateDescriptorSets(1, &write, 0, 0);
     }
 
     size_t Hash()
@@ -69,28 +65,24 @@ struct Buffer
         return (size_t)handle;
     }
 
-    void Create(Allocator allocator, u64 size, VkBufferUsageFlags usage, bool map)
+    Buffer(std::shared_ptr<Allocator> allocator, HANDLE osHandle, u64 size, VkBufferUsageFlags usage, bool map)
+        : Vk(allocator->Vk), handle(allocator->ImportBuffer(osHandle, size, usage)),
+          allocation(allocator->ImportResourceMemory(handle, osHandle)), osHandle(osHandle), mapping(map ? allocation.Map() : 0)
     {
-        device     = allocator.device;
-        this->size = size;
+    }
 
+    Buffer(std::shared_ptr<Allocator> allocator, u64 size, VkBufferUsageFlags usage, bool map)
+        : Vk(allocator->Vk), osHandle(0), mapping(0)
+    {
         VkBufferCreateInfo buffer_info = {
-            .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-            .size  = size,
-            .usage = usage,
+            .sType       = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+            .size        = size,
+            .usage       = usage,
+            .sharingMode = VK_SHARING_MODE_CONCURRENT,
         };
 
-        CHECKRE(vkCreateBuffer(device, &buffer_info, 0, &handle));
-        memory = allocator.AllocateResourceMemory(handle, &osHandle);
+        CHECKRE(Vk->CreateBuffer(&buffer_info, 0, &handle));
 
-        mapping = 0;
-
-        if (map)
-        {
-            CHECKRE(vkMapMemory(device, memory, 0, VK_WHOLE_SIZE, 0, (void**)&mapping));
-        }
-
-        VkMemoryGetWin32HandleInfoKHR handleInfo;
-        CHECKRE(vkGetMemoryWin32HandleKHR(device, &handleInfo, &osHandle));
+        allocation = allocator->AllocateResourceMemory(handle, &osHandle, map ? &mapping : 0);
     }
 };
