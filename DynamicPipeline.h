@@ -4,62 +4,27 @@
 #include "Device.h"
 
 #include "Buffer.h"
-#include "mzCommon.h"
-#include "vulkan/vulkan_core.h"
-#include <memory>
-#include <vector>
 
-enum MZShaderKind
-{
-    MZ_SHADER_VERTEX,
-    MZ_SHADER_PIXEL,
-    MZ_SHADER_COMPUTE,
-};
-
-enum MZOptLevel
-{
-    MZ_OPT_LEVEL_NONE,
-    MZ_OPT_LEVEL_SIZE,
-    MZ_OPT_LEVEL_PERF,
-};
-
-std::vector<uint32_t> CompileFile(const std::string&                              source_name,
-                                  MZShaderKind                                    kind,
-                                  const std::string&                              source,
-                                  std::string&                                    err,
-                                  enum MZOptLevel                                 opt,
-                                  VkVertexInputBindingDescription*                binding    = 0,
-                                  std::vector<VkVertexInputAttributeDescription>* attributes = 0);
+void ReadInputLayout(const u32* src, u64 sz, VkVertexInputBindingDescription& binding, std::vector<VkVertexInputAttributeDescription>& attributes);
 
 struct MZShader : std::enable_shared_from_this<MZShader>
 {
     std::shared_ptr<VulkanDevice> Vk;
     VkShaderModule                Module;
-    MZShaderKind                  Kind;
-    std::string                   Name;
+    VkShaderStageFlags            Stage;
 
     MZShader()
-        : Vk(0), Module(0), Kind(MZ_SHADER_VERTEX)
+        : Vk(0), Module(0), Stage(0)
     {
     }
 
-    MZShader(std::shared_ptr<VulkanDevice> Vk, MZShaderKind kind, std::string shaderNameIN, std::string const& source, VkVertexInputBindingDescription* binding = 0, std::vector<VkVertexInputAttributeDescription>* attributes = 0)
-        : Vk(Vk), Kind(kind), Name(std::move(shaderNameIN))
+    MZShader(std::shared_ptr<VulkanDevice> Vk, VkShaderStageFlags stage, const u32* src, u64 sz)
+        : Vk(Vk), Stage(stage)
     {
-        std::string err;
-
-        std::vector<u32> bin = CompileFile(Name, kind, source, err,
-#ifdef _DEBUG
-                                           MZ_OPT_LEVEL_NONE
-#else
-                                           MZ_OPT_LEVEL_PERF
-#endif
-        );
-
         VkShaderModuleCreateInfo info = {
             .sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-            .codeSize = bin.size() * 4,
-            .pCode    = bin.data(),
+            .codeSize = sz,
+            .pCode    = src,
         };
 
         CHECKRE(Vk->CreateShaderModule(&info, 0, &Module));
@@ -77,6 +42,12 @@ struct VertexShader : MZShader
     {
     }
 
+    VertexShader(std::shared_ptr<VulkanDevice> VkIN, const u32* src, u64 sz)
+        : MZShader(std::move(VkIN), VK_SHADER_STAGE_VERTEX_BIT, src, sz)
+    {
+        ReadInputLayout(src, sz, Binding, Attributes);
+    }
+
     VkPipelineVertexInputStateCreateInfo GetInputLayout()
     {
         VkPipelineVertexInputStateCreateInfo InputLayout = {
@@ -87,16 +58,6 @@ struct VertexShader : MZShader
             .pVertexAttributeDescriptions    = Attributes.data(),
         };
         return InputLayout;
-    }
-
-    VertexShader(std::shared_ptr<VulkanDevice> VkIN, std::string const& fileName)
-        : MZShader(std::move(VkIN), MZ_SHADER_VERTEX, fileName, ReadToString(fileName), &Binding, &Attributes)
-    {
-    }
-
-    VertexShader(std::shared_ptr<VulkanDevice> VkIN, std::string shaderName, std::string const& source)
-        : MZShader(std::move(VkIN), MZ_SHADER_VERTEX, std::move(shaderName), source, &Binding, &Attributes)
-    {
     }
 };
 
@@ -110,14 +71,13 @@ struct DynamicPipeline : std::enable_shared_from_this<DynamicPipeline>
 
     VkPipeline Handle;
 
-    DynamicPipeline(std::shared_ptr<VulkanDevice> Vk, VkExtent2D extent, std::string nameIN, std::string const& source)
-        : Vk(Vk), Shader(std::make_shared<MZShader>(Vk, MZ_SHADER_PIXEL, std::move(nameIN), source))
+    DynamicPipeline(std::shared_ptr<VulkanDevice> Vk, VkExtent2D extent, u32* src, u64 sz)
+        : Vk(Vk), Shader(std::make_shared<MZShader>(Vk, VK_SHADER_STAGE_FRAGMENT_BIT, src, sz))
     {
         if (GlobalVS.get() != nullptr)
         {
-            GlobalVS = std::make_shared<VertexShader>(Vk, "GlobalVS",
-#include "GlobVS.vert"
-            );
+            std::string GlobalVSSPV = ReadToString(MZ_SHADER_PATH "/GlobalVS.spv", true);
+            GlobalVS                = std::make_shared<VertexShader>(Vk, (u32*)GlobalVSSPV.data(), GlobalVSSPV.size());
         }
 
         VkFormat format = VK_FORMAT_R8G8B8A8_SRGB;

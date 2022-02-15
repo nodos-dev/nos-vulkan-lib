@@ -1,38 +1,7 @@
 
 #include "DynamicPipeline.h"
-#include "spirv_common.hpp"
-#include "vulkan/vulkan_core.h"
-
-#include <memory>
-#include <shaderc/shaderc.hpp>
 
 #include <spirv_cross.hpp>
-
-shaderc_shader_kind MapShaderKind(MZShaderKind s)
-{
-    switch (s)
-    {
-    case MZ_SHADER_COMPUTE:
-        return shaderc_compute_shader;
-    case MZ_SHADER_PIXEL:
-        return shaderc_fragment_shader;
-    default:
-        return shaderc_vertex_shader;
-    }
-}
-
-shaderc_optimization_level MapOptLevel(MZOptLevel o)
-{
-    switch (o)
-    {
-    case MZ_OPT_LEVEL_SIZE:
-        return shaderc_optimization_level_size;
-    case MZ_OPT_LEVEL_PERF:
-        return shaderc_optimization_level_performance;
-    default:
-        return shaderc_optimization_level_zero;
-    }
-}
 
 std::pair<VkFormat, u32> TypeAttributes(spirv_cross::SPIRType ty)
 {
@@ -96,10 +65,10 @@ std::pair<VkFormat, u32> TypeAttributes(spirv_cross::SPIRType ty)
     return std::make_pair(Map[BitIdx][VecIdx][TypeIdx], ty.vecsize * ty.width / 8);
 }
 
-void ReadInputLayout(std::vector<u32> const& bin, VkVertexInputBindingDescription& binding, std::vector<VkVertexInputAttributeDescription>& attributes)
+void ReadInputLayout(const u32* src, u64 sz, VkVertexInputBindingDescription& binding, std::vector<VkVertexInputAttributeDescription>& attributes)
 {
     using namespace spirv_cross;
-    Compiler        cc(bin.data(), bin.size());
+    Compiler        cc(src, sz / 4);
     ShaderResources resources = cc.get_shader_resources();
 
     binding = {.inputRate = VK_VERTEX_INPUT_RATE_VERTEX};
@@ -124,38 +93,4 @@ void ReadInputLayout(std::vector<u32> const& bin, VkVertexInputBindingDescriptio
 
         binding.stride += size;
     }
-}
-
-std::vector<uint32_t> CompileFile(const std::string&                              source_name,
-                                  MZShaderKind                                    kind,
-                                  const std::string&                              source,
-                                  std::string&                                    err,
-                                  enum MZOptLevel                                 opt,
-                                  VkVertexInputBindingDescription*                binding,
-                                  std::vector<VkVertexInputAttributeDescription>* attributes)
-{
-    shaderc::Compiler       compiler;
-    shaderc::CompileOptions options;
-
-    // // Like -DMY_DEFINE=1
-    // options.AddMacroDefinition("MY_DEFINE", "1");
-    options.SetOptimizationLevel(MapOptLevel(opt));
-
-    shaderc::SpvCompilationResult module =
-        compiler.CompileGlslToSpv(source, MapShaderKind(kind), source_name.c_str(), options);
-
-    if (module.GetCompilationStatus() != shaderc_compilation_status_success)
-    {
-        err = module.GetErrorMessage();
-        return std::vector<u32>();
-    }
-
-    std::vector<u32> bin(module.cbegin(), module.cend());
-
-    if (kind == MZ_SHADER_VERTEX && binding && attributes)
-    {
-        ReadInputLayout(bin, *binding, *attributes);
-    }
-
-    return bin;
 }
