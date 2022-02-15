@@ -47,7 +47,7 @@ struct VulkanDevice : std::enable_shared_from_this<VulkanDevice>,
         VkPhysicalDeviceDynamicRenderingFeatures dynamicRenderingFeatures = {
             .sType =
                 VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR,
-            // .dynamicRendering = 1,
+             .dynamicRendering = 1,
         };
 
         VkPhysicalDeviceFeatures2 features = {
@@ -132,6 +132,7 @@ struct VulkanContext : std::enable_shared_from_this<VulkanContext>
             "VK_KHR_external_semaphore_win32",
             "VK_KHR_external_memory_win32",
             "VK_EXT_external_memory_host",
+            "VK_KHR_dynamic_rendering",
         };
 
         for (auto pdev : pdevices)

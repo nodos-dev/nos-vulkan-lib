@@ -6,32 +6,7 @@
 
 #include <vkl.h>
 
-#include <numeric>
-#include <queue>
-#include <string>
-#include <unordered_map>
-#include <unordered_set>
-#include <map>
-#include <set>
-#include <vector>
-#include <fstream>
-#include <variant>
-#include <optional>
-#include <assert.h>
-
-#include <memory>
-#include <unordered_map>
-
-typedef int8_t   i8;
-typedef int16_t  i16;
-typedef int32_t  i32;
-typedef int64_t  i64;
-typedef uint8_t  u8;
-typedef uint16_t u16;
-typedef uint32_t u32;
-typedef uint64_t u64;
-typedef float    f32;
-typedef double   f64;
+#include <mzCommon.h>
 
 struct f32x2
 {
