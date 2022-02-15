@@ -1,8 +1,7 @@
 #pragma once
 
-#define VK_USE_PLATFORM_WIN32_KHR
-
 #include "Device.h"
+#include "vulkan/vulkan_core.h"
 
 struct MemoryBlock : std::enable_shared_from_this<MemoryBlock>
 {
@@ -34,17 +33,18 @@ struct MemoryBlock : std::enable_shared_from_this<MemoryBlock>
 
         u8* Map()
         {
-            void* p;
-            CHECKRE(Block->Vk->MapMemory(Block->Memory, Offset, Size, 0, &p));
-            return (u8*)p;
+            return Block->Mapping + Offset;
         }
 
         void Free()
         {
-            Block->Free(*this);
+            if (IsValid() && !Block->IsImported())
+            {
+                Block->Free(*this);
+            }
         }
 
-        VkDeviceMemory Get() const
+        VkDeviceMemory Get()
         {
             return Block.get() ? Block->Memory : 0;
         }
@@ -54,7 +54,7 @@ struct MemoryBlock : std::enable_shared_from_this<MemoryBlock>
         {
             if (Block->IsImported())
             {
-                return Block->osHandle;
+                return Block->OSHandle;
             }
 
             VkMemoryGetWin32HandleInfoKHR handleInfo = {
@@ -62,6 +62,7 @@ struct MemoryBlock : std::enable_shared_from_this<MemoryBlock>
                 .memory     = Block->Memory,
                 .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT,
             };
+
             HANDLE handle;
             CHECKRE(Block->Vk->GetMemoryWin32HandleKHR(&handleInfo, &handle));
             return handle;
@@ -73,7 +74,8 @@ struct MemoryBlock : std::enable_shared_from_this<MemoryBlock>
     VkDeviceMemory        Memory;
     VkMemoryPropertyFlags Props;
 
-    HANDLE osHandle;
+    HANDLE OSHandle;
+    u8*    Mapping;
 
     u64 Size;
     u64 InUse;
@@ -82,19 +84,23 @@ struct MemoryBlock : std::enable_shared_from_this<MemoryBlock>
     std::map<u64, u64> FreeList;
 
     MemoryBlock(std::shared_ptr<VulkanDevice> Vk, VkDeviceMemory mem, VkMemoryPropertyFlags props, u64 size, HANDLE osHandle = 0)
-        : Vk(Vk), Memory(mem), Props(props), Size(size), InUse(0), osHandle(osHandle)
+        : Vk(Vk), Memory(mem), Props(props), Size(size), InUse(0), OSHandle(osHandle), Mapping(0)
     {
         FreeList[0] = size;
+
+        if (props & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
+        {
+            CHECKRE(Vk->MapMemory(Memory, 0, VK_WHOLE_SIZE, 0, (void**)&Mapping));
+        }
     }
 
     bool IsImported() const
     {
-        return osHandle != 0;
+        return OSHandle != nullptr;
     }
 
     Allocation Allocate(u64 size)
     {
-
         if (InUse + size > Size)
         {
             return Allocation{};
@@ -119,7 +125,7 @@ struct MemoryBlock : std::enable_shared_from_this<MemoryBlock>
 
         Chunks[next->first] = size;
 
-        Allocation chunk = {shared_from_this(), next->first, size};
+        Allocation chunk(shared_from_this(), next->first, size);
 
         if (next->second > size)
         {
@@ -152,6 +158,16 @@ struct MemoryBlock : std::enable_shared_from_this<MemoryBlock>
 
         if (auto [it, inserted] = FreeList.insert(std::make_pair(c.Offset, c.Size)); inserted)
         {
+            // merge backwards
+            auto prev = it;
+            while (prev-- != FreeList.begin() && prev->first + prev->second == it->first)
+            {
+                prev->second += it->second;
+                FreeList.erase(it);
+                it = prev;
+            }
+
+            // merge forwards
             auto next = std::next(it);
             while (next != FreeList.end() && it->first + it->second == next->first)
             {
@@ -164,13 +180,20 @@ struct MemoryBlock : std::enable_shared_from_this<MemoryBlock>
 
 using Allocation = MemoryBlock::Allocation;
 
-struct Allocator : std::enable_shared_from_this<Allocator>
+struct VulkanAllocator : std::enable_shared_from_this<VulkanAllocator>
 {
+    static constexpr u64 DefaultChunkSize = 256 * 1024 * 1024;
+
     std::shared_ptr<VulkanDevice> Vk;
 
     std::map<u32, std::vector<std::shared_ptr<MemoryBlock>>> Allocations;
 
     std::map<u32, std::vector<std::shared_ptr<MemoryBlock>>> ImportedAllocations;
+
+    VulkanAllocator(std::shared_ptr<VulkanDevice> Vk)
+        : Vk(Vk)
+    {
+    }
 
     std::pair<u32, VkMemoryPropertyFlags> MemoryTypeIndex(u32 memoryTypeBits, VkMemoryPropertyFlags requestedProps)
     {
@@ -222,7 +245,7 @@ struct Allocator : std::enable_shared_from_this<Allocator>
             .pNext       = &resourceCreateInfo,
             .size        = size,
             .usage       = usage,
-            .sharingMode = VK_SHARING_MODE_CONCURRENT,
+            .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
         };
 
         VkBuffer buffer;
@@ -312,6 +335,7 @@ struct Allocator : std::enable_shared_from_this<Allocator>
 
         if (!allocation.IsValid())
         {
+
             VkExportMemoryWin32HandleInfoKHR handleInfo = {
                 .sType    = VK_STRUCTURE_TYPE_EXPORT_MEMORY_WIN32_HANDLE_INFO_KHR,
                 .dwAccess = GENERIC_ALL,
@@ -326,14 +350,14 @@ struct Allocator : std::enable_shared_from_this<Allocator>
             VkMemoryAllocateInfo info = {
                 .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
                 .pNext           = &exportInfo,
-                .allocationSize  = req.size,
+                .allocationSize  = std::max(req.size, DefaultChunkSize),
                 .memoryTypeIndex = typeIndex,
             };
 
             VkDeviceMemory mem;
             CHECKRE(Vk->AllocateMemory(&info, 0, &mem));
 
-            auto block = std::make_shared<MemoryBlock>(Vk, mem, actualProps, req.size);
+            auto block = std::make_shared<MemoryBlock>(Vk, mem, actualProps, info.allocationSize);
             allocation = block->Allocate(req.size);
             Allocations[typeIndex].emplace_back(block);
         }

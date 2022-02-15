@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Common.h"
+#include "mzVkCommon.h"
 
 #include <dynalo/dynalo.hpp>
 
@@ -47,7 +47,7 @@ struct VulkanDevice : std::enable_shared_from_this<VulkanDevice>,
         VkPhysicalDeviceDynamicRenderingFeatures dynamicRenderingFeatures = {
             .sType =
                 VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR,
-            .dynamicRendering = 1,
+            // .dynamicRendering = 1,
         };
 
         VkPhysicalDeviceFeatures2 features = {
@@ -79,17 +79,14 @@ struct VulkanContext : std::enable_shared_from_this<VulkanContext>
 
     std::vector<std::shared_ptr<VulkanDevice>> Devices;
 
-    VulkanContext() :
-    lib(dynalo::open("vulkan-1.dll"))
+    VulkanContext()
+        : lib(dynalo::open("vulkan-1.dll"))
     {
-        
-        CHECKRE(vkl_init(*dynalo::get_function<PFN_vkGetInstanceProcAddr>(dynalo::open("vulkan-1.dll"), "vkGetInstanceProcAddr")));
 
-        lib = LoadLibraryA("vulkan-1.dll");
-        CHECKRE(vkl_init((PFN_vkGetInstanceProcAddr)GetProcAddress(
-            (HMODULE)lib, "vkGetInstanceProcAddr")));
+        CHECKRE(vkl_init(dynalo::get_function<decltype(vkGetInstanceProcAddr)>(lib, "vkGetInstanceProcAddr")));
 
         u32 count;
+
         // CHECKRE(vkEnumerateInstanceLayerProperties(&count, 0));
         // std::vector<VkLayerProperties> props(count);
         // CHECKRE(vkEnumerateInstanceLayerProperties(&count, props.data()));

@@ -1,9 +1,8 @@
 #pragma once
 
 #include "Allocator.h"
-#include <memory>
 
-struct Buffer : std::enable_shared_from_this<Buffer>
+struct VulkanBuffer : std::enable_shared_from_this<VulkanBuffer>
 {
     enum
     {
@@ -65,24 +64,30 @@ struct Buffer : std::enable_shared_from_this<Buffer>
         return (size_t)handle;
     }
 
-    Buffer(std::shared_ptr<Allocator> allocator, HANDLE osHandle, u64 size, VkBufferUsageFlags usage, bool map)
+    VulkanBuffer(std::shared_ptr<VulkanAllocator> allocator, HANDLE osHandle, u64 size, VkBufferUsageFlags usage, bool map)
         : Vk(allocator->Vk), handle(allocator->ImportBuffer(osHandle, size, usage)),
           allocation(allocator->ImportResourceMemory(handle, osHandle)), osHandle(osHandle), mapping(map ? allocation.Map() : 0)
     {
     }
 
-    Buffer(std::shared_ptr<Allocator> allocator, u64 size, VkBufferUsageFlags usage, bool map)
+    VulkanBuffer(std::shared_ptr<VulkanAllocator> allocator, u64 size, VkBufferUsageFlags usage, bool map)
         : Vk(allocator->Vk), osHandle(0), mapping(0)
     {
         VkBufferCreateInfo buffer_info = {
             .sType       = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
             .size        = size,
             .usage       = usage,
-            .sharingMode = VK_SHARING_MODE_CONCURRENT,
+            .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
         };
 
         CHECKRE(Vk->CreateBuffer(&buffer_info, 0, &handle));
 
         allocation = allocator->AllocateResourceMemory(handle, &osHandle, map ? &mapping : 0);
+    }
+
+    ~VulkanBuffer()
+    {
+        Vk->DestroyBuffer(handle, 0);
+        allocation.Free();
     }
 };

@@ -1,4 +1,4 @@
-list(APPEND DEPENDENCIES vkl spirv-cross-core dynalo)
+list(APPEND DEPENDENCIES vkl spirv-cross-core)
 list(APPEND INCLUDEFOLDERS ${CMAKE_CURRENT_SOURCE_DIR} ${DYNALO_INCLUDE_DIR})
 
 add_folder_as_project(mzVulkan STATIC "${DEPENDENCIES}" "${INCLUDEFOLDERS}")

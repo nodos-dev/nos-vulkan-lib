@@ -1,6 +1,6 @@
 #pragma once
 
-#include "common.h"
+#include "mzVkCommon.h"
 
 struct RenderPass
 {

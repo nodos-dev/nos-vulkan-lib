@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Common.h"
+#include "mzVkCommon.h"
 
 #include <spirv_cross.hpp>
 
