@@ -13,11 +13,6 @@ struct MZShader : std::enable_shared_from_this<MZShader>
     VkShaderModule                Module;
     VkShaderStageFlags            Stage;
 
-    MZShader()
-        : Vk(0), Module(0), Stage(0)
-    {
-    }
-
     MZShader(std::shared_ptr<VulkanDevice> Vk, VkShaderStageFlags stage, const u32* src, u64 sz)
         : Vk(Vk), Stage(stage)
     {
@@ -36,11 +31,6 @@ struct VertexShader : MZShader
 
     VkVertexInputBindingDescription                Binding;
     std::vector<VkVertexInputAttributeDescription> Attributes;
-
-    VertexShader()
-        : MZShader(), Binding(), Attributes()
-    {
-    }
 
     VertexShader(std::shared_ptr<VulkanDevice> VkIN, const u32* src, u64 sz)
         : MZShader(std::move(VkIN), VK_SHADER_STAGE_VERTEX_BIT, src, sz)
