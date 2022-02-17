@@ -40,6 +40,8 @@ struct DescriptorPool : std::enable_shared_from_this<DescriptorPool>
     std::vector<VkDescriptorPoolSize> Sizes;
 
     DescriptorPool(PipelineLayout* Layout);
+    DescriptorPool(PipelineLayout* Layout, std::vector<VkDescriptorPoolSize> Sizes);
+
     ~DescriptorPool();
 };
 
@@ -65,9 +67,10 @@ struct PipelineLayout : std::enable_shared_from_this<PipelineLayout>
     VkShaderStageFlags Stage;
     u32                PushConstantSize;
 
-    std::unordered_map<u32, std::shared_ptr<DescriptorLayout>> Descriptors;
+    std::map<u32, std::shared_ptr<DescriptorLayout>> Descriptors;
 
     PipelineLayout(VulkanDevice* Vk, const u32* src, u64 sz);
+    PipelineLayout(VulkanDevice* Vk, std::map<u32, std::vector<VkDescriptorSetLayoutBinding>> layouts);
 
     ~PipelineLayout()
     {

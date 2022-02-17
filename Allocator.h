@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Device.h"
-#include "vulkan/vulkan_core.h"
 
 struct MemoryBlock : std::enable_shared_from_this<MemoryBlock>
 {
@@ -33,7 +32,11 @@ struct MemoryBlock : std::enable_shared_from_this<MemoryBlock>
 
         u8* Map()
         {
-            return Block->Mapping + Offset;
+            if (Block->Mapping)
+            {
+                return Block->Mapping + Offset;
+            }
+            return 0;
         }
 
         void Free()
@@ -232,32 +235,6 @@ struct VulkanAllocator : std::enable_shared_from_this<VulkanAllocator>
         return std::make_pair(typeIndex, props.memoryTypes[typeIndex].propertyFlags);
     }
 
-    VkBuffer ImportBuffer(HANDLE handle, u64 size, VkFlags usage)
-    {
-
-        VkMemoryWin32HandlePropertiesKHR props = {.sType = VK_STRUCTURE_TYPE_MEMORY_WIN32_HANDLE_PROPERTIES_KHR};
-
-        CHECKRE(Vk->GetMemoryWin32HandlePropertiesKHR(VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT, handle, &props));
-
-        VkExternalMemoryBufferCreateInfo resourceCreateInfo = {
-            .sType = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_BUFFER_CREATE_INFO,
-
-            .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT,
-        };
-
-        VkBufferCreateInfo buffer_info = {
-            .sType       = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-            .pNext       = &resourceCreateInfo,
-            .size        = size,
-            .usage       = usage,
-            .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-        };
-
-        VkBuffer buffer;
-        CHECKRE(Vk->CreateBuffer(&buffer_info, 0, &buffer));
-        return buffer;
-    }
-
     template <class Resource>
     requires(std::is_same_v<Resource, VkBuffer> || std::is_same_v<Resource, VkImage>)
         Allocation ImportResourceMemory(Resource resource, HANDLE handle)
@@ -301,7 +278,7 @@ struct VulkanAllocator : std::enable_shared_from_this<VulkanAllocator>
 
     template <class Resource>
     requires(std::is_same_v<Resource, VkBuffer> || std::is_same_v<Resource, VkImage>)
-        Allocation AllocateResourceMemory(Resource resource, HANDLE* handle, u8** mapping = 0)
+        Allocation AllocateResourceMemory(Resource resource, u8** mapping = 0)
     {
         VkMemoryRequirements             req;
         VkPhysicalDeviceMemoryProperties props;
@@ -338,9 +315,11 @@ struct VulkanAllocator : std::enable_shared_from_this<VulkanAllocator>
             }
         }
 
+        // If the value of VkExportMemoryAllocateInfo::handleTypes used to allocate memory is not 0,
+        // it must include at least one of the handles set in VkExternalMemoryBufferCreateInfo::handleTypes when buffer was created
+
         if (!allocation.IsValid())
         {
-
             VkExportMemoryWin32HandleInfoKHR handleInfo = {
                 .sType    = VK_STRUCTURE_TYPE_EXPORT_MEMORY_WIN32_HANDLE_INFO_KHR,
                 .dwAccess = GENERIC_ALL,
@@ -372,9 +351,13 @@ struct VulkanAllocator : std::enable_shared_from_this<VulkanAllocator>
             *mapping = allocation.Map();
         }
 
-        if (handle)
+        if constexpr (std::is_same_v<Resource, VkBuffer>)
         {
-            *handle = allocation.GetOSHandle();
+            Vk->BindBufferMemory(resource, allocation.Get(), allocation.Offset);
+        }
+        else
+        {
+            Vk->BindImageMemory(resource, allocation.Get(), allocation.Offset);
         }
 
         return allocation;

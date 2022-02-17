@@ -1,4 +1,5 @@
 #include "Layout.h"
+#include "mzVkCommon.h"
 
 #include <memory>
 #include <spirv_cross.hpp>
@@ -21,8 +22,7 @@ DescriptorSet::~DescriptorSet()
     Layout->Vk->FreeDescriptorSets(Pool->Handle, 1, &Handle);
 }
 
-DescriptorPool::DescriptorPool(PipelineLayout* Layout)
-    : Layout(Layout)
+std::vector<VkDescriptorPoolSize> GetPoolSizes(PipelineLayout* Layout)
 {
     std::map<VkDescriptorType, u32> counter;
 
@@ -34,20 +34,32 @@ DescriptorPool::DescriptorPool(PipelineLayout* Layout)
         }
     }
 
-    std::vector<VkDescriptorPoolSize> poolSizes;
-    poolSizes.reserve(counter.size());
+    std::vector<VkDescriptorPoolSize> Sizes;
+
+    Sizes.reserve(counter.size());
 
     for (auto& [type, count] : counter)
     {
-        poolSizes.push_back(VkDescriptorPoolSize{.type = type, .descriptorCount = count * 1024});
+        Sizes.push_back(VkDescriptorPoolSize{.type = type, .descriptorCount = count * 1024});
     }
+    return Sizes;
+}
+
+DescriptorPool::DescriptorPool(PipelineLayout* Layout)
+    : DescriptorPool(Layout, GetPoolSizes(Layout))
+{
+}
+
+DescriptorPool::DescriptorPool(PipelineLayout* Layout, std::vector<VkDescriptorPoolSize> sizes)
+    : Layout(Layout), Sizes(std::move(sizes))
+{
 
     VkDescriptorPoolCreateInfo poolInfo = {
         .sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
         .flags         = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
         .maxSets       = (u32)Layout->Descriptors.size() * 2048u,
-        .poolSizeCount = (u32)poolSizes.size(),
-        .pPoolSizes    = poolSizes.data(),
+        .poolSizeCount = (u32)Sizes.size(),
+        .pPoolSizes    = Sizes.data(),
     };
 
     CHECKRE(Layout->Vk->CreateDescriptorPool(&poolInfo, 0, &Handle));
@@ -62,12 +74,16 @@ DescriptorPool::~DescriptorPool()
 }
 
 PipelineLayout::PipelineLayout(VulkanDevice* Vk, const u32* src, u64 sz)
+    : PipelineLayout(Vk, GetLayouts(src, sz))
+{
+}
+
+PipelineLayout::PipelineLayout(VulkanDevice* Vk, std::map<u32, std::vector<VkDescriptorSetLayoutBinding>> layouts)
     : Vk(Vk), Stage(0), PushConstantSize(0), Pool(0)
 {
-
     std::vector<VkDescriptorSetLayout> handles;
 
-    for (auto& [set, descriptor] : GetLayouts(src, sz))
+    for (auto& [set, descriptor] : layouts)
     {
         auto layout = std::make_shared<DescriptorLayout>(Vk, std::move(descriptor));
         handles.push_back(layout->Handle);

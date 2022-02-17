@@ -11,6 +11,8 @@ struct VulkanDevice : std::enable_shared_from_this<VulkanDevice>,
     VkInstance       Instance;
     VkPhysicalDevice PhysicalDevice;
 
+    u32 QueueFamily;
+
     VulkanDevice()                    = delete;
     VulkanDevice(VulkanDevice const&) = delete;
 
@@ -73,7 +75,7 @@ struct VulkanDevice : std::enable_shared_from_this<VulkanDevice>,
                  VkPhysicalDevice                PhysicalDevice,
                  std::vector<const char*> const& layers,
                  std::vector<const char*> const& extensions)
-        : Instance(Instance), PhysicalDevice(PhysicalDevice)
+        : Instance(Instance), PhysicalDevice(PhysicalDevice), QueueFamily(0)
     {
         u32 count;
         vkGetPhysicalDeviceQueueFamilyProperties(PhysicalDevice, &count, 0);
@@ -81,13 +83,6 @@ struct VulkanDevice : std::enable_shared_from_this<VulkanDevice>,
         std::vector<VkQueueFamilyProperties> props(count);
 
         vkGetPhysicalDeviceQueueFamilyProperties(PhysicalDevice, &count, props.data());
-
-        float prio = 1.f;
-
-        VkDeviceQueueCreateInfo qinfo = {
-            .sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-            .queueCount       = 1,
-            .pQueuePriorities = &prio};
 
         for (auto& prop : props)
         {
@@ -97,8 +92,17 @@ struct VulkanDevice : std::enable_shared_from_this<VulkanDevice>,
             {
                 break;
             }
-            qinfo.queueFamilyIndex++;
+            QueueFamily++;
         }
+
+        float prio = 1.f;
+
+        VkDeviceQueueCreateInfo qinfo = {
+            .sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+            .queueFamilyIndex = QueueFamily,
+            .queueCount       = 1,
+            .pQueuePriorities = &prio,
+        };
 
         VkPhysicalDeviceDescriptorIndexingFeatures indexingFeatures = {
             .sType                           = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES,
@@ -209,42 +213,5 @@ struct VulkanContext : std::enable_shared_from_this<VulkanContext>
             Devices.emplace_back(std::make_shared<VulkanDevice>(
                 Instance, pdev, layers, deviceExtensions));
         }
-    }
-};
-
-struct Queue : std::enable_shared_from_this<Queue>, VklQueueFunctions
-{
-    u32 Family;
-    u32 Index;
-
-    Queue()             = delete;
-    Queue(Queue const&) = delete;
-
-    Queue(VulkanDevice* Device, u32 Family, u32 Index)
-        : VklQueueFunctions{Device}, Family(Family), Index(Index)
-    {
-        Device->GetDeviceQueue(Family, Index, &handle);
-    }
-
-    std::shared_ptr<VulkanDevice> GetDevice()
-    {
-        return static_cast<VulkanDevice*>(fnptrs)->shared_from_this();
-    }
-};
-
-struct CommandBuffer : std::enable_shared_from_this<CommandBuffer>,
-                       VklCommandFunctions
-{
-    CommandBuffer()                     = delete;
-    CommandBuffer(CommandBuffer const&) = delete;
-
-    CommandBuffer(VulkanDevice* Device)
-        : VklCommandFunctions{Device}
-    {
-    }
-
-    std::shared_ptr<VulkanDevice> GetDevice()
-    {
-        return static_cast<VulkanDevice*>(fnptrs)->shared_from_this();
     }
 };

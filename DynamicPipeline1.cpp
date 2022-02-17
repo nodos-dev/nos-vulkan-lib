@@ -95,7 +95,7 @@ void ReadInputLayout(const u32* src, u64 sz, VkVertexInputBindingDescription& bi
     }
 }
 
-std::unordered_map<u32, std::vector<VkDescriptorSetLayoutBinding>>
+std::map<u32, std::vector<VkDescriptorSetLayoutBinding>>
 GetLayouts(const u32* src, u64 sz)
 {
     using namespace spirv_cross;
@@ -112,7 +112,7 @@ GetLayouts(const u32* src, u64 sz)
         std::pair{VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, &resources.subpass_inputs},
     };
 
-    std::unordered_map<u32, std::vector<VkDescriptorSetLayoutBinding>> Descriptors;
+    std::map<u32, std::vector<VkDescriptorSetLayoutBinding>> Descriptors;
 
     for (auto& [ty, desc] : res)
     {

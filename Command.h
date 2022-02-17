@@ -1,106 +1,123 @@
 
 #pragma once
 
-#include "mzVkCommon.h"
+#include "Device.h"
+#include "mzCommon.h"
+#include "vulkan/vulkan_core.h"
+#include <utility>
 
-struct CommandPool
+struct VulkanQueue : VklQueueFunctions
 {
-    VkDevice      device;
-    VkCommandPool handle;
-    u32           family;
+    u32 Family;
+    u32 Index;
 
-    CommandPool(VkDevice device, u32 family)
-        : device(device), family(family)
+    VulkanQueue(VulkanDevice* Device, u32 Family, u32 Index)
+        : VklQueueFunctions{Device}, Family(Family), Index(Index)
+    {
+        Device->GetDeviceQueue(Family, Index, &handle);
+    }
+
+    VulkanDevice* GetDevice()
+    {
+        return static_cast<VulkanDevice*>(fnptrs);
+    }
+};
+
+struct CommandBuffer : std::enable_shared_from_this<CommandBuffer>,
+                       VklCommandFunctions
+{
+    struct CommandPool* Pool;
+
+    CommandBuffer(CommandPool* Pool, VkCommandBuffer Handle);
+    ~CommandBuffer();
+
+    VulkanDevice* GetDevice()
+    {
+        return static_cast<VulkanDevice*>(fnptrs);
+    }
+
+    template <class F>
+    void Exec(F&& f)
+    {
+        VkCommandBufferBeginInfo beginInfo = {
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+            .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+        };
+        Begin(&beginInfo);
+        f(shared_from_this());
+        End();
+    }
+};
+
+struct CommandPool : std::enable_shared_from_this<CommandPool>
+{
+    VkCommandPool Handle;
+
+    VulkanQueue Queue;
+
+    CommandPool(VulkanDevice* Vk, u32 family)
+        : Queue(Vk, family, 0)
     {
         VkCommandPoolCreateInfo info = {
             .sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-            .flags            = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+            .flags            = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT | VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
             .queueFamilyIndex = family,
         };
 
-        vkCreateCommandPool(device, &info, 0, &handle);
+        CHECKRE(Vk->CreateCommandPool(&info, 0, &Handle));
+    }
+
+    VulkanDevice* GetDevice()
+    {
+        return Queue.GetDevice();
     }
 
     ~CommandPool()
     {
-        vkDestroyCommandPool(device, handle, 0);
+        GetDevice()->DestroyCommandPool(Handle, 0);
     }
 
-    std::optional<VkCommandBuffer> AllocCommandBuffer(VkCommandBufferLevel level = VK_COMMAND_BUFFER_LEVEL_PRIMARY)
+    std::shared_ptr<CommandBuffer> AllocCommandBuffer(VkCommandBufferLevel level = VK_COMMAND_BUFFER_LEVEL_PRIMARY)
     {
         VkCommandBuffer cmd;
 
-        VkCommandBufferAllocateInfo cmd_info = {
+        VkCommandBufferAllocateInfo info = {
             .sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-            .commandPool        = handle,
+            .commandPool        = Handle,
             .level              = level,
             .commandBufferCount = 1,
         };
 
-        if (VkResult re = vkAllocateCommandBuffers(device, &cmd_info, &cmd))
-        {
-            return {};
-        }
-
-        return cmd;
-    }
-
-    std::optional<std::vector<VkCommandBuffer>> AllocCommandBuffers(u32 count, VkCommandBufferLevel level = VK_COMMAND_BUFFER_LEVEL_PRIMARY)
-    {
-        std::vector<VkCommandBuffer> buf(count);
-
-        VkCommandBufferAllocateInfo cmd_info = {
-            .sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-            .commandPool        = handle,
-            .level              = level,
-            .commandBufferCount = count,
-        };
-
-        if (VkResult re = vkAllocateCommandBuffers(device, &cmd_info, buf.data()))
-        {
-            return {};
-        }
-
-        return buf;
+        CHECKRE(GetDevice()->AllocateCommandBuffers(&info, &cmd));
+        return std::make_shared<CommandBuffer>(this, cmd);
     }
 
     VkResult Reset()
     {
-        return vkResetCommandPool(device, handle, VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT);
+        return GetDevice()->ResetCommandPool(Handle, VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT);
     }
 
     template <class F>
-    void Exec(VkQueue queue, F&& f)
+    void Exec(F&& f)
     {
-        if (auto mbyCmd = AllocCommandBuffer())
-        {
-            VkCommandBuffer cmd = mbyCmd.value();
+        std::shared_ptr<CommandBuffer> cmd = AllocCommandBuffer();
 
-            VkFenceCreateInfo fenceInfo = {.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
-            VkFence           fence;
+        VkCommandBufferBeginInfo beginInfo = {
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+            .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+        };
 
-            CHECKRE(vkCreateFence(device, &fenceInfo, 0, &fence));
+        cmd->Begin(&beginInfo);
+        f(cmd);
+        cmd->End();
 
-            VkCommandBufferBeginInfo begin_info = {
-                .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-                .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-            };
+        VkSubmitInfo submitInfo = {
+            .sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+            .commandBufferCount = 1,
+            .pCommandBuffers    = &cmd->handle,
+        };
 
-            CHECKRE(vkBeginCommandBuffer(cmd, &begin_info));
-
-            f(cmd);
-
-            CHECKRE(vkEndCommandBuffer(cmd));
-
-            VkSubmitInfo submit_info = {
-                .sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-                .commandBufferCount = 1,
-                .pCommandBuffers    = &cmd,
-            };
-
-            CHECKRE(vkQueueSubmit(queue, 1, &submit_info, fence));
-            CHECKRE(vkWaitForFences(device, 1, &fence, 1, -1));
-            vkDestroyFence(device, fence, 0);
-        }
+        Queue.Submit(1, &submitInfo, 0);
+        Queue.WaitIdle();
     }
 };

@@ -57,7 +57,7 @@ struct DynamicPipeline : std::enable_shared_from_this<DynamicPipeline>
 
     std::shared_ptr<MZShader>       Shader;
     std::shared_ptr<PipelineLayout> Layout;
-    
+
     VkPipeline Handle;
 
     DynamicPipeline(VulkanDevice* Vk, VkExtent2D extent, const u32* src, u64 sz);
