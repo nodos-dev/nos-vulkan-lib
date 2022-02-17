@@ -69,7 +69,7 @@ struct MemoryBlock : std::enable_shared_from_this<MemoryBlock>
         }
     };
 
-    std::shared_ptr<VulkanDevice> Vk;
+    VulkanDevice* Vk;
 
     VkDeviceMemory        Memory;
     VkMemoryPropertyFlags Props;
@@ -83,7 +83,7 @@ struct MemoryBlock : std::enable_shared_from_this<MemoryBlock>
     std::map<u64, u64> Chunks;
     std::map<u64, u64> FreeList;
 
-    MemoryBlock(std::shared_ptr<VulkanDevice> Vk, VkDeviceMemory mem, VkMemoryPropertyFlags props, u64 size, HANDLE osHandle = 0)
+    MemoryBlock(VulkanDevice* Vk, VkDeviceMemory mem, VkMemoryPropertyFlags props, u64 size, HANDLE osHandle = 0)
         : Vk(Vk), Memory(mem), Props(props), Size(size), InUse(0), OSHandle(osHandle), Mapping(0)
     {
         FreeList[0] = size;
@@ -92,6 +92,11 @@ struct MemoryBlock : std::enable_shared_from_this<MemoryBlock>
         {
             CHECKRE(Vk->MapMemory(Memory, 0, VK_WHOLE_SIZE, 0, (void**)&Mapping));
         }
+    }
+
+    ~MemoryBlock()
+    {
+        Vk->FreeMemory(Memory, 0);
     }
 
     bool IsImported() const
@@ -184,13 +189,13 @@ struct VulkanAllocator : std::enable_shared_from_this<VulkanAllocator>
 {
     static constexpr u64 DefaultChunkSize = 256 * 1024 * 1024;
 
-    std::shared_ptr<VulkanDevice> Vk;
+    VulkanDevice* Vk;
 
     std::map<u32, std::vector<std::shared_ptr<MemoryBlock>>> Allocations;
 
     std::map<u32, std::vector<std::shared_ptr<MemoryBlock>>> ImportedAllocations;
 
-    VulkanAllocator(std::shared_ptr<VulkanDevice> Vk)
+    VulkanAllocator(VulkanDevice* Vk)
         : Vk(Vk)
     {
     }

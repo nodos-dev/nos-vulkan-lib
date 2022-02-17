@@ -3,11 +3,9 @@
 
 #include <spirv_cross.hpp>
 
-
 #ifndef MZ_SHADER_PATH
 #define MZ_SHADER_PATH "Shaders"
 #endif
-
 
 std::pair<VkFormat, u32> TypeAttributes(spirv_cross::SPIRType ty)
 {
@@ -95,4 +93,41 @@ void ReadInputLayout(const u32* src, u64 sz, VkVertexInputBindingDescription& bi
 
         binding.stride += size;
     }
+}
+
+std::unordered_map<u32, std::vector<VkDescriptorSetLayoutBinding>>
+GetLayouts(const u32* src, u64 sz)
+{
+    using namespace spirv_cross;
+    Compiler        cc(src, sz / 4);
+    ShaderResources resources = cc.get_shader_resources();
+    EntryPoint      entry     = cc.get_entry_points_and_stages()[0];
+
+    std::pair<VkDescriptorType, SmallVector<Resource>*> res[] = {
+        std::pair{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &resources.sampled_images},
+        std::pair{VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, &resources.separate_images},
+        std::pair{VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, &resources.storage_images},
+        std::pair{VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, &resources.storage_buffers},
+        std::pair{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, &resources.uniform_buffers},
+        std::pair{VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, &resources.subpass_inputs},
+    };
+
+    std::unordered_map<u32, std::vector<VkDescriptorSetLayoutBinding>> Descriptors;
+
+    for (auto& [ty, desc] : res)
+    {
+        for (auto& res : *desc)
+        {
+            SmallVector<u32> array = cc.get_type(res.type_id).array;
+            u32              set   = cc.get_decoration(res.id, spv::DecorationBinding);
+            Descriptors[set].push_back(
+                VkDescriptorSetLayoutBinding{
+                    .binding         = cc.get_decoration(res.id, spv::DecorationDescriptorSet),
+                    .descriptorType  = ty,
+                    .descriptorCount = std::accumulate(array.begin(), array.end(), 1u, [](u32 a, u32 b) { return a * b; }),
+                });
+        }
+    };
+
+    return Descriptors;
 }

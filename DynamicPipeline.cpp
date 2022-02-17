@@ -1,14 +1,19 @@
 
 #include "DynamicPipeline.h"
+#include "Layout.h"
 #include "vulkan/vulkan_core.h"
 
-DynamicPipeline::DynamicPipeline(std::shared_ptr<VulkanDevice> Vk, VkExtent2D extent, u32* src, u64 sz)
-    : Vk(Vk), Shader(std::make_shared<MZShader>(Vk, VK_SHADER_STAGE_FRAGMENT_BIT, src, sz))
+DynamicPipeline::DynamicPipeline(VulkanDevice* Vk, VkExtent2D extent, const u32* src, u64 sz)
+    : Vk(Vk), Shader(std::make_shared<MZShader>(Vk, VK_SHADER_STAGE_FRAGMENT_BIT, src, sz)), Layout(std::make_shared<PipelineLayout>(Vk, src, sz))
 {
-    if (GlobalVS.get() == nullptr)
+
+    VertexShader* VS = Vk->GetGlobal<VertexShader>("GlobVS");
+
+    if (0 == VS)
     {
         std::string GlobalVSSPV = ReadToString(MZ_SHADER_PATH "/GlobVS.vert.spv", true);
-        GlobalVS                = std::make_shared<VertexShader>(Vk, (u32*)GlobalVSSPV.data(), GlobalVSSPV.size());
+
+        VS = Vk->RegisterGlobal<VertexShader>("GlobVS", Vk, (const u32*)GlobalVSSPV.data(), GlobalVSSPV.size());
     }
 
     VkFormat format = VK_FORMAT_R8G8B8A8_SRGB;
@@ -19,13 +24,13 @@ DynamicPipeline::DynamicPipeline(std::shared_ptr<VulkanDevice> Vk, VkExtent2D ex
         .pColorAttachmentFormats = &format,
     };
 
-    VkPipelineVertexInputStateCreateInfo inputLayout = GlobalVS->GetInputLayout();
+    VkPipelineVertexInputStateCreateInfo inputLayout = VS->GetInputLayout();
 
     VkPipelineShaderStageCreateInfo shaderStages[2] = {
         {
             .sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
             .stage  = VK_SHADER_STAGE_VERTEX_BIT,
-            .module = GlobalVS->Module,
+            .module = VS->Module,
             .pName  = "main",
         },
         {
@@ -79,12 +84,6 @@ DynamicPipeline::DynamicPipeline(std::shared_ptr<VulkanDevice> Vk, VkExtent2D ex
         .pAttachments    = &attachments,
     };
 
-    VkPipelineLayoutCreateInfo layoutInfo = {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-    };
-
-    CHECKRE(Vk->CreatePipelineLayout(&layoutInfo, 0, &Layout));
-
     VkGraphicsPipelineCreateInfo info = {
         .sType               = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
         .pNext               = &renderInfo,
@@ -96,7 +95,7 @@ DynamicPipeline::DynamicPipeline(std::shared_ptr<VulkanDevice> Vk, VkExtent2D ex
         .pRasterizationState = &rasterizationState,
         .pMultisampleState   = &multisampleState,
         .pColorBlendState    = &colorBlendState,
-        .layout              = Layout,
+        .layout              = Layout->Handle,
     };
 
     CHECKRE(Vk->CreateGraphicsPipelines(0, 1, &info, 0, &Handle));

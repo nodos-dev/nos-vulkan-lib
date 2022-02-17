@@ -8,6 +8,10 @@
 
 #include <mzCommon.h>
 
+void ReadInputLayout(const u32* src, u64 sz, VkVertexInputBindingDescription& binding, std::vector<VkVertexInputAttributeDescription>& attributes);
+
+std::unordered_map<u32, std::vector<VkDescriptorSetLayoutBinding>> GetLayouts(const u32* src, u64 sz);
+
 struct f32x2
 {
     f32 x, y;
@@ -105,6 +109,45 @@ inline const char* vk_result_string(VkResult re)
         return "RESULT_MAX_ENUM";
     }
     return "";
+}
+
+inline const char* descriptor_type_to_string(VkDescriptorType ty)
+{
+    switch (ty)
+    {
+    case VK_DESCRIPTOR_TYPE_SAMPLER:
+        return "SAMPLER";
+    case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+        return "COMBINED_IMAGE_SAMPLER";
+    case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+        return "SAMPLED_IMAGE";
+    case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
+        return "STORAGE_IMAGE";
+    case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
+        return "UNIFORM_TEXEL_BUFFER";
+    case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
+        return "STORAGE_TEXEL_BUFFER";
+    case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+        return "UNIFORM_BUFFER";
+    case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+        return "STORAGE_BUFFER";
+    case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC:
+        return "UNIFORM_BUFFER_DYNAMIC";
+    case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
+        return "STORAGE_BUFFER_DYNAMIC";
+    case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
+        return "INPUT_ATTACHMENT";
+    case VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK_EXT:
+        return "INLINE_UNIFORM_BLOCK_EXT";
+    case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
+        return "ACCELERATION_STRUCTURE_KHR";
+    case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV:
+        return "ACCELERATION_STRUCTURE_NV";
+    case VK_DESCRIPTOR_TYPE_MUTABLE_VALVE:
+        return "MUTABLE_VALVE";
+    default:
+        return "";
+    }
 }
 
 #define CHECKRE(expr)                                                                       \

@@ -2,7 +2,6 @@
 
 #include "Shader.h"
 
-
 template <class... Args>
 u64 hash_fold(Args&&... args)
 {
@@ -38,19 +37,19 @@ struct GraphicsPipelineState
     VkRenderPass        renderpass  = 0;
     u32                 subpass     = 0;
 
-    vector<VkVertexInputBindingDescription>   bindings;
-    vector<VkVertexInputAttributeDescription> attributes;
+    std::vector<VkVertexInputBindingDescription>   bindings;
+    std::vector<VkVertexInputAttributeDescription> attributes;
 };
 
 struct Pipeline
 {
-    VkDevice            dev;
-    VkPipeline          handle;
-    PipelineLayout      layout;
-    vector<Shaderx>     shaders;
-    VkPipelineBindPoint point;
+    VkDevice             dev;
+    VkPipeline           handle;
+    PipelineLayout       layout;
+    std::vector<Shaderx> shaders;
+    VkPipelineBindPoint  point;
 
-    unordered_map<size_t, VkDescriptorSet> sets;
+    std::unordered_map<size_t, VkDescriptorSet> sets;
 
     void bind(VkCommandBuffer cmd)
     {
@@ -78,8 +77,7 @@ struct Pipeline
         return vkCmdBindDescriptorSets(cmd, point, layout.handle, idx, 1, set, 0, 0);
     }
 
-
-    VkResult create(VkDevice dev, vector<vector<u32>> bins, GraphicsPipelineState* gfx_state = 0)
+    VkResult create(VkDevice dev, std::vector<std::vector<u32>> bins, GraphicsPipelineState* gfx_state = 0)
     {
         this->dev = dev;
         shaders.clear();
@@ -106,7 +104,7 @@ struct Pipeline
     {
         point = VK_PIPELINE_BIND_POINT_GRAPHICS;
 
-        vector<VkPipelineShaderStageCreateInfo> stages;
+        std::vector<VkPipelineShaderStageCreateInfo> stages;
         stages.reserve(shaders.size());
 
         for (auto& shader : shaders)
@@ -231,5 +229,4 @@ struct Pipeline
         layout.AllocateSet(dev, idx, &set);
         return set;
     }
-
 };

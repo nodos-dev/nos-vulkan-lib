@@ -3,6 +3,7 @@
 #include "mzVkCommon.h"
 
 #include <dynalo/dynalo.hpp>
+#include <utility>
 
 struct VulkanDevice : std::enable_shared_from_this<VulkanDevice>,
                       VklDeviceFunctions
@@ -12,6 +13,61 @@ struct VulkanDevice : std::enable_shared_from_this<VulkanDevice>,
 
     VulkanDevice()                    = delete;
     VulkanDevice(VulkanDevice const&) = delete;
+
+    struct Global
+    {
+        u64 handle;
+        void (*dtor)(u64);
+
+        template <class T>
+        Global(T* handle)
+            : handle((u64)handle), dtor([](u64 handle) { delete (T*)handle; })
+        {
+        }
+
+        void Free()
+        {
+            dtor(handle);
+        }
+    };
+
+    std::unordered_map<std::string, Global> Globals;
+
+    template <class T>
+    T* GetGlobal(std::string const& id)
+    {
+        if (auto it = Globals.find(id); it != Globals.end())
+        {
+            return (T*)it->second.handle;
+        }
+        return 0;
+    }
+
+    template <class T, class... Args>
+    T* RegisterGlobal(std::string id, Args&&... args)
+    {
+        T* data = new T(std::forward<Args>(args)...);
+
+        auto it = Globals.find(id);
+
+        if (it != Globals.end())
+        {
+            it->second.Free();
+            Globals.erase(it);
+        }
+
+        Globals.insert(std::make_pair(std::move(id), Global(data)));
+        return data;
+    }
+
+    ~VulkanDevice()
+    {
+        for (auto& [id, glob] : Globals)
+        {
+            glob.Free();
+        }
+        DestroyDevice(0);
+    }
 
     VulkanDevice(VkInstance                      Instance,
                  VkPhysicalDevice                PhysicalDevice,
@@ -44,10 +100,16 @@ struct VulkanDevice : std::enable_shared_from_this<VulkanDevice>,
             qinfo.queueFamilyIndex++;
         }
 
+        VkPhysicalDeviceDescriptorIndexingFeatures indexingFeatures = {
+            .sType                           = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES,
+            .descriptorBindingPartiallyBound = VK_TRUE,
+        };
+
         VkPhysicalDeviceDynamicRenderingFeatures dynamicRenderingFeatures = {
             .sType =
                 VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR,
-             .dynamicRendering = 1,
+            .pNext            = &indexingFeatures,
+            .dynamicRendering = 1,
         };
 
         VkPhysicalDeviceFeatures2 features = {
@@ -78,6 +140,13 @@ struct VulkanContext : std::enable_shared_from_this<VulkanContext>
     VkInstance Instance;
 
     std::vector<std::shared_ptr<VulkanDevice>> Devices;
+
+    ~VulkanContext()
+    {
+        Devices.clear();
+        vkDestroyInstance(Instance, 0);
+        dynalo::close(lib);
+    }
 
     VulkanContext()
         : lib(dynalo::open("vulkan-1.dll"))

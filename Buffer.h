@@ -13,9 +13,9 @@ struct VulkanBuffer : std::enable_shared_from_this<VulkanBuffer>
         Uniform = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
     };
 
-    std::shared_ptr<VulkanDevice> Vk;
-    VkBuffer                      handle;
-    Allocation                    allocation;
+    VulkanDevice* Vk;
+    VkBuffer      handle;
+    Allocation    allocation;
 
     HANDLE osHandle;
     u8*    mapping;
@@ -31,12 +31,6 @@ struct VulkanBuffer : std::enable_shared_from_this<VulkanBuffer>
     {
         assert(offset + sizeof(T) < allocation.Size);
         memcpy(mapping + offset, &obj, sizeof(T));
-    }
-
-    void Free()
-    {
-        Vk->DestroyBuffer(handle, 0);
-        allocation.Free();
     }
 
     void Bind(VkDescriptorType type, u32 bind, VkDescriptorSet set)

@@ -1,19 +1,15 @@
 
 #pragma once
 
-#include "Device.h"
-
-#include "Buffer.h"
-
-void ReadInputLayout(const u32* src, u64 sz, VkVertexInputBindingDescription& binding, std::vector<VkVertexInputAttributeDescription>& attributes);
+#include "Layout.h"
 
 struct MZShader : std::enable_shared_from_this<MZShader>
 {
-    std::shared_ptr<VulkanDevice> Vk;
-    VkShaderModule                Module;
-    VkShaderStageFlags            Stage;
+    VulkanDevice*      Vk;
+    VkShaderModule     Module;
+    VkShaderStageFlags Stage;
 
-    MZShader(std::shared_ptr<VulkanDevice> Vk, VkShaderStageFlags stage, const u32* src, u64 sz)
+    MZShader(VulkanDevice* Vk, VkShaderStageFlags stage, const u32* src, u64 sz)
         : Vk(Vk), Stage(stage)
     {
         VkShaderModuleCreateInfo info = {
@@ -24,16 +20,20 @@ struct MZShader : std::enable_shared_from_this<MZShader>
 
         CHECKRE(Vk->CreateShaderModule(&info, 0, &Module));
     }
+
+    ~MZShader()
+    {
+        Vk->DestroyShaderModule(Module, 0);
+    }
 };
 
 struct VertexShader : MZShader
 {
-
     VkVertexInputBindingDescription                Binding;
     std::vector<VkVertexInputAttributeDescription> Attributes;
 
-    VertexShader(std::shared_ptr<VulkanDevice> VkIN, const u32* src, u64 sz)
-        : MZShader(std::move(VkIN), VK_SHADER_STAGE_VERTEX_BIT, src, sz)
+    VertexShader(VulkanDevice* Vk, const u32* src, u64 sz)
+        : MZShader(Vk, VK_SHADER_STAGE_VERTEX_BIT, src, sz)
     {
         ReadInputLayout(src, sz, Binding, Attributes);
     }
@@ -53,14 +53,17 @@ struct VertexShader : MZShader
 
 struct DynamicPipeline : std::enable_shared_from_this<DynamicPipeline>
 {
-    std::shared_ptr<VulkanDevice> Vk;
+    VulkanDevice* Vk;
 
-    inline static std::shared_ptr<VertexShader> GlobalVS;
+    std::shared_ptr<MZShader>       Shader;
+    std::shared_ptr<PipelineLayout> Layout;
+    
+    VkPipeline Handle;
 
-    std::shared_ptr<MZShader> Shader;
+    DynamicPipeline(VulkanDevice* Vk, VkExtent2D extent, const u32* src, u64 sz);
 
-    VkPipeline       Handle;
-    VkPipelineLayout Layout;
-
-    DynamicPipeline(std::shared_ptr<VulkanDevice> Vk, VkExtent2D extent, u32* src, u64 sz);
+    ~DynamicPipeline()
+    {
+        Vk->DestroyPipeline(Handle, 0);
+    }
 };
