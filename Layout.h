@@ -1,9 +1,47 @@
 #pragma once
 
-#include "Device.h"
-#include "vulkan/vulkan_core.h"
-#include <algorithm>
+#include "Image.h"
 #include <memory>
+#include <type_traits>
+
+template <class Resource>
+requires(std::is_same_v<Resource, VulkanBuffer> || std::is_same_v<Resource, VulkanImage>) struct Binding
+{
+    Resource* resource;
+    u32       binding;
+
+    DescriptorResourceInfo info;
+
+    Binding(Resource& res, u32 binding)
+        : resource(&res), binding(binding)
+    {
+    }
+
+    Binding(std::shared_ptr<Resource> res, u32 binding)
+        : resource(res.get()), binding(binding)
+    {
+    }
+
+    Binding(Resource* res, u32 binding)
+        : resource(res), binding(binding)
+    {
+    }
+
+    VkWriteDescriptorSet GetDescriptorInfo(VkDescriptorSet set, VkDescriptorType type)
+    {
+        info = resource->GetDescriptorInfo();
+
+        return VkWriteDescriptorSet{
+            .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .dstSet          = set,
+            .dstBinding      = binding,
+            .descriptorCount = 1,
+            .descriptorType  = type,
+            .pImageInfo      = (std::is_same_v<Resource, VulkanImage> ? (&info.image) : 0),
+            .pBufferInfo     = (std::is_same_v<Resource, VulkanBuffer> ? (&info.buffer) : 0),
+        };
+    }
+};
 
 struct DescriptorLayout : std::enable_shared_from_this<DescriptorLayout>
 {
@@ -18,8 +56,8 @@ struct DescriptorLayout : std::enable_shared_from_this<DescriptorLayout>
     {
         VkDescriptorSetLayoutCreateInfo info = {
             .sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-            .bindingCount = (u32)bindings.size(),
-            .pBindings    = bindings.data(),
+            .bindingCount = (u32)Bindings.size(),
+            .pBindings    = Bindings.data(),
         };
 
         CHECKRE(Vk->CreateDescriptorSetLayout(&info, 0, &Handle));
@@ -49,11 +87,24 @@ struct DescriptorSet : std::enable_shared_from_this<DescriptorSet>
 {
     DescriptorPool*   Pool;
     DescriptorLayout* Layout;
+    u32               Index;
 
     VkDescriptorSet Handle;
 
-    DescriptorSet(DescriptorPool*, DescriptorLayout*);
+    DescriptorSet(DescriptorPool*, u32);
     ~DescriptorSet();
+
+    VkDescriptorType GetType(u32 Binding);
+
+    template <class... Resource>
+    std::shared_ptr<DescriptorSet> UpdateWith(Binding<Resource>... res)
+    {
+        VkWriteDescriptorSet writes[sizeof...(Resource)] = {res.GetDescriptorInfo(Handle, GetType(res.binding))...};
+
+        Layout->Vk->UpdateDescriptorSets(sizeof...(Resource), writes, 0, 0);
+
+        return shared_from_this();
+    }
 };
 
 struct PipelineLayout : std::enable_shared_from_this<PipelineLayout>
@@ -79,8 +130,7 @@ struct PipelineLayout : std::enable_shared_from_this<PipelineLayout>
 
     std::shared_ptr<DescriptorSet> AllocateSet(u32 set)
     {
-        return std::make_shared<DescriptorSet>(Pool.get(), Descriptors[set].get());
+        return std::make_shared<DescriptorSet>(Pool.get(), set);
     }
-
     void Dump();
 };

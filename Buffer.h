@@ -2,6 +2,11 @@
 
 #include "Allocator.h"
 
+union DescriptorResourceInfo {
+    VkDescriptorImageInfo  image;
+    VkDescriptorBufferInfo buffer;
+};
+
 struct VulkanBuffer : std::enable_shared_from_this<VulkanBuffer>
 {
     enum
@@ -14,46 +19,34 @@ struct VulkanBuffer : std::enable_shared_from_this<VulkanBuffer>
     };
 
     VulkanDevice* Vk;
-    VkBuffer      handle;
-    Allocation    allocation;
-    u8*           mapping;
+    u8*           Mapping;
+    Allocation    Allocation;
+
+    VkBuffer Handle;
 
     void Copy(size_t len, void* pp, size_t offset = 0)
     {
-        assert(offset + len < allocation.Size);
-        memcpy(mapping + offset, pp, len);
+        assert(offset + len < Allocation.Size);
+        memcpy(Mapping + offset, pp, len);
     }
 
     template <class T>
     void Copy(T const& obj, size_t offset = 0)
     {
-        assert(offset + sizeof(T) < allocation.Size);
-        memcpy(mapping + offset, &obj, sizeof(T));
+        assert(offset + sizeof(T) < Allocation.Size);
+        memcpy(Mapping + offset, &obj, sizeof(T));
     }
 
-    void Bind(VkDescriptorType type, u32 bind, VkDescriptorSet set)
+    void Bind(VkDescriptorType type, u32 bind, VkDescriptorSet set);
+
+    DescriptorResourceInfo GetDescriptorInfo() const
     {
-        VkDescriptorBufferInfo info = {
-            .buffer = handle,
-            .offset = 0,
-            .range  = VK_WHOLE_SIZE,
-        };
-
-        VkWriteDescriptorSet write = {
-            .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-            .dstSet          = set,
-            .dstBinding      = bind,
-            .descriptorCount = 1,
-            .descriptorType  = type,
-            .pBufferInfo     = &info,
-        };
-
-        Vk->UpdateDescriptorSets(1, &write, 0, 0);
-    }
-
-    size_t Hash()
-    {
-        return (size_t)handle;
+        return DescriptorResourceInfo{
+            .buffer = {
+                .buffer = Handle,
+                .offset = 0,
+                .range  = VK_WHOLE_SIZE,
+            }};
     }
 
     // VulkanBuffer(std::shared_ptr<VulkanAllocator> allocator, HANDLE osHandle, u64 size, VkBufferUsageFlags usage, bool map)
@@ -62,36 +55,16 @@ struct VulkanBuffer : std::enable_shared_from_this<VulkanBuffer>
     // {
     // }
 
-    VulkanBuffer(std::shared_ptr<VulkanAllocator> allocator, u64 size, VkBufferUsageFlags usage, bool map)
-        : Vk(allocator->Vk), mapping(0)
-    {
-
-        VkExternalMemoryBufferCreateInfo resourceCreateInfo = {
-            .sType       = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_BUFFER_CREATE_INFO,
-            .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT,
-        };
-
-        VkBufferCreateInfo info = {
-            .sType       = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-            .pNext       = &resourceCreateInfo,
-            .size        = size,
-            .usage       = usage,
-            .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-        };
-
-        CHECKRE(Vk->CreateBuffer(&info, 0, &handle));
-
-        allocation = allocator->AllocateResourceMemory(handle, map ? &mapping : 0);
-    }
+    VulkanBuffer(std::shared_ptr<VulkanAllocator> allocator, u64 size, VkBufferUsageFlags usage, bool map);
 
     HANDLE GetOSHandle()
     {
-        return allocation.GetOSHandle();
+        return Allocation.GetOSHandle();
     }
 
     ~VulkanBuffer()
     {
-        Vk->DestroyBuffer(handle, 0);
-        allocation.Free();
+        Vk->DestroyBuffer(Handle, 0);
+        Allocation.Free();
     }
 };

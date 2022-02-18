@@ -8,5 +8,9 @@ CommandBuffer::CommandBuffer(CommandPool* Pool, VkCommandBuffer Handle)
 
 CommandBuffer::~CommandBuffer()
 {
+    Pool->Queue.WaitIdle();
+
+    CHECKRE(Reset(VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT));
+
     GetDevice()->FreeCommandBuffers(Pool->Handle, 1, &handle);
 }

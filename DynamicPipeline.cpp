@@ -16,7 +16,7 @@ DynamicPipeline::DynamicPipeline(VulkanDevice* Vk, VkExtent2D extent, const u32*
         VS = Vk->RegisterGlobal<VertexShader>("GlobVS", Vk, (const u32*)GlobalVSSPV.data(), GlobalVSSPV.size());
     }
 
-    VkFormat format = VK_FORMAT_R8G8B8A8_SRGB;
+    VkFormat format = VK_FORMAT_R8G8B8A8_UNORM;
 
     VkPipelineRenderingCreateInfo renderInfo = {
         .sType                   = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,

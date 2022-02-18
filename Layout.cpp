@@ -1,11 +1,10 @@
 #include "Layout.h"
-#include "mzVkCommon.h"
 
-#include <memory>
 #include <spirv_cross.hpp>
 
-DescriptorSet::DescriptorSet(DescriptorPool* pool, DescriptorLayout* layout)
-    : Pool(pool), Layout(layout)
+
+DescriptorSet::DescriptorSet(DescriptorPool* pool, u32 Index)
+    : Pool(pool), Layout(pool->Layout->Descriptors[Index].get()), Index(Index)
 {
     VkDescriptorSetAllocateInfo info = {
         .sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
@@ -14,12 +13,17 @@ DescriptorSet::DescriptorSet(DescriptorPool* pool, DescriptorLayout* layout)
         .pSetLayouts        = &Layout->Handle,
     };
 
-    CHECKRE(layout->Vk->AllocateDescriptorSets(&info, &Handle));
+    CHECKRE(Layout->Vk->AllocateDescriptorSets(&info, &Handle));
 }
 
 DescriptorSet::~DescriptorSet()
 {
-    Layout->Vk->FreeDescriptorSets(Pool->Handle, 1, &Handle);
+    Pool->Layout->Vk->FreeDescriptorSets(Pool->Handle, 1, &Handle);
+}
+
+VkDescriptorType DescriptorSet::GetType(u32 Binding)
+{
+    return Layout->Bindings[Binding].descriptorType;
 }
 
 std::vector<VkDescriptorPoolSize> GetPoolSizes(PipelineLayout* Layout)

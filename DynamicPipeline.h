@@ -3,7 +3,7 @@
 
 #include "Layout.h"
 
-struct MZShader : std::enable_shared_from_this<MZShader>
+struct MZShader : std::enable_shared_from_this<MZShader>, Uncopyable
 {
     VulkanDevice*      Vk;
     VkShaderModule     Module;
@@ -42,16 +42,21 @@ struct VertexShader : MZShader
     {
         VkPipelineVertexInputStateCreateInfo InputLayout = {
             .sType                           = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-            .vertexBindingDescriptionCount   = 1,
-            .pVertexBindingDescriptions      = &Binding,
             .vertexAttributeDescriptionCount = (u32)Attributes.size(),
             .pVertexAttributeDescriptions    = Attributes.data(),
         };
+
+        if (!Attributes.empty())
+        {
+            InputLayout.vertexBindingDescriptionCount = 1;
+            InputLayout.pVertexBindingDescriptions    = &Binding;
+        }
+
         return InputLayout;
     }
 };
 
-struct DynamicPipeline : std::enable_shared_from_this<DynamicPipeline>
+struct DynamicPipeline : std::enable_shared_from_this<DynamicPipeline>, Uncopyable
 {
     VulkanDevice* Vk;
 

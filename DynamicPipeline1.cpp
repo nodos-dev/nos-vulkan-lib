@@ -1,5 +1,6 @@
 
 #include "DynamicPipeline.h"
+#include "vulkan/vulkan_core.h"
 
 #include <spirv_cross.hpp>
 
@@ -103,6 +104,8 @@ GetLayouts(const u32* src, u64 sz)
     ShaderResources resources = cc.get_shader_resources();
     EntryPoint      entry     = cc.get_entry_points_and_stages()[0];
 
+    VkShaderStageFlags stage = VkShaderStageFlagBits(1 << (u32)entry.execution_model);
+
     std::pair<VkDescriptorType, SmallVector<Resource>*> res[] = {
         std::pair{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &resources.sampled_images},
         std::pair{VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, &resources.separate_images},
@@ -119,12 +122,13 @@ GetLayouts(const u32* src, u64 sz)
         for (auto& res : *desc)
         {
             SmallVector<u32> array = cc.get_type(res.type_id).array;
-            u32              set   = cc.get_decoration(res.id, spv::DecorationBinding);
+            u32              set   = cc.get_decoration(res.id, spv::DecorationDescriptorSet);
             Descriptors[set].push_back(
                 VkDescriptorSetLayoutBinding{
-                    .binding         = cc.get_decoration(res.id, spv::DecorationDescriptorSet),
+                    .binding         = cc.get_decoration(res.id, spv::DecorationBinding),
                     .descriptorType  = ty,
                     .descriptorCount = std::accumulate(array.begin(), array.end(), 1u, [](u32 a, u32 b) { return a * b; }),
+                    .stageFlags      = stage,
                 });
         }
     };

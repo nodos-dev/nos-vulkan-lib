@@ -4,6 +4,7 @@
 #include "Device.h"
 #include "mzCommon.h"
 #include "vulkan/vulkan_core.h"
+#include <memory>
 #include <utility>
 
 struct VulkanQueue : VklQueueFunctions
@@ -24,7 +25,8 @@ struct VulkanQueue : VklQueueFunctions
 };
 
 struct CommandBuffer : std::enable_shared_from_this<CommandBuffer>,
-                       VklCommandFunctions
+                       VklCommandFunctions,
+                       Uncopyable
 {
     struct CommandPool* Pool;
 
@@ -35,21 +37,9 @@ struct CommandBuffer : std::enable_shared_from_this<CommandBuffer>,
     {
         return static_cast<VulkanDevice*>(fnptrs);
     }
-
-    template <class F>
-    void Exec(F&& f)
-    {
-        VkCommandBufferBeginInfo beginInfo = {
-            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-            .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-        };
-        Begin(&beginInfo);
-        f(shared_from_this());
-        End();
-    }
 };
 
-struct CommandPool : std::enable_shared_from_this<CommandPool>
+struct CommandPool : std::enable_shared_from_this<CommandPool>, Uncopyable
 {
     VkCommandPool Handle;
 
@@ -92,11 +82,6 @@ struct CommandPool : std::enable_shared_from_this<CommandPool>
         return std::make_shared<CommandBuffer>(this, cmd);
     }
 
-    VkResult Reset()
-    {
-        return GetDevice()->ResetCommandPool(Handle, VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT);
-    }
-
     template <class F>
     void Exec(F&& f)
     {
@@ -107,9 +92,9 @@ struct CommandPool : std::enable_shared_from_this<CommandPool>
             .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
         };
 
-        cmd->Begin(&beginInfo);
+        CHECKRE(cmd->Begin(&beginInfo));
         f(cmd);
-        cmd->End();
+        CHECKRE(cmd->End());
 
         VkSubmitInfo submitInfo = {
             .sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO,
@@ -117,7 +102,7 @@ struct CommandPool : std::enable_shared_from_this<CommandPool>
             .pCommandBuffers    = &cmd->handle,
         };
 
-        Queue.Submit(1, &submitInfo, 0);
-        Queue.WaitIdle();
+        CHECKRE(Queue.Submit(1, &submitInfo, 0));
+        CHECKRE(Queue.WaitIdle());
     }
 };
