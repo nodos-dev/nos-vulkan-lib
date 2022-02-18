@@ -98,5 +98,5 @@ DynamicPipeline::DynamicPipeline(VulkanDevice* Vk, VkExtent2D extent, const u32*
         .layout              = Layout->Handle,
     };
 
-    CHECKRE(Vk->CreateGraphicsPipelines(0, 1, &info, 0, &Handle));
+    MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateGraphicsPipelines(0, 1, &info, 0, &Handle));
 }

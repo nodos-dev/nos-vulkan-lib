@@ -279,7 +279,7 @@ struct VulkanImage : std::enable_shared_from_this<VulkanImage>
             .usage       = Usage,
         };
 
-        CHECKRE(Vk->CreateImage(&info, 0, &Handle));
+        MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateImage(&info, 0, &Handle));
 
         Allocation = allocator->AllocateResourceMemory(Handle);
 
@@ -295,7 +295,7 @@ struct VulkanImage : std::enable_shared_from_this<VulkanImage>
             },
         };
 
-        CHECKRE(Vk->CreateImageView(&viewInfo, 0, &View));
+        MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateImageView(&viewInfo, 0, &View));
 
         VkSamplerCreateInfo samplerInfo = {
             .sType            = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
@@ -313,6 +313,6 @@ struct VulkanImage : std::enable_shared_from_this<VulkanImage>
             .borderColor      = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE,
         };
 
-        CHECKRE(Vk->CreateSampler(&samplerInfo, 0, &Sampler));
+        MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateSampler(&samplerInfo, 0, &Sampler));
     }
 };

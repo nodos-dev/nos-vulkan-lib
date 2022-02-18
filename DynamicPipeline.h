@@ -18,7 +18,7 @@ struct MZShader : std::enable_shared_from_this<MZShader>, Uncopyable
             .pCode    = src,
         };
 
-        CHECKRE(Vk->CreateShaderModule(&info, 0, &Module));
+        MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateShaderModule(&info, 0, &Module));
     }
 
     ~MZShader()

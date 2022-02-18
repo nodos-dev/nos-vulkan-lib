@@ -150,10 +150,10 @@ inline const char* descriptor_type_to_string(VkDescriptorType ty)
     }
 }
 
-#define CHECKRE(expr)                                                                       \
+#define MZ_VULKAN_ASSERT_SUCCESS(expr)                                                      \
     {                                                                                       \
         VkResult re = (expr);                                                               \
-        while (re)                                                                          \
+        while (VK_SUCCESS != re)                                                            \
         {                                                                                   \
             printf("Error: %s %d\n %s:%d\n", vk_result_string(re), re, __FILE__, __LINE__); \
             abort();                                                                        \

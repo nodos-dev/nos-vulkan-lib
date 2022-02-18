@@ -60,7 +60,7 @@ struct DescriptorLayout : std::enable_shared_from_this<DescriptorLayout>
             .pBindings    = Bindings.data(),
         };
 
-        CHECKRE(Vk->CreateDescriptorSetLayout(&info, 0, &Handle));
+        MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateDescriptorSetLayout(&info, 0, &Handle));
     }
 
     ~DescriptorLayout()

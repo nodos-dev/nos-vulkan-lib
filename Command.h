@@ -54,7 +54,7 @@ struct CommandPool : std::enable_shared_from_this<CommandPool>, Uncopyable
             .queueFamilyIndex = family,
         };
 
-        CHECKRE(Vk->CreateCommandPool(&info, 0, &Handle));
+        MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateCommandPool(&info, 0, &Handle));
     }
 
     VulkanDevice* GetDevice()
@@ -78,7 +78,7 @@ struct CommandPool : std::enable_shared_from_this<CommandPool>, Uncopyable
             .commandBufferCount = 1,
         };
 
-        CHECKRE(GetDevice()->AllocateCommandBuffers(&info, &cmd));
+        MZ_VULKAN_ASSERT_SUCCESS(GetDevice()->AllocateCommandBuffers(&info, &cmd));
         return std::make_shared<CommandBuffer>(this, cmd);
     }
 
@@ -92,9 +92,9 @@ struct CommandPool : std::enable_shared_from_this<CommandPool>, Uncopyable
             .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
         };
 
-        CHECKRE(cmd->Begin(&beginInfo));
+        MZ_VULKAN_ASSERT_SUCCESS(cmd->Begin(&beginInfo));
         f(cmd);
-        CHECKRE(cmd->End());
+        MZ_VULKAN_ASSERT_SUCCESS(cmd->End());
 
         VkSubmitInfo submitInfo = {
             .sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO,
@@ -102,7 +102,7 @@ struct CommandPool : std::enable_shared_from_this<CommandPool>, Uncopyable
             .pCommandBuffers    = &cmd->handle,
         };
 
-        CHECKRE(Queue.Submit(1, &submitInfo, 0));
-        CHECKRE(Queue.WaitIdle());
+        MZ_VULKAN_ASSERT_SUCCESS(Queue.Submit(1, &submitInfo, 0));
+        MZ_VULKAN_ASSERT_SUCCESS(Queue.WaitIdle());
     }
 };

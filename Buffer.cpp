@@ -17,7 +17,7 @@ VulkanBuffer::VulkanBuffer(std::shared_ptr<VulkanAllocator> allocator, u64 size,
         .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
     };
 
-    CHECKRE(Vk->CreateBuffer(&info, 0, &Handle));
+    MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateBuffer(&info, 0, &Handle));
 
     Allocation = allocator->AllocateResourceMemory(Handle, map ? &Mapping : 0);
 }

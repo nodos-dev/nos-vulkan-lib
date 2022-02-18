@@ -13,7 +13,7 @@ DescriptorSet::DescriptorSet(DescriptorPool* pool, u32 Index)
         .pSetLayouts        = &Layout->Handle,
     };
 
-    CHECKRE(Layout->Vk->AllocateDescriptorSets(&info, &Handle));
+    MZ_VULKAN_ASSERT_SUCCESS(Layout->Vk->AllocateDescriptorSets(&info, &Handle));
 }
 
 DescriptorSet::~DescriptorSet()
@@ -66,7 +66,7 @@ DescriptorPool::DescriptorPool(PipelineLayout* Layout, std::vector<VkDescriptorP
         .pPoolSizes    = Sizes.data(),
     };
 
-    CHECKRE(Layout->Vk->CreateDescriptorPool(&poolInfo, 0, &Handle));
+    MZ_VULKAN_ASSERT_SUCCESS(Layout->Vk->CreateDescriptorPool(&poolInfo, 0, &Handle));
 }
 
 DescriptorPool::~DescriptorPool()
@@ -100,7 +100,7 @@ PipelineLayout::PipelineLayout(VulkanDevice* Vk, std::map<u32, std::vector<VkDes
         .pSetLayouts    = handles.data(),
     };
 
-    CHECKRE(Vk->CreatePipelineLayout(&layoutInfo, 0, &Handle));
+    MZ_VULKAN_ASSERT_SUCCESS(Vk->CreatePipelineLayout(&layoutInfo, 0, &Handle));
 
     if (!Descriptors.empty())
     {

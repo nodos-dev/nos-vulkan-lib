@@ -10,7 +10,7 @@ CommandBuffer::~CommandBuffer()
 {
     Pool->Queue.WaitIdle();
 
-    CHECKRE(Reset(VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT));
+    MZ_VULKAN_ASSERT_SUCCESS(Reset(VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT));
 
     GetDevice()->FreeCommandBuffers(Pool->Handle, 1, &handle);
 }

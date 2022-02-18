@@ -64,7 +64,7 @@ VulkanDevice::VulkanDevice(VkInstance                      Instance,
         .ppEnabledExtensionNames = extensions.data(),
     };
 
-    CHECKRE(vkCreateDevice(PhysicalDevice, &info, 0, &handle));
+    MZ_VULKAN_ASSERT_SUCCESS(vkCreateDevice(PhysicalDevice, &info, 0, &handle));
     vkl_load_device_functions(handle, this);
 }
 
@@ -81,12 +81,12 @@ VulkanContext::VulkanContext()
     : lib(dynalo::open("vulkan-1.dll"))
 {
 
-    CHECKRE(vkl_init(dynalo::get_function<decltype(vkGetInstanceProcAddr)>((dynalo::native::handle)lib, "vkGetInstanceProcAddr")));
+    MZ_VULKAN_ASSERT_SUCCESS(vkl_init(dynalo::get_function<decltype(vkGetInstanceProcAddr)>((dynalo::native::handle)lib, "vkGetInstanceProcAddr")));
     u32 count;
 
-    // CHECKRE(vkEnumerateInstanceLayerProperties(&count, 0));
+    // MZ_VULKAN_ASSERT_SUCCESS(vkEnumerateInstanceLayerProperties(&count, 0));
     // std::vector<VkLayerProperties> props(count);
-    // CHECKRE(vkEnumerateInstanceLayerProperties(&count, props.data()));
+    // MZ_VULKAN_ASSERT_SUCCESS(vkEnumerateInstanceLayerProperties(&count, props.data()));
 
     // for (auto& prop : props) {
     //   printf("%s\n", prop.layerName);
@@ -113,16 +113,16 @@ VulkanContext::VulkanContext()
         .ppEnabledExtensionNames = extensions.data(),
     };
 
-    CHECKRE(vkCreateInstance(&info, 0, &Instance));
+    MZ_VULKAN_ASSERT_SUCCESS(vkCreateInstance(&info, 0, &Instance));
 
     vkl_load_instance_functions(Instance);
 
-    CHECKRE(vkEnumeratePhysicalDevices(Instance, &count, 0));
+    MZ_VULKAN_ASSERT_SUCCESS(vkEnumeratePhysicalDevices(Instance, &count, 0));
 
     std::vector<VkPhysicalDevice> pdevices(count);
     Devices.reserve(count);
 
-    CHECKRE(vkEnumeratePhysicalDevices(Instance, &count, pdevices.data()));
+    MZ_VULKAN_ASSERT_SUCCESS(vkEnumeratePhysicalDevices(Instance, &count, pdevices.data()));
 
     std::vector<const char*> deviceExtensions = {
         "VK_KHR_swapchain",

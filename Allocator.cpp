@@ -162,7 +162,7 @@ requires(std::is_same_v<Resource, VkBuffer> || std::is_same_v<Resource, VkImage>
     };
 
     VkDeviceMemory mem;
-    CHECKRE(Vk->AllocateMemory(&info, 0, &mem));
+    MZ_VULKAN_ASSERT_SUCCESS(Vk->AllocateMemory(&info, 0, &mem));
 
     auto block = std::make_shared<MemoryBlock>(Vk, mem, actualProps, req.size, handle);
 
@@ -234,7 +234,7 @@ requires(std::is_same_v<Resource, VkBuffer> || std::is_same_v<Resource, VkImage>
         };
 
         VkDeviceMemory mem;
-        CHECKRE(Vk->AllocateMemory(&info, 0, &mem));
+        MZ_VULKAN_ASSERT_SUCCESS(Vk->AllocateMemory(&info, 0, &mem));
 
         auto block = std::make_shared<MemoryBlock>(Vk, mem, actualProps, info.allocationSize);
         allocation = block->Allocate(req.size);

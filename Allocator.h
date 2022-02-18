@@ -67,7 +67,7 @@ struct MemoryBlock : std::enable_shared_from_this<MemoryBlock>, Uncopyable
             };
 
             HANDLE handle;
-            CHECKRE(Block->Vk->GetMemoryWin32HandleKHR(&handleInfo, &handle));
+            MZ_VULKAN_ASSERT_SUCCESS(Block->Vk->GetMemoryWin32HandleKHR(&handleInfo, &handle));
             return handle;
         }
     };
@@ -93,7 +93,7 @@ struct MemoryBlock : std::enable_shared_from_this<MemoryBlock>, Uncopyable
 
         if (props & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
         {
-            CHECKRE(Vk->MapMemory(Memory, 0, VK_WHOLE_SIZE, 0, (void**)&Mapping));
+            MZ_VULKAN_ASSERT_SUCCESS(Vk->MapMemory(Memory, 0, VK_WHOLE_SIZE, 0, (void**)&Mapping));
         }
     }
 
