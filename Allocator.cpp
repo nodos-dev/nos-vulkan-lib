@@ -1,5 +1,4 @@
 #include "Allocator.h"
-#include "vulkan/vulkan_core.h"
 
 VkDeviceSize AlignUp(VkDeviceSize offset, VkDeviceSize alignment)
 {

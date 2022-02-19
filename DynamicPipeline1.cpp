@@ -1,6 +1,5 @@
 
 #include "DynamicPipeline.h"
-#include "vulkan/vulkan_core.h"
 
 #include <spirv_cross.hpp>
 

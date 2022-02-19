@@ -1,9 +1,7 @@
 
 #include "Image.h"
-#include "vulkan/vulkan_core.h"
-#include "vulkan/vulkan_win32.h"
 
-bool IsExportable(VkPhysicalDevice PhysicalDevice, VkFormat Format, VkImageUsageFlags Usage)
+static bool IsExportable(VkPhysicalDevice PhysicalDevice, VkFormat Format, VkImageUsageFlags Usage)
 {
     VkPhysicalDeviceExternalImageFormatInfo externalimageFormatInfo = {
         .sType      = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_IMAGE_FORMAT_INFO,
@@ -101,8 +99,6 @@ VulkanImage::VulkanImage(std::shared_ptr<VulkanAllocator> allocator, ImageCreate
 
     MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateSampler(&samplerInfo, 0, &Sampler));
 }
-
-
 
 VulkanImage::~VulkanImage()
 {

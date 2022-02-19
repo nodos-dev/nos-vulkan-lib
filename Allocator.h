@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Device.h"
-#include "vulkan/vulkan_core.h"
 
 struct MemoryBlock : std::enable_shared_from_this<MemoryBlock>, Uncopyable
 {

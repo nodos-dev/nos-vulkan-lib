@@ -1,11 +1,7 @@
-
 #pragma once
 
 #include "Device.h"
-#include "mzCommon.h"
-#include "vulkan/vulkan_core.h"
-#include <memory>
-#include <utility>
+
 
 struct VulkanQueue : VklQueueFunctions
 {

@@ -1,8 +1,7 @@
 #pragma once
 
 #include "Image.h"
-#include <memory>
-#include <type_traits>
+
 
 template <class Resource>
 requires(std::is_same_v<Resource, VulkanBuffer> || std::is_same_v<Resource, VulkanImage>) struct Binding
