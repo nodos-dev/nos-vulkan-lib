@@ -33,8 +33,13 @@ static bool IsExportable(VkPhysicalDevice PhysicalDevice, VkFormat Format, VkIma
     return extProps.externalMemoryProperties.externalMemoryFeatures & (VK_EXTERNAL_MEMORY_FEATURE_EXPORTABLE_BIT | VK_EXTERNAL_MEMORY_FEATURE_EXPORTABLE_BIT);
 }
 
-VulkanImage::VulkanImage(std::shared_ptr<VulkanAllocator> allocator, ImageCreateInfo const& createInfo, HANDLE externalHandle)
-    : Vk(allocator->Vk),
+VulkanImage::VulkanImage(VulkanDevice* Vk, ImageCreateInfo const& createInfo, HANDLE externalHandle)
+    : VulkanImage(Vk->ImmAllocator.get(), createInfo, externalHandle)
+{
+}
+
+VulkanImage::VulkanImage(VulkanAllocator* Allocator, ImageCreateInfo const& createInfo, HANDLE externalHandle)
+    : Vk(Allocator->Vk),
       Extent(createInfo.Extent),
       FinalLayout(createInfo.FinalLayout),
       Layout(VK_IMAGE_LAYOUT_UNDEFINED),
@@ -64,8 +69,9 @@ VulkanImage::VulkanImage(std::shared_ptr<VulkanAllocator> allocator, ImageCreate
 
     MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateImage(&info, 0, &Handle));
 
-    Allocation = allocator->AllocateResourceMemory(Handle, externalHandle);
-    Allocation.BindResource(Handle);
+    Allocation = Allocator->AllocateResourceMemory(Handle, false, externalHandle);
+
+    Vk->BindImageMemory(Handle, Allocation.Block->Memory, Allocation.Offset);
 
     VkImageViewCreateInfo viewInfo = {
         .sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
@@ -233,11 +239,21 @@ void VulkanImage::Transition(
     Layout = TargetLayout;
 }
 
-void VulkanImage::Upload(std::shared_ptr<VulkanAllocator> allocator, std::shared_ptr<CommandPool> Pool, u8* data, u64 sz)
+void VulkanImage::Upload(u64 sz, u8* data, VulkanAllocator* Allocator, CommandPool* Pool)
 {
     assert(Usage & VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
-    std::shared_ptr<VulkanBuffer> StagingBuffer = std::make_shared<VulkanBuffer>(allocator, sz, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, true);
+    if (0 == Allocator)
+    {
+        Allocator = Vk->ImmAllocator.get();
+    }
+
+    if (0 == Pool)
+    {
+        Pool = Vk->ImmCmdPool.get();
+    }
+
+    std::shared_ptr<VulkanBuffer> StagingBuffer = std::make_shared<VulkanBuffer>(Allocator, sz, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, true);
 
     memcpy(StagingBuffer->Map(), data, sz);
 
@@ -262,11 +278,21 @@ void VulkanImage::Upload(std::shared_ptr<VulkanAllocator> allocator, std::shared
     });
 }
 
-std::shared_ptr<VulkanBuffer> VulkanImage::Download(std::shared_ptr<VulkanAllocator> allocator, std::shared_ptr<CommandPool> Pool)
+std::shared_ptr<VulkanBuffer> VulkanImage::Download(VulkanAllocator* Allocator, CommandPool* Pool)
 {
     assert(Usage & VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
 
-    std::shared_ptr<VulkanBuffer> StagingBuffer = std::make_shared<VulkanBuffer>(allocator, Allocation.Size, VK_BUFFER_USAGE_TRANSFER_DST_BIT, true);
+    if (0 == Allocator)
+    {
+        Allocator = Vk->ImmAllocator.get();
+    }
+
+    if (0 == Pool)
+    {
+        Pool = Vk->ImmCmdPool.get();
+    }
+
+    std::shared_ptr<VulkanBuffer> StagingBuffer = std::make_shared<VulkanBuffer>(Allocator, Allocation.Size, VK_BUFFER_USAGE_TRANSFER_DST_BIT, true);
 
     Pool->Exec([&](std::shared_ptr<CommandBuffer> Cmd) {
         Transition(Cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);

@@ -30,19 +30,6 @@ struct MemoryBlock : std::enable_shared_from_this<MemoryBlock>, Uncopyable
             return Block->Imported;
         }
 
-        template <class Resource>
-        requires(std::is_same_v<Resource, VkBuffer> || std::is_same_v<Resource, VkImage>) void BindResource(Resource resource)
-        {
-            if constexpr (std::is_same_v<Resource, VkBuffer>)
-            {
-                Block->Vk->BindBufferMemory(resource, Block->Memory, Offset);
-            }
-            else
-            {
-                Block->Vk->BindImageMemory(resource, Block->Memory, Offset);
-            }
-        }
-
         u8* Map()
         {
             if (Block->Mapping)
@@ -132,11 +119,5 @@ struct VulkanAllocator : std::enable_shared_from_this<VulkanAllocator>, Uncopyab
     {
     }
 
-    Allocation AllocateResourceMemory(VkBuffer resource, bool map = false, HANDLE externalHandle = 0);
-    Allocation AllocateResourceMemory(VkImage resource, HANDLE externalHandle = 0);
-
-  private:
-    template <class Resource>
-    requires(std::is_same_v<Resource, VkBuffer> || std::is_same_v<Resource, VkImage>)
-        Allocation AllocateResourceMemoryImpl(Resource resource, bool map = false, HANDLE externalHandle = 0);
+    Allocation AllocateResourceMemory(std::variant<VkBuffer, VkImage> resource, bool map = false, HANDLE externalHandle = 0);
 };

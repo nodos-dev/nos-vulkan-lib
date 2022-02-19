@@ -26,6 +26,9 @@ struct VulkanDevice : std::enable_shared_from_this<VulkanDevice>,
     VkInstance       Instance;
     VkPhysicalDevice PhysicalDevice;
 
+    std::shared_ptr<struct VulkanAllocator> ImmAllocator;
+    std::shared_ptr<struct CommandPool>     ImmCmdPool;
+
     u32 QueueFamily;
 
     std::unordered_map<std::string, Global> Globals;
@@ -57,14 +60,13 @@ struct VulkanDevice : std::enable_shared_from_this<VulkanDevice>,
         return data;
     }
 
-    VulkanDevice()                    = delete;
-    VulkanDevice(VulkanDevice const&) = delete;
-
     VulkanDevice(VkInstance                      Instance,
                  VkPhysicalDevice                PhysicalDevice,
                  std::vector<const char*> const& layers,
                  std::vector<const char*> const& extensions);
     ~VulkanDevice();
+
+    template <class F> void Exec(F&&);
 };
 
 struct VulkanContext : std::enable_shared_from_this<VulkanContext>, Uncopyable

@@ -50,9 +50,11 @@ struct VulkanImage : std::enable_shared_from_this<VulkanImage>
 
     void Transition(std::shared_ptr<CommandBuffer> cmd, VkImageLayout TargetLayout);
 
-    void Upload(std::shared_ptr<VulkanAllocator> allocator, std::shared_ptr<CommandPool> Pool, u8* data, u64 sz);
+    void Upload(u64 sz, u8* data, VulkanAllocator* = 0, CommandPool* = 0) ;
 
-    std::shared_ptr<VulkanBuffer> Download(std::shared_ptr<VulkanAllocator> allocator, std::shared_ptr<CommandPool> Pool);
+    std::shared_ptr<VulkanBuffer> Download(VulkanAllocator* = 0, CommandPool* = 0);
 
-    VulkanImage(std::shared_ptr<VulkanAllocator> allocator, ImageCreateInfo const& createInfo, HANDLE OSHandle = 0);
+    VulkanImage(VulkanAllocator* Allocator, ImageCreateInfo const& createInfo, HANDLE OSHandle = 0);
+
+    VulkanImage(VulkanDevice* Vk, ImageCreateInfo const& createInfo, HANDLE OSHandle = 0);
 };

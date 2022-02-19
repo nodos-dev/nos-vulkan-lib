@@ -2,7 +2,6 @@
 
 #include "Device.h"
 
-
 struct VulkanQueue : VklQueueFunctions
 {
     u32 Family;
@@ -102,3 +101,9 @@ struct CommandPool : std::enable_shared_from_this<CommandPool>, Uncopyable
         MZ_VULKAN_ASSERT_SUCCESS(Queue.WaitIdle());
     }
 };
+
+template <class F>
+void VulkanDevice::Exec(F&& f)
+{
+    ImmCmdPool->Exec(f);
+}

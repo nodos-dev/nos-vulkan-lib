@@ -1,7 +1,7 @@
 #include "Buffer.h"
 
-VulkanBuffer::VulkanBuffer(std::shared_ptr<VulkanAllocator> allocator, u64 size, VkBufferUsageFlags usage, bool map)
-    : Vk(allocator->Vk)
+VulkanBuffer::VulkanBuffer(VulkanAllocator* Allocator, u64 size, VkBufferUsageFlags usage, bool map)
+    : Vk(Allocator->Vk)
 {
 
     VkExternalMemoryBufferCreateInfo resourceCreateInfo = {
@@ -18,9 +18,14 @@ VulkanBuffer::VulkanBuffer(std::shared_ptr<VulkanAllocator> allocator, u64 size,
 
     MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateBuffer(&info, 0, &Handle));
 
-    Allocation = allocator->AllocateResourceMemory(Handle, map);
+    Allocation = Allocator->AllocateResourceMemory(Handle, map);
 
-    Allocation.BindResource(Handle);
+    Vk->BindBufferMemory(Handle, Allocation.Block->Memory, Allocation.Offset);
+}
+
+VulkanBuffer::VulkanBuffer(VulkanDevice* Vk, u64 size, VkBufferUsageFlags usage, bool map)
+    : VulkanBuffer(Vk->ImmAllocator.get(), size, usage, map)
+{
 }
 
 void VulkanBuffer::Bind(VkDescriptorType type, u32 bind, VkDescriptorSet set)

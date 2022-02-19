@@ -1,7 +1,11 @@
 
-#include "Device.h"
+
+#include "Allocator.h"
+
+#include "Command.h"
 
 #include "dynalo/dynalo.hpp"
+#include "vulkan/vulkan_core.h"
 
 VulkanDevice::VulkanDevice(VkInstance                      Instance,
                            VkPhysicalDevice                PhysicalDevice,
@@ -66,6 +70,9 @@ VulkanDevice::VulkanDevice(VkInstance                      Instance,
 
     MZ_VULKAN_ASSERT_SUCCESS(vkCreateDevice(PhysicalDevice, &info, 0, &handle));
     vkl_load_device_functions(handle, this);
+
+    ImmAllocator = std::make_shared<VulkanAllocator>(this);
+    ImmCmdPool   = std::make_shared<CommandPool>(this, QueueFamily);
 }
 
 VulkanDevice::~VulkanDevice()
@@ -74,6 +81,9 @@ VulkanDevice::~VulkanDevice()
     {
         glob.Free();
     }
+
+    ImmAllocator.reset();
+    ImmCmdPool.reset();
     DestroyDevice(0);
 }
 

@@ -132,36 +132,24 @@ std::pair<u32, VkMemoryPropertyFlags> MemoryTypeIndex(VkPhysicalDevice physicalD
     return std::make_pair(typeIndex, props.memoryTypes[typeIndex].propertyFlags);
 }
 
-Allocation VulkanAllocator::AllocateResourceMemory(VkBuffer buffer, bool map, HANDLE OSHandle)
-{
-    return AllocateResourceMemoryImpl<VkBuffer>(buffer, map, OSHandle);
-}
-
-Allocation VulkanAllocator::AllocateResourceMemory(VkImage image, HANDLE OSHandle)
-{
-    return AllocateResourceMemoryImpl<VkImage>(image, false, OSHandle);
-}
-
-template <class Resource>
-requires(std::is_same_v<Resource, VkBuffer> || std::is_same_v<Resource, VkImage>)
-    Allocation VulkanAllocator::AllocateResourceMemoryImpl(Resource resource, bool map, HANDLE externalHandle)
+Allocation VulkanAllocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> resource, bool map, HANDLE externalHandle)
 {
     VkMemoryRequirements             req;
     VkPhysicalDeviceMemoryProperties props;
 
     VkMemoryPropertyFlags memProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
-    if constexpr (std::is_same_v<Resource, VkBuffer>)
+    if (std::holds_alternative<VkBuffer>(resource))
     {
         if (map)
         {
             memProps = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
         }
-        Vk->GetBufferMemoryRequirements(resource, &req);
+        Vk->GetBufferMemoryRequirements(std::get<VkBuffer>(resource), &req);
     }
     else
     {
-        Vk->GetImageMemoryRequirements(resource, &req);
+        Vk->GetImageMemoryRequirements(std::get<VkImage>(resource), &req);
     }
 
     auto [typeIndex, actualProps] = MemoryTypeIndex(Vk->PhysicalDevice, req.memoryTypeBits, memProps);
