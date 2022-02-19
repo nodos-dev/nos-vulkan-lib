@@ -1,20 +1,31 @@
 #include "Allocator.h"
+#include "vulkan/vulkan_core.h"
 
-Allocation MemoryBlock::Allocate(u64 size)
+VkDeviceSize AlignUp(VkDeviceSize offset, VkDeviceSize alignment)
 {
-    if (InUse + size > Size)
+    return (offset + alignment - 1) & ~(alignment - 1);
+}
+
+static bool ChunkIsFit(VkDeviceSize offset, VkDeviceSize size, VkDeviceSize reqSize, VkDeviceSize alignment)
+{
+    return (size + offset - AlignUp(offset, alignment)) >= reqSize;
+}
+
+Allocation MemoryBlock::Allocate(VkDeviceSize reqSize, VkDeviceSize alignment)
+{
+    if (InUse + reqSize > Size)
     {
         return Allocation{};
     }
 
-    if (IsImported())
+    if (Imported)
     {
         return Allocation{shared_from_this(), 0, Size};
     }
 
     auto next = FreeList.begin();
 
-    while (next != FreeList.end() && next->second < size)
+    while (next != FreeList.end() && !ChunkIsFit(next->first, next->second, reqSize, alignment))
     {
         next++;
     }
@@ -24,24 +35,36 @@ Allocation MemoryBlock::Allocate(u64 size)
         return Allocation{};
     }
 
-    Chunks[next->first] = size;
+    VkDeviceSize offset = AlignUp(next->first, alignment);
 
-    Allocation chunk(shared_from_this(), next->first, size);
+    VkDeviceSize sizeFromChunkStart = reqSize + offset - next->first;
 
-    if (next->second > size)
+    Chunks[offset] = reqSize;
+
+    Allocation chunk(shared_from_this(), offset, reqSize);
+
+    if (next->second > sizeFromChunkStart)
     {
-        FreeList[next->first + size] = next->second - size;
+        FreeList[offset + reqSize] = next->second - sizeFromChunkStart;
     }
 
-    FreeList.erase(next);
+    if (offset == next->first)
+    {
+        FreeList.erase(next);
+    }
+    else
+    {
+        next->second = offset - next->first;
+    }
 
-    InUse += size;
+    InUse += reqSize;
     return chunk;
 }
 
 void MemoryBlock::Free(Allocation c)
 {
-    if (c.Block.get() != this || IsImported())
+
+    if (c.Block.get() != this || Imported)
     {
         return;
     }
@@ -78,11 +101,11 @@ void MemoryBlock::Free(Allocation c)
     }
 }
 
-std::pair<u32, VkMemoryPropertyFlags> VulkanAllocator::MemoryTypeIndex(u32 memoryTypeBits, VkMemoryPropertyFlags requestedProps)
+std::pair<u32, VkMemoryPropertyFlags> MemoryTypeIndex(VkPhysicalDevice physicalDevice, u32 memoryTypeBits, VkMemoryPropertyFlags requestedProps)
 {
 
     VkPhysicalDeviceMemoryProperties props;
-    vkGetPhysicalDeviceMemoryProperties(Vk->PhysicalDevice, &props);
+    vkGetPhysicalDeviceMemoryProperties(physicalDevice, &props);
 
     u32 typeIndex = 0;
 
@@ -110,70 +133,19 @@ std::pair<u32, VkMemoryPropertyFlags> VulkanAllocator::MemoryTypeIndex(u32 memor
     return std::make_pair(typeIndex, props.memoryTypes[typeIndex].propertyFlags);
 }
 
-Allocation VulkanAllocator::ImportResourceMemory(VkBuffer buf, HANDLE handle)
+Allocation VulkanAllocator::AllocateResourceMemory(VkBuffer buffer, bool map, HANDLE OSHandle)
 {
-    return ImportResourceMemoryImpl<VkBuffer>(buf, handle);
+    return AllocateResourceMemoryImpl<VkBuffer>(buffer, map, OSHandle);
 }
 
-Allocation VulkanAllocator::ImportResourceMemory(VkImage img, HANDLE handle)
+Allocation VulkanAllocator::AllocateResourceMemory(VkImage image, HANDLE OSHandle)
 {
-    return ImportResourceMemoryImpl<VkImage>(img, handle);
-}
-
-Allocation VulkanAllocator::AllocateResourceMemory(VkBuffer buf, u8** mapping)
-{
-    return AllocateResourceMemoryImpl<VkBuffer>(buf, mapping);
-}
-
-Allocation VulkanAllocator::AllocateResourceMemory(VkImage img, u8** mapping)
-{
-    return AllocateResourceMemoryImpl<VkImage>(img, mapping);
+    return AllocateResourceMemoryImpl<VkImage>(image, false, OSHandle);
 }
 
 template <class Resource>
 requires(std::is_same_v<Resource, VkBuffer> || std::is_same_v<Resource, VkImage>)
-    Allocation VulkanAllocator::ImportResourceMemoryImpl(Resource resource, HANDLE handle)
-{
-    VkMemoryRequirements             req;
-    VkPhysicalDeviceMemoryProperties props;
-
-    if constexpr (std::is_same_v<Resource, VkBuffer>)
-    {
-        Vk->GetBufferMemoryRequirements(resource, &req);
-    }
-    else
-    {
-        Vk->GetImageMemoryRequirements(resource, &req);
-    }
-
-    auto [typeIndex, actualProps] = MemoryTypeIndex(req.memoryTypeBits, 0);
-
-    VkImportMemoryWin32HandleInfoKHR handleInfo = {
-        .sType      = VK_STRUCTURE_TYPE_EXPORT_MEMORY_WIN32_HANDLE_INFO_KHR,
-        .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT,
-        .handle     = handle,
-    };
-
-    VkMemoryAllocateInfo info = {
-        .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-        .pNext           = &handleInfo,
-        .allocationSize  = req.size,
-        .memoryTypeIndex = typeIndex,
-    };
-
-    VkDeviceMemory mem;
-    MZ_VULKAN_ASSERT_SUCCESS(Vk->AllocateMemory(&info, 0, &mem));
-
-    auto block = std::make_shared<MemoryBlock>(Vk, mem, actualProps, req.size, handle);
-
-    ImportedAllocations[typeIndex].emplace_back(block);
-
-    return block->Allocate(req.size);
-}
-
-template <class Resource>
-requires(std::is_same_v<Resource, VkBuffer> || std::is_same_v<Resource, VkImage>)
-    Allocation VulkanAllocator::AllocateResourceMemoryImpl(Resource resource, u8** mapping)
+    Allocation VulkanAllocator::AllocateResourceMemoryImpl(Resource resource, bool map, HANDLE externalHandle)
 {
     VkMemoryRequirements             req;
     VkPhysicalDeviceMemoryProperties props;
@@ -182,7 +154,7 @@ requires(std::is_same_v<Resource, VkBuffer> || std::is_same_v<Resource, VkImage>
 
     if constexpr (std::is_same_v<Resource, VkBuffer>)
     {
-        if (mapping)
+        if (map)
         {
             memProps = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
         }
@@ -193,9 +165,29 @@ requires(std::is_same_v<Resource, VkBuffer> || std::is_same_v<Resource, VkImage>
         Vk->GetImageMemoryRequirements(resource, &req);
     }
 
-    auto [typeIndex, actualProps] = MemoryTypeIndex(req.memoryTypeBits, memProps);
+    auto [typeIndex, actualProps] = MemoryTypeIndex(Vk->PhysicalDevice, req.memoryTypeBits, memProps);
 
     Allocation allocation = {};
+
+    if (externalHandle)
+    {
+        VkImportMemoryWin32HandleInfoKHR importInfo = {
+            .sType      = VK_STRUCTURE_TYPE_IMPORT_MEMORY_WIN32_HANDLE_INFO_KHR,
+            .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT,
+            .handle     = externalHandle,
+        };
+
+        VkMemoryAllocateInfo info = {
+            .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+            .pNext           = &importInfo,
+            .allocationSize  = req.size,
+            .memoryTypeIndex = typeIndex,
+        };
+
+        VkDeviceMemory mem;
+        MZ_VULKAN_ASSERT_SUCCESS(Vk->AllocateMemory(&info, 0, &mem));
+        return std::make_shared<MemoryBlock>(Vk, mem, actualProps, info.allocationSize, externalHandle)->Allocate(req.size, req.alignment);
+    }
 
     if (auto it = Allocations.find(typeIndex); it != Allocations.end())
     {
@@ -203,7 +195,7 @@ requires(std::is_same_v<Resource, VkBuffer> || std::is_same_v<Resource, VkImage>
 
         for (auto& block : blocks)
         {
-            if ((allocation = block->Allocate(req.size)).IsValid())
+            if ((allocation = block->Allocate(req.size, req.alignment)).IsValid())
             {
                 break;
             }
@@ -215,6 +207,7 @@ requires(std::is_same_v<Resource, VkBuffer> || std::is_same_v<Resource, VkImage>
 
     if (!allocation.IsValid())
     {
+
         VkExportMemoryWin32HandleInfoKHR handleInfo = {
             .sType    = VK_STRUCTURE_TYPE_EXPORT_MEMORY_WIN32_HANDLE_INFO_KHR,
             .dwAccess = GENERIC_ALL,
@@ -228,7 +221,7 @@ requires(std::is_same_v<Resource, VkBuffer> || std::is_same_v<Resource, VkImage>
 
         VkMemoryAllocateInfo info = {
             .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-            // .pNext           = &exportInfo,
+            .pNext           = &exportInfo,
             .allocationSize  = std::max(req.size, DefaultChunkSize),
             .memoryTypeIndex = typeIndex,
         };
@@ -236,23 +229,9 @@ requires(std::is_same_v<Resource, VkBuffer> || std::is_same_v<Resource, VkImage>
         VkDeviceMemory mem;
         MZ_VULKAN_ASSERT_SUCCESS(Vk->AllocateMemory(&info, 0, &mem));
 
-        auto block = std::make_shared<MemoryBlock>(Vk, mem, actualProps, info.allocationSize);
-        allocation = block->Allocate(req.size);
+        auto block = std::make_shared<MemoryBlock>(Vk, mem, actualProps, info.allocationSize, externalHandle);
+        allocation = block->Allocate(req.size, req.alignment);
         Allocations[typeIndex].emplace_back(block);
-    }
-
-    if (mapping)
-    {
-        *mapping = allocation.Map();
-    }
-
-    if constexpr (std::is_same_v<Resource, VkBuffer>)
-    {
-        Vk->BindBufferMemory(resource, allocation.Get(), allocation.Offset);
-    }
-    else
-    {
-        Vk->BindImageMemory(resource, allocation.Get(), allocation.Offset);
     }
 
     return allocation;

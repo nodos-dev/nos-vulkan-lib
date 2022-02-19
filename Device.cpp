@@ -102,6 +102,7 @@ VulkanContext::VulkanContext()
     std::vector<const char*> extensions = {
         "VK_KHR_surface",
         "VK_KHR_win32_surface",
+        "VK_KHR_external_memory_capabilities",
     };
 
     VkInstanceCreateInfo info = {
