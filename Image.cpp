@@ -45,11 +45,9 @@ VulkanImage::VulkanImage(VulkanDevice* Vk, ImageCreateInfo const& createInfo)
 VulkanImage::VulkanImage(VulkanAllocator* Allocator, ImageCreateInfo const& createInfo)
     : Vk(Allocator->GetDevice()),
       Extent(createInfo.Extent),
-      FinalLayout(createInfo.FinalLayout),
       Layout(VK_IMAGE_LAYOUT_UNDEFINED),
       Format(createInfo.Format),
       Usage(createInfo.Usage),
-      MipLevels(createInfo.MipLevels),
       Sync(createInfo.Ext.sync)
 {
 
@@ -72,14 +70,6 @@ VulkanImage::VulkanImage(VulkanAllocator* Allocator, ImageCreateInfo const& crea
         };
 
         MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateSemaphore(&createInfo, 0, &Sema));
-
-        VkSemaphoreGetWin32HandleInfoKHR getHandleInfo = {
-            .sType      = VK_STRUCTURE_TYPE_SEMAPHORE_GET_WIN32_HANDLE_INFO_KHR,
-            .semaphore  = Sema,
-            .handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT,
-        };
-
-        MZ_VULKAN_ASSERT_SUCCESS(Vk->GetSemaphoreWin32HandleKHR(&getHandleInfo, &Sync));
     }
     else
     {
@@ -99,6 +89,14 @@ VulkanImage::VulkanImage(VulkanAllocator* Allocator, ImageCreateInfo const& crea
         MZ_VULKAN_ASSERT_SUCCESS(Vk->ImportSemaphoreWin32HandleKHR(&importInfo));
     }
 
+    VkSemaphoreGetWin32HandleInfoKHR getHandleInfo = {
+        .sType      = VK_STRUCTURE_TYPE_SEMAPHORE_GET_WIN32_HANDLE_INFO_KHR,
+        .semaphore  = Sema,
+        .handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT,
+    };
+
+    MZ_VULKAN_ASSERT_SUCCESS(Vk->GetSemaphoreWin32HandleKHR(&getHandleInfo, &Sync));
+
     VkExternalMemoryImageCreateInfo resourceCreateInfo = {
         .sType       = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
         .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT,
@@ -110,7 +108,7 @@ VulkanImage::VulkanImage(VulkanAllocator* Allocator, ImageCreateInfo const& crea
         .imageType   = VK_IMAGE_TYPE_2D,
         .format      = Format,
         .extent      = {Extent.width, Extent.height, 1},
-        .mipLevels   = MipLevels,
+        .mipLevels   = 1,
         .arrayLayers = 1,
         .samples     = VK_SAMPLE_COUNT_1_BIT,
         .tiling      = VK_IMAGE_TILING_OPTIMAL,
@@ -130,7 +128,7 @@ VulkanImage::VulkanImage(VulkanAllocator* Allocator, ImageCreateInfo const& crea
         .format           = Format,
         .subresourceRange = {
             .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-            .levelCount = MipLevels,
+            .levelCount = 1,
             .layerCount = 1,
         },
     };
@@ -149,7 +147,7 @@ VulkanImage::VulkanImage(VulkanAllocator* Allocator, ImageCreateInfo const& crea
         .anisotropyEnable = 0,
         .maxAnisotropy    = 16,
         .compareOp        = VK_COMPARE_OP_NEVER,
-        .maxLod           = (f32)MipLevels,
+        .maxLod           = 1.f,
         .borderColor      = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE,
     };
 
@@ -159,19 +157,17 @@ VulkanImage::VulkanImage(VulkanAllocator* Allocator, ImageCreateInfo const& crea
 VulkanImage::~VulkanImage()
 {
     assert(SUCCEEDED(CloseHandle(Sync)));
-
     Vk->DestroyImage(Handle, 0);
     Vk->DestroyImageView(View, 0);
     Vk->DestroySampler(Sampler, 0);
     Vk->DestroySemaphore(Sema, 0);
-
     Allocation.Free();
 }
 
-void ImageLayoutTransition(VkImage                        Image,
-                           std::shared_ptr<CommandBuffer> Cmd,
-                           VkImageLayout                  CurrentLayout,
-                           VkImageLayout                  TargetLayout)
+std::shared_ptr<CommandBuffer> ImageLayoutTransition(VkImage                        Image,
+                                                     std::shared_ptr<CommandBuffer> Cmd,
+                                                     VkImageLayout                  CurrentLayout,
+                                                     VkImageLayout                  TargetLayout)
 {
 
     // Create an image barrier object
@@ -285,6 +281,21 @@ void ImageLayoutTransition(VkImage                        Image,
 
     // Put barrier inside setup command buffer
     Cmd->PipelineBarrier(VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, 0, 0, 0, 1, &imageMemoryBarrier);
+
+    return Cmd;
+}
+
+void VulkanImage::Transition(VkImageLayout TargetLayout)
+{
+
+    if (Layout == TargetLayout)
+    {
+        return;
+    }
+
+    ImageLayoutTransition(Handle, Vk->ImmCmdPool->BeginCmd(), Layout, TargetLayout)->Submit();
+
+    Layout = TargetLayout;
 }
 
 void VulkanImage::Transition(
@@ -320,14 +331,7 @@ void VulkanImage::Upload(u64 sz, u8* data, VulkanAllocator* Allocator, CommandPo
 
     memcpy(StagingBuffer->Map(), data, sz);
 
-    std::shared_ptr<CommandBuffer> Cmd = Pool->AllocCommandBuffer();
-
-    VkCommandBufferBeginInfo beginInfo = {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-    };
-
-    MZ_VULKAN_ASSERT_SUCCESS(Cmd->Begin(&beginInfo));
+    std::shared_ptr<CommandBuffer> Cmd = Pool->BeginCmd();
 
     {
         Transition(Cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
@@ -345,25 +349,10 @@ void VulkanImage::Upload(u64 sz, u8* data, VulkanAllocator* Allocator, CommandPo
         };
 
         Cmd->CopyBufferToImage(StagingBuffer->Handle, Handle, Layout, 1, &region);
-
-        Transition(Cmd, FinalLayout);
     }
 
-    MZ_VULKAN_ASSERT_SUCCESS(Cmd->End());
-
-    VkSubmitInfo submitInfo = {
-        .sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-        .waitSemaphoreCount   = 1,
-        .pWaitSemaphores      = &Sema,
-        .commandBufferCount   = 1,
-        .pCommandBuffers      = &Cmd->handle,
-        .signalSemaphoreCount = 1,
-        .pSignalSemaphores    = &Sema,
-    };
-
-    VkPipelineStageFlags stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-
-    Cmd->Submit(1, &Sema, &stage, 1, &Sema);
+    Cmd->Submit(shared_from_this(), VK_PIPELINE_STAGE_TRANSFER_BIT);
+    Cmd->Wait();
 
 } // namespace mz
 
@@ -383,14 +372,7 @@ std::shared_ptr<VulkanBuffer> VulkanImage::Download(VulkanAllocator* Allocator, 
 
     std::shared_ptr<VulkanBuffer> StagingBuffer = std::make_shared<VulkanBuffer>(Allocator, Allocation.Size, VK_BUFFER_USAGE_TRANSFER_DST_BIT, true);
 
-    std::shared_ptr<CommandBuffer> Cmd = Pool->AllocCommandBuffer();
-
-    VkCommandBufferBeginInfo beginInfo = {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-    };
-
-    MZ_VULKAN_ASSERT_SUCCESS(Cmd->Begin(&beginInfo));
+    std::shared_ptr<CommandBuffer> Cmd = Pool->BeginCmd();
 
     {
         Transition(Cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
@@ -408,25 +390,12 @@ std::shared_ptr<VulkanBuffer> VulkanImage::Download(VulkanAllocator* Allocator, 
         };
 
         Cmd->CopyImageToBuffer(Handle, Layout, StagingBuffer->Handle, 1, &region);
-
-        Transition(Cmd, FinalLayout);
     }
-
-    MZ_VULKAN_ASSERT_SUCCESS(Cmd->End());
-
-    VkSubmitInfo submitInfo = {
-        .sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-        .waitSemaphoreCount   = 1,
-        .pWaitSemaphores      = &Sema,
-        .commandBufferCount   = 1,
-        .pCommandBuffers      = &Cmd->handle,
-        .signalSemaphoreCount = 1,
-        .pSignalSemaphores    = &Sema,
-    };
 
     VkPipelineStageFlags stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
 
-    Cmd->Submit(1, &Sema, &stage, 1, &Sema);
+    Cmd->Submit(shared_from_this(), VK_PIPELINE_STAGE_TRANSFER_BIT);
+    Cmd->Wait();
 
     return StagingBuffer;
 }

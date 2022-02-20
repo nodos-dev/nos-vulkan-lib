@@ -8,14 +8,13 @@ namespace mz
 
 struct ExtHandle
 {
-    HANDLE memory;
     HANDLE sync;
+    HANDLE memory;
 };
 
 struct ImageCreateInfo
 {
     VkExtent2D        Extent;
-    VkImageLayout     FinalLayout;
     VkFormat          Format;
     VkImageUsageFlags Usage;
     u32               MipLevels;

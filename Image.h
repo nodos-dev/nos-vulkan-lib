@@ -9,10 +9,10 @@
 namespace mz
 {
 
-void ImageLayoutTransition(VkImage                        Image,
-                           std::shared_ptr<CommandBuffer> Cmd,
-                           VkImageLayout                  CurrentLayout,
-                           VkImageLayout                  TargetLayout);
+std::shared_ptr<CommandBuffer> ImageLayoutTransition(VkImage                        Image,
+                                                     std::shared_ptr<CommandBuffer> Cmd,
+                                                     VkImageLayout                  CurrentLayout,
+                                                     VkImageLayout                  TargetLayout);
 
 struct VulkanImage : std::enable_shared_from_this<VulkanImage>
 {
@@ -24,9 +24,6 @@ struct VulkanImage : std::enable_shared_from_this<VulkanImage>
     VkExtent2D        Extent;
     VkFormat          Format;
     VkImageUsageFlags Usage;
-    u32               MipLevels;
-
-    VkImageLayout FinalLayout;
 
     VkSampler     Sampler;
     VkImageView   View;
@@ -34,11 +31,10 @@ struct VulkanImage : std::enable_shared_from_this<VulkanImage>
 
     HANDLE      Sync;
     VkSemaphore Sema;
-    VkFence     Fence;
 
     ExtHandle GetOSHandle()
     {
-        return {Allocation.GetOSHandle(), Sync};
+        return {Sync, Allocation.GetOSHandle()};
     }
 
     DescriptorResourceInfo GetDescriptorInfo() const
@@ -54,6 +50,7 @@ struct VulkanImage : std::enable_shared_from_this<VulkanImage>
     ~VulkanImage();
 
     void Transition(std::shared_ptr<CommandBuffer> cmd, VkImageLayout TargetLayout);
+    void Transition(VkImageLayout TargetLayout);
 
     void Upload(u64 sz, u8* data, VulkanAllocator* = 0, CommandPool* = 0);
 

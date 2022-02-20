@@ -74,7 +74,7 @@ struct MemoryBlock : std::enable_shared_from_this<MemoryBlock>, Uncopyable
     std::map<VkDeviceSize, VkDeviceSize> FreeList;
 
     MemoryBlock(VulkanDevice* Vk, VkDeviceMemory mem, VkMemoryPropertyFlags props, u64 size, HANDLE externalHandle)
-        : Vk(Vk), Memory(mem), Props(props), Size(size), InUse(0), OSHandle(externalHandle), Mapping(0), Imported(externalHandle != 0)
+        : Vk(Vk), Memory(mem), Props(props), Size(size), InUse(0), Mapping(0), Imported(externalHandle != 0)
     {
         FreeList[0] = size;
 
@@ -83,16 +83,13 @@ struct MemoryBlock : std::enable_shared_from_this<MemoryBlock>, Uncopyable
             MZ_VULKAN_ASSERT_SUCCESS(Vk->MapMemory(Memory, 0, VK_WHOLE_SIZE, 0, (void**)&Mapping));
         }
 
-        if (!Imported)
-        {
-            VkMemoryGetWin32HandleInfoKHR handleInfo = {
-                .sType      = VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR,
-                .memory     = Memory,
-                .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT,
-            };
+        VkMemoryGetWin32HandleInfoKHR handleInfo = {
+            .sType      = VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR,
+            .memory     = Memory,
+            .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT,
+        };
 
-            MZ_VULKAN_ASSERT_SUCCESS(Vk->GetMemoryWin32HandleKHR(&handleInfo, &OSHandle));
-        }
+        MZ_VULKAN_ASSERT_SUCCESS(Vk->GetMemoryWin32HandleKHR(&handleInfo, &OSHandle));
     }
 
     ~MemoryBlock()
@@ -113,7 +110,7 @@ std::pair<u32, VkMemoryPropertyFlags> MemoryTypeIndex(VkPhysicalDevice physicalD
 struct VulkanAllocator : std::enable_shared_from_this<VulkanAllocator>, Uncopyable
 {
     static constexpr u64 DefaultChunkSize = 256 * 1024 * 1024;
-    
+
     VulkanDevice* Vk;
 
     std::map<u32, std::vector<std::shared_ptr<MemoryBlock>>> Allocations;

@@ -36,6 +36,8 @@ void CommandBuffer::Submit(
     uint32_t                    signalSemaphoreCount,
     const VkSemaphore*          pSignalSemaphores)
 {
+    MZ_VULKAN_ASSERT_SUCCESS(End());
+
     VkSubmitInfo submitInfo = {
         .sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,
         .waitSemaphoreCount   = waitSemaphoreCount,
@@ -52,6 +54,7 @@ void CommandBuffer::Submit(
 
 void CommandBuffer::Submit(std::shared_ptr<VulkanImage> image, VkPipelineStageFlags stage)
 {
+
     Submit(1, &image->Sema, &stage, 1, &image->Sema);
 }
 

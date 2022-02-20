@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Device.h"
+#include "mzVkCommon.h"
 
 namespace mz
 {
@@ -85,6 +86,11 @@ struct CommandBuffer : std::enable_shared_from_this<CommandBuffer>,
         return VK_SUCCESS == GetDevice()->GetFenceStatus(Fence);
     }
 
+    void Wait()
+    {
+        MZ_VULKAN_ASSERT_SUCCESS(GetDevice()->WaitForFences(1, &Fence, 0, -1));
+    }
+
     CommandBuffer(CommandPool* Pool, VkCommandBuffer Handle);
 
     ~CommandBuffer();
@@ -163,6 +169,20 @@ struct CommandPool : std::enable_shared_from_this<CommandPool>, Uncopyable
 
         GetDevice()->ResetFences(1, &cmd->Fence);
         return cmd;
+    }
+
+    std::shared_ptr<CommandBuffer> BeginCmd(VkCommandBufferLevel level = VK_COMMAND_BUFFER_LEVEL_PRIMARY)
+    {
+        std::shared_ptr<CommandBuffer> Cmd = AllocCommandBuffer(level);
+
+        VkCommandBufferBeginInfo beginInfo = {
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+            .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+        };
+
+        MZ_VULKAN_ASSERT_SUCCESS(Cmd->Begin(&beginInfo));
+
+        return Cmd;
     }
 
     // template <class F>

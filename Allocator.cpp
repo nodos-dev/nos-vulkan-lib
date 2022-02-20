@@ -1,7 +1,6 @@
 #include "Allocator.h"
 #include "Device.h"
 
-
 static VkDeviceSize AlignUp(VkDeviceSize offset, VkDeviceSize alignment)
 {
     return (offset + alignment - 1) & ~(alignment - 1);
@@ -248,8 +247,8 @@ Allocation VulkanAllocator::AllocateResourceMemory(std::variant<VkBuffer, VkImag
         };
 
         VkExportMemoryAllocateInfo exportInfo = {
-            .sType = VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO,
-            .pNext = &handleInfo,
+            .sType       = VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO,
+            .pNext       = &handleInfo,
             .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT,
         };
 
