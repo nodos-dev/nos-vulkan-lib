@@ -53,17 +53,10 @@ VulkanImage::VulkanImage(VulkanAllocator* Allocator, ImageCreateInfo const& crea
       Sync(createInfo.Ext.sync)
 {
 
-    VkSemaphoreTypeCreateInfo timelineCreateInfo = {
-        .sType         = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
-        .semaphoreType = VK_SEMAPHORE_TYPE_BINARY,
-        .initialValue  = 0,
-    };
-
     if (!Sync)
     {
         VkExportSemaphoreWin32HandleInfoKHR handleInfo = {
             .sType    = VK_STRUCTURE_TYPE_EXPORT_SEMAPHORE_WIN32_HANDLE_INFO_KHR,
-            .pNext    = &timelineCreateInfo,
             .dwAccess = GENERIC_ALL,
         };
 
@@ -90,12 +83,8 @@ VulkanImage::VulkanImage(VulkanAllocator* Allocator, ImageCreateInfo const& crea
     }
     else
     {
-
-        WaitForSingleObject(Sync, -1);
-
         VkSemaphoreCreateInfo createInfo = {
             .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-            .pNext = &timelineCreateInfo,
         };
 
         MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateSemaphore(&createInfo, 0, &Sema));
@@ -112,7 +101,7 @@ VulkanImage::VulkanImage(VulkanAllocator* Allocator, ImageCreateInfo const& crea
 
     VkExternalMemoryImageCreateInfo resourceCreateInfo = {
         .sType       = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
-        .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_HEAP_BIT,
+        .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT,
     };
 
     VkImageCreateInfo info = {

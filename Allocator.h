@@ -3,7 +3,6 @@
 #include "Device.h"
 
 #include "InfoStructs.h"
-#include "NativeAPI.h"
 
 namespace mz
 {
@@ -114,8 +113,8 @@ std::pair<u32, VkMemoryPropertyFlags> MemoryTypeIndex(VkPhysicalDevice physicalD
 struct VulkanAllocator : std::enable_shared_from_this<VulkanAllocator>, Uncopyable
 {
     static constexpr u64 DefaultChunkSize = 256 * 1024 * 1024;
-
-    std::shared_ptr<NativeAPI> API;
+    
+    VulkanDevice* Vk;
 
     std::map<u32, std::vector<std::shared_ptr<MemoryBlock>>> Allocations;
 
@@ -123,7 +122,7 @@ struct VulkanAllocator : std::enable_shared_from_this<VulkanAllocator>, Uncopyab
 
     VulkanDevice* GetDevice()
     {
-        return API->Vk;
+        return Vk;
     }
 
     Allocation AllocateResourceMemory(std::variant<VkBuffer, VkImage> resource, bool map = false, HANDLE = 0);

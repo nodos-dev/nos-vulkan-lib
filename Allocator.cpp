@@ -1,8 +1,6 @@
 #include "Allocator.h"
 #include "Device.h"
 
-#include "NativeAPI.h"
-#include "NativeAPID3D12.h"
 
 static VkDeviceSize AlignUp(VkDeviceSize offset, VkDeviceSize alignment)
 {
@@ -164,7 +162,7 @@ std::pair<u32, VkMemoryPropertyFlags> MemoryTypeIndex(VkPhysicalDevice physicalD
 }
 
 VulkanAllocator::VulkanAllocator(VulkanDevice* Vk)
-    : API(std::make_shared<NativeAPID3D12>(Vk))
+    : Vk(Vk)
 {
 }
 
@@ -181,14 +179,14 @@ Allocation VulkanAllocator::AllocateResourceMemory(std::variant<VkBuffer, VkImag
         {
             memProps = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
         }
-        API->Vk->GetBufferMemoryRequirements(std::get<VkBuffer>(resource), &req);
+        Vk->GetBufferMemoryRequirements(std::get<VkBuffer>(resource), &req);
     }
     else
     {
-        API->Vk->GetImageMemoryRequirements(std::get<VkImage>(resource), &req);
+        Vk->GetImageMemoryRequirements(std::get<VkImage>(resource), &req);
     }
 
-    auto [typeIndex, actualProps] = MemoryTypeIndex(API->Vk->PhysicalDevice, req.memoryTypeBits, memProps);
+    auto [typeIndex, actualProps] = MemoryTypeIndex(Vk->PhysicalDevice, req.memoryTypeBits, memProps);
 
     Allocation allocation = {};
 
@@ -199,13 +197,13 @@ Allocation VulkanAllocator::AllocateResourceMemory(std::variant<VkBuffer, VkImag
             .sType = VK_STRUCTURE_TYPE_MEMORY_WIN32_HANDLE_PROPERTIES_KHR,
         };
 
-        MZ_VULKAN_ASSERT_SUCCESS(API->Vk->GetMemoryWin32HandlePropertiesKHR(VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_HEAP_BIT, externalHandle, &handleProps));
+        MZ_VULKAN_ASSERT_SUCCESS(Vk->GetMemoryWin32HandlePropertiesKHR(VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_HEAP_BIT, externalHandle, &handleProps));
 
         // assert(actualProps == handleProps.memoryTypeBits);
 
         VkImportMemoryWin32HandleInfoKHR importInfo = {
             .sType      = VK_STRUCTURE_TYPE_IMPORT_MEMORY_WIN32_HANDLE_INFO_KHR,
-            .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_HEAP_BIT,
+            .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT,
             .handle     = externalHandle,
         };
 
@@ -217,8 +215,8 @@ Allocation VulkanAllocator::AllocateResourceMemory(std::variant<VkBuffer, VkImag
         };
 
         VkDeviceMemory mem;
-        MZ_VULKAN_ASSERT_SUCCESS(API->Vk->AllocateMemory(&info, 0, &mem));
-        return std::make_shared<MemoryBlock>(API->Vk, mem, actualProps, info.allocationSize, externalHandle)->Allocate(req.size, req.alignment);
+        MZ_VULKAN_ASSERT_SUCCESS(Vk->AllocateMemory(&info, 0, &mem));
+        return std::make_shared<MemoryBlock>(Vk, mem, actualProps, info.allocationSize, externalHandle)->Allocate(req.size, req.alignment);
     }
 
     if (auto it = Allocations.find(typeIndex); it != Allocations.end())
@@ -244,55 +242,27 @@ Allocation VulkanAllocator::AllocateResourceMemory(std::variant<VkBuffer, VkImag
 
         u64 size = std::max(req.size, DefaultChunkSize);
 
-        if (actualProps & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
-        {
-            VkExportMemoryWin32HandleInfoKHR handleInfo = {
-                .sType    = VK_STRUCTURE_TYPE_EXPORT_MEMORY_WIN32_HANDLE_INFO_KHR,
-                .dwAccess = GENERIC_ALL,
-            };
+        VkExportMemoryWin32HandleInfoKHR handleInfo = {
+            .sType    = VK_STRUCTURE_TYPE_EXPORT_MEMORY_WIN32_HANDLE_INFO_KHR,
+            .dwAccess = GENERIC_ALL,
+        };
 
-            VkExportMemoryAllocateInfo exportInfo = {
-                .sType = VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO,
-                .pNext = &handleInfo,
-                .handleTypes =
-                    VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT |
-                    VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT |
-                    VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_BIT |
-                    VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_KMT_BIT |
-                    VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_HEAP_BIT |
-                    VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT,
-            };
+        VkExportMemoryAllocateInfo exportInfo = {
+            .sType = VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO,
+            .pNext = &handleInfo,
+            .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT,
+        };
 
-            VkMemoryAllocateInfo info = {
-                .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-                .pNext           = &exportInfo,
-                .allocationSize  = size,
-                .memoryTypeIndex = typeIndex,
-            };
+        VkMemoryAllocateInfo info = {
+            .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+            .pNext           = &exportInfo,
+            .allocationSize  = size,
+            .memoryTypeIndex = typeIndex,
+        };
 
-            MZ_VULKAN_ASSERT_SUCCESS(API->Vk->AllocateMemory(&info, 0, &mem));
-        }
-        else
-        {
-            externalHandle = API->CreateSharedMemory(size);
+        MZ_VULKAN_ASSERT_SUCCESS(Vk->AllocateMemory(&info, 0, &mem));
 
-            VkImportMemoryWin32HandleInfoKHR importInfo = {
-                .sType      = VK_STRUCTURE_TYPE_IMPORT_MEMORY_WIN32_HANDLE_INFO_KHR,
-                .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_HEAP_BIT,
-                .handle     = externalHandle,
-            };
-
-            VkMemoryAllocateInfo info = {
-                .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-                .pNext           = &importInfo,
-                .allocationSize  = size,
-                .memoryTypeIndex = typeIndex,
-            };
-
-            MZ_VULKAN_ASSERT_SUCCESS(API->Vk->AllocateMemory(&info, 0, &mem));
-        }
-
-        auto block = std::make_shared<MemoryBlock>(API->Vk, mem, actualProps, size, externalHandle);
+        auto block = std::make_shared<MemoryBlock>(Vk, mem, actualProps, size, externalHandle);
         allocation = block->Allocate(req.size, req.alignment);
         Allocations[typeIndex].emplace_back(block);
     }
