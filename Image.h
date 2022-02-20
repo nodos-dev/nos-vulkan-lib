@@ -1,17 +1,18 @@
 #pragma once
 
+#include "InfoStructs.h"
+
 #include "Buffer.h"
 
 #include "Command.h"
 
-struct ImageCreateInfo
+namespace mz
 {
-    VkExtent2D        Extent;
-    VkImageLayout     FinalLayout;
-    VkFormat          Format;
-    VkImageUsageFlags Usage;
-    u32               MipLevels;
-};
+
+void ImageLayoutTransition(VkImage                        Image,
+                           std::shared_ptr<CommandBuffer> Cmd,
+                           VkImageLayout                  CurrentLayout,
+                           VkImageLayout                  TargetLayout);
 
 struct VulkanImage : std::enable_shared_from_this<VulkanImage>
 {
@@ -31,9 +32,12 @@ struct VulkanImage : std::enable_shared_from_this<VulkanImage>
     VkImageView   View;
     VkImageLayout Layout;
 
-    HANDLE GetOSHandle()
+    HANDLE      Sync;
+    VkSemaphore Sema;
+
+    ExtHandle GetOSHandle()
     {
-        return Allocation.GetOSHandle();
+        return {Allocation.GetOSHandle(), Sync};
     }
 
     DescriptorResourceInfo GetDescriptorInfo() const
@@ -50,11 +54,12 @@ struct VulkanImage : std::enable_shared_from_this<VulkanImage>
 
     void Transition(std::shared_ptr<CommandBuffer> cmd, VkImageLayout TargetLayout);
 
-    void Upload(u64 sz, u8* data, VulkanAllocator* = 0, CommandPool* = 0) ;
+    void Upload(u64 sz, u8* data, VulkanAllocator* = 0, CommandPool* = 0);
 
     std::shared_ptr<VulkanBuffer> Download(VulkanAllocator* = 0, CommandPool* = 0);
 
-    VulkanImage(VulkanAllocator* Allocator, ImageCreateInfo const& createInfo, HANDLE OSHandle = 0);
+    VulkanImage(VulkanAllocator*, ImageCreateInfo const&);
 
-    VulkanImage(VulkanDevice* Vk, ImageCreateInfo const& createInfo, HANDLE OSHandle = 0);
+    VulkanImage(VulkanDevice*, ImageCreateInfo const&);
 };
+}; // namespace mz

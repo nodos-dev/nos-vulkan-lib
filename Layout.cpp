@@ -2,7 +2,8 @@
 
 #include <spirv_cross.hpp>
 
-
+namespace mz
+{
 DescriptorSet::DescriptorSet(DescriptorPool* pool, u32 Index)
     : Pool(pool), Layout(pool->Layout->Descriptors[Index].get()), Index(Index)
 {
@@ -94,10 +95,18 @@ PipelineLayout::PipelineLayout(VulkanDevice* Vk, std::map<u32, std::vector<VkDes
         Descriptors[set] = layout;
     }
 
+    VkPushConstantRange pushConstantRange = {
+        .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+        .offset     = 0,
+        .size       = 256,
+    };
+
     VkPipelineLayoutCreateInfo layoutInfo = {
-        .sType          = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-        .setLayoutCount = (u32)handles.size(),
-        .pSetLayouts    = handles.data(),
+        .sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+        .setLayoutCount         = (u32)handles.size(),
+        .pSetLayouts            = handles.data(),
+        .pushConstantRangeCount = 1,
+        .pPushConstantRanges    = &pushConstantRange,
     };
 
     MZ_VULKAN_ASSERT_SUCCESS(Vk->CreatePipelineLayout(&layoutInfo, 0, &Handle));
@@ -119,3 +128,4 @@ void PipelineLayout::Dump()
         }
     }
 }
+} // namespace mz

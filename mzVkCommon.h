@@ -20,6 +20,12 @@ struct i32x2
 {
     i32 x, y;
 };
+
+struct u64x2
+{
+    u64 x, y;
+};
+
 struct f32x4
 {
     f32 x, y, z, w;

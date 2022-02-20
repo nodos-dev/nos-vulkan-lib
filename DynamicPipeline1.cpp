@@ -3,9 +3,6 @@
 
 #include <spirv_cross.hpp>
 
-#ifndef MZ_SHADER_PATH
-#define MZ_SHADER_PATH "Shaders"
-#endif
 
 std::pair<VkFormat, u32> TypeAttributes(spirv_cross::SPIRType ty)
 {

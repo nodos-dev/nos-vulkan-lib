@@ -2,6 +2,8 @@
 
 #include "Image.h"
 
+namespace mz
+{
 
 template <class Resource>
 requires(std::is_same_v<Resource, VulkanBuffer> || std::is_same_v<Resource, VulkanImage>) struct Binding
@@ -133,3 +135,4 @@ struct PipelineLayout : std::enable_shared_from_this<PipelineLayout>
     }
     void Dump();
 };
+} // namespace mz

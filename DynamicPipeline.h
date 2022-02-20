@@ -3,6 +3,8 @@
 
 #include "Layout.h"
 
+namespace mz
+{
 struct MZShader : std::enable_shared_from_this<MZShader>, Uncopyable
 {
     VulkanDevice*      Vk;
@@ -72,3 +74,4 @@ struct DynamicPipeline : std::enable_shared_from_this<DynamicPipeline>, Uncopyab
         Vk->DestroyPipeline(Handle, 0);
     }
 };
+} // namespace mz

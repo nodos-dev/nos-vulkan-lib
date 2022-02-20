@@ -2,6 +2,11 @@
 
 #include "Device.h"
 
+#include "InfoStructs.h"
+#include "NativeAPI.h"
+
+namespace mz
+{
 struct MemoryBlock : std::enable_shared_from_this<MemoryBlock>, Uncopyable
 {
     struct Allocation
@@ -110,14 +115,17 @@ struct VulkanAllocator : std::enable_shared_from_this<VulkanAllocator>, Uncopyab
 {
     static constexpr u64 DefaultChunkSize = 256 * 1024 * 1024;
 
-    VulkanDevice* Vk;
+    std::shared_ptr<NativeAPI> API;
 
     std::map<u32, std::vector<std::shared_ptr<MemoryBlock>>> Allocations;
 
-    VulkanAllocator(VulkanDevice* Vk)
-        : Vk(Vk)
+    VulkanAllocator(VulkanDevice* Vk);
+
+    VulkanDevice* GetDevice()
     {
+        return API->Vk;
     }
 
-    Allocation AllocateResourceMemory(std::variant<VkBuffer, VkImage> resource, bool map = false, HANDLE externalHandle = 0);
+    Allocation AllocateResourceMemory(std::variant<VkBuffer, VkImage> resource, bool map = false, HANDLE = 0);
 };
+} // namespace mz

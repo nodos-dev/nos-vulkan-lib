@@ -2,6 +2,8 @@
 
 #include "mzVkCommon.h"
 
+namespace mz
+{
 struct VulkanDevice : std::enable_shared_from_this<VulkanDevice>,
                       VklDeviceFunctions,
                       Uncopyable
@@ -66,8 +68,27 @@ struct VulkanDevice : std::enable_shared_from_this<VulkanDevice>,
                  std::vector<const char*> const& extensions);
     ~VulkanDevice();
 
-    template <class F> void Exec(F&&);
-};
+    u64 GetLuid()
+    {
+        VkPhysicalDeviceIDProperties IDProps = {
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES,
+        };
+
+        VkPhysicalDeviceProperties2 props = {
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
+            .pNext = &IDProps,
+        };
+
+        vkGetPhysicalDeviceProperties2(PhysicalDevice, &props);
+
+        assert(IDProps.deviceLUIDValid);
+
+        return std::bit_cast<u64, u8[VK_LUID_SIZE]>(IDProps.deviceLUID);
+    }
+
+    template <class F>
+    void Exec(F&&, VkPipelineStageFlags* stage = 0, const VkSemaphore* wait = 0, const VkSemaphore* signal = 0);
+}; // namespace mz
 
 struct VulkanContext : std::enable_shared_from_this<VulkanContext>, Uncopyable
 {
@@ -80,3 +101,4 @@ struct VulkanContext : std::enable_shared_from_this<VulkanContext>, Uncopyable
     ~VulkanContext();
     VulkanContext();
 };
+} // namespace mz

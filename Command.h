@@ -1,7 +1,10 @@
 #pragma once
 
 #include "Device.h"
+#include "vulkan/vulkan_core.h"
 
+namespace mz
+{
 struct VulkanQueue : VklQueueFunctions
 {
     u32 Family;
@@ -78,7 +81,7 @@ struct CommandPool : std::enable_shared_from_this<CommandPool>, Uncopyable
     }
 
     template <class F>
-    void Exec(F&& f)
+    void Exec(F&& f, VkPipelineStageFlags* stage = 0, const VkSemaphore* wait = 0, const VkSemaphore* signal = 0)
     {
         std::shared_ptr<CommandBuffer> cmd = AllocCommandBuffer();
 
@@ -92,9 +95,14 @@ struct CommandPool : std::enable_shared_from_this<CommandPool>, Uncopyable
         MZ_VULKAN_ASSERT_SUCCESS(cmd->End());
 
         VkSubmitInfo submitInfo = {
-            .sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-            .commandBufferCount = 1,
-            .pCommandBuffers    = &cmd->handle,
+            .sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+            .waitSemaphoreCount   = 0 != wait,
+            .pWaitSemaphores      = wait,
+            .pWaitDstStageMask    = stage,
+            .commandBufferCount   = 1,
+            .pCommandBuffers      = &cmd->handle,
+            .signalSemaphoreCount = 0 != signal,
+            .pSignalSemaphores    = signal,
         };
 
         MZ_VULKAN_ASSERT_SUCCESS(Queue.Submit(1, &submitInfo, 0));
@@ -103,7 +111,8 @@ struct CommandPool : std::enable_shared_from_this<CommandPool>, Uncopyable
 };
 
 template <class F>
-void VulkanDevice::Exec(F&& f)
+inline void VulkanDevice::Exec(F&& f, VkPipelineStageFlags* stage, const VkSemaphore* wait, const VkSemaphore* signal)
 {
-    ImmCmdPool->Exec(f);
+    ImmCmdPool->Exec(f, stage, wait, signal);
 }
+} // namespace mz

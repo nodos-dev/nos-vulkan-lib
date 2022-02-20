@@ -1,7 +1,9 @@
 #include "Buffer.h"
 
+namespace mz
+{
 VulkanBuffer::VulkanBuffer(VulkanAllocator* Allocator, u64 size, VkBufferUsageFlags usage, bool map)
-    : Vk(Allocator->Vk)
+    : Vk(Allocator->GetDevice())
 {
 
     VkExternalMemoryBufferCreateInfo resourceCreateInfo = {
@@ -47,3 +49,4 @@ void VulkanBuffer::Bind(VkDescriptorType type, u32 bind, VkDescriptorSet set)
 
     Vk->UpdateDescriptorSets(1, &write, 0, 0);
 }
+} // namespace mz

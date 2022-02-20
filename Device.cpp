@@ -1,12 +1,12 @@
 
-
 #include "Allocator.h"
 
 #include "Command.h"
 
 #include "dynalo/dynalo.hpp"
-#include "vulkan/vulkan_core.h"
 
+namespace mz
+{
 VulkanDevice::VulkanDevice(VkInstance                      Instance,
                            VkPhysicalDevice                PhysicalDevice,
                            std::vector<const char*> const& layers,
@@ -73,6 +73,7 @@ VulkanDevice::VulkanDevice(VkInstance                      Instance,
 
     ImmAllocator = std::make_shared<VulkanAllocator>(this);
     ImmCmdPool   = std::make_shared<CommandPool>(this, QueueFamily);
+
 }
 
 VulkanDevice::~VulkanDevice()
@@ -141,6 +142,7 @@ VulkanContext::VulkanContext()
         "VK_KHR_external_memory_win32",
         "VK_EXT_external_memory_host",
         "VK_KHR_dynamic_rendering",
+        "VK_KHR_timeline_semaphore"
     };
 
     for (auto pdev : pdevices)
@@ -156,3 +158,4 @@ VulkanContext::~VulkanContext()
     vkDestroyInstance(Instance, 0);
     dynalo::close((dynalo::native::handle)lib);
 }
+} // namespace mz

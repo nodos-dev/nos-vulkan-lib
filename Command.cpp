@@ -1,5 +1,7 @@
 #include "Command.h"
 
+namespace mz
+{
 CommandBuffer::CommandBuffer(CommandPool* Pool, VkCommandBuffer Handle)
     : VklCommandFunctions{Pool->GetDevice(), Handle}, Pool(Pool)
 {
@@ -13,3 +15,4 @@ CommandBuffer::~CommandBuffer()
 
     GetDevice()->FreeCommandBuffers(Pool->Handle, 1, &handle);
 }
+} // namespace mz

@@ -1,11 +1,14 @@
 
 #include "Image.h"
+#include "vulkan/vulkan_core.h"
 
-static bool IsExportable(VkPhysicalDevice PhysicalDevice, VkFormat Format, VkImageUsageFlags Usage)
+namespace mz
+{
+static bool IsImportable(VkPhysicalDevice PhysicalDevice, VkFormat Format, VkImageUsageFlags Usage)
 {
     VkPhysicalDeviceExternalImageFormatInfo externalimageFormatInfo = {
         .sType      = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_IMAGE_FORMAT_INFO,
-        .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT,
+        .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_HEAP_BIT,
     };
 
     VkPhysicalDeviceImageFormatInfo2 imageFormatInfo = {
@@ -30,28 +33,53 @@ static bool IsExportable(VkPhysicalDevice PhysicalDevice, VkFormat Format, VkIma
 
     assert(!(extProps.externalMemoryProperties.externalMemoryFeatures & VK_EXTERNAL_MEMORY_FEATURE_DEDICATED_ONLY_BIT));
 
-    return extProps.externalMemoryProperties.externalMemoryFeatures & (VK_EXTERNAL_MEMORY_FEATURE_EXPORTABLE_BIT | VK_EXTERNAL_MEMORY_FEATURE_EXPORTABLE_BIT);
+    return extProps.externalMemoryProperties.externalMemoryFeatures & (VK_EXTERNAL_MEMORY_FEATURE_IMPORTABLE_BIT);
 }
 
-VulkanImage::VulkanImage(VulkanDevice* Vk, ImageCreateInfo const& createInfo, HANDLE externalHandle)
-    : VulkanImage(Vk->ImmAllocator.get(), createInfo, externalHandle)
+VulkanImage::VulkanImage(VulkanDevice* Vk, ImageCreateInfo const& createInfo)
+    : VulkanImage(Vk->ImmAllocator.get(), createInfo)
 {
 }
 
-VulkanImage::VulkanImage(VulkanAllocator* Allocator, ImageCreateInfo const& createInfo, HANDLE externalHandle)
-    : Vk(Allocator->Vk),
+VulkanImage::VulkanImage(VulkanAllocator* Allocator, ImageCreateInfo const& createInfo)
+    : Vk(Allocator->GetDevice()),
       Extent(createInfo.Extent),
       FinalLayout(createInfo.FinalLayout),
       Layout(VK_IMAGE_LAYOUT_UNDEFINED),
       Format(createInfo.Format),
       Usage(createInfo.Usage),
-      MipLevels(createInfo.MipLevels)
+      MipLevels(createInfo.MipLevels),
+      Sync(createInfo.Ext.sync)
 {
-    assert(IsExportable(Vk->PhysicalDevice, Format, Usage));
+
+    assert(IsImportable(Vk->PhysicalDevice, Format, Usage));
+
+    if (!Sync)
+    {
+        Sync = Allocator->API->CreateSharedSync();
+    }
+
+    {
+
+        VkSemaphoreCreateInfo createInfo = {
+            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+        };
+
+        Vk->CreateSemaphore(&createInfo, nullptr, &Sema);
+
+        VkImportSemaphoreWin32HandleInfoKHR importInfo = {
+            .sType      = VK_STRUCTURE_TYPE_IMPORT_SEMAPHORE_WIN32_HANDLE_INFO_KHR,
+            .semaphore  = Sema,
+            .handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_D3D12_FENCE_BIT,
+            .handle     = Sync,
+        };
+
+        MZ_VULKAN_ASSERT_SUCCESS(Vk->ImportSemaphoreWin32HandleKHR(&importInfo));
+    }
 
     VkExternalMemoryImageCreateInfo resourceCreateInfo = {
         .sType       = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
-        .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT,
+        .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_HEAP_BIT,
     };
 
     VkImageCreateInfo info = {
@@ -69,7 +97,7 @@ VulkanImage::VulkanImage(VulkanAllocator* Allocator, ImageCreateInfo const& crea
 
     MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateImage(&info, 0, &Handle));
 
-    Allocation = Allocator->AllocateResourceMemory(Handle, false, externalHandle);
+    Allocation = Allocator->AllocateResourceMemory(Handle, false, createInfo.Ext.memory);
 
     Vk->BindImageMemory(Handle, Allocation.Block->Memory, Allocation.Offset);
 
@@ -104,32 +132,32 @@ VulkanImage::VulkanImage(VulkanAllocator* Allocator, ImageCreateInfo const& crea
     };
 
     MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateSampler(&samplerInfo, 0, &Sampler));
-}
+} // namespace mz
 
 VulkanImage::~VulkanImage()
 {
     Vk->DestroyImage(Handle, 0);
     Vk->DestroyImageView(View, 0);
     Vk->DestroySampler(Sampler, 0);
+    Vk->DestroySemaphore(Sema, 0);
+    
+    assert(SUCCEEDED(CloseHandle(Sync)));
+
     Allocation.Free();
 }
 
-void VulkanImage::Transition(
-    std::shared_ptr<CommandBuffer> cmd,
-    VkImageLayout                  TargetLayout)
+void ImageLayoutTransition(VkImage                        Image,
+                           std::shared_ptr<CommandBuffer> Cmd,
+                           VkImageLayout                  CurrentLayout,
+                           VkImageLayout                  TargetLayout)
 {
-
-    if (Layout == TargetLayout)
-    {
-        return;
-    }
 
     // Create an image barrier object
     VkImageMemoryBarrier imageMemoryBarrier = {
         .sType            = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-        .oldLayout        = Layout,
+        .oldLayout        = CurrentLayout,
         .newLayout        = TargetLayout,
-        .image            = Handle,
+        .image            = Image,
         .subresourceRange = {
             .aspectMask   = VK_IMAGE_ASPECT_COLOR_BIT,
             .baseMipLevel = 0,
@@ -141,7 +169,7 @@ void VulkanImage::Transition(
     // Source layouts (old)
     // Source access mask controls actions that have to be finished on the old layout
     // before it will be transitioned to the new layout
-    switch (Layout)
+    switch (CurrentLayout)
     {
     case VK_IMAGE_LAYOUT_UNDEFINED:
         // Image layout is undefined (or does not matter)
@@ -234,7 +262,20 @@ void VulkanImage::Transition(
     }
 
     // Put barrier inside setup command buffer
-    cmd->PipelineBarrier(VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, 0, 0, 0, 1, &imageMemoryBarrier);
+    Cmd->PipelineBarrier(VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, 0, 0, 0, 1, &imageMemoryBarrier);
+}
+
+void VulkanImage::Transition(
+    std::shared_ptr<CommandBuffer> Cmd,
+    VkImageLayout                  TargetLayout)
+{
+
+    if (Layout == TargetLayout)
+    {
+        return;
+    }
+
+    ImageLayoutTransition(Handle, Cmd, Layout, TargetLayout);
 
     Layout = TargetLayout;
 }
@@ -316,3 +357,4 @@ std::shared_ptr<VulkanBuffer> VulkanImage::Download(VulkanAllocator* Allocator, 
 
     return StagingBuffer;
 }
+} // namespace mz

@@ -2,6 +2,8 @@
 
 #include "Allocator.h"
 
+namespace mz
+{
 union DescriptorResourceInfo {
     VkDescriptorImageInfo  image;
     VkDescriptorBufferInfo buffer;
@@ -61,3 +63,4 @@ struct VulkanBuffer : std::enable_shared_from_this<VulkanBuffer>
         Allocation.Free();
     }
 };
+} // namespace mz

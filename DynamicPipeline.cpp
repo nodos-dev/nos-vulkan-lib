@@ -3,6 +3,8 @@
 
 #include "Layout.h"
 
+namespace mz
+{
 DynamicPipeline::DynamicPipeline(VulkanDevice* Vk, VkExtent2D extent, const u32* src, u64 sz)
     : Vk(Vk), Shader(std::make_shared<MZShader>(Vk, VK_SHADER_STAGE_FRAGMENT_BIT, src, sz)), Layout(std::make_shared<PipelineLayout>(Vk, src, sz))
 {
@@ -100,3 +102,4 @@ DynamicPipeline::DynamicPipeline(VulkanDevice* Vk, VkExtent2D extent, const u32*
 
     MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateGraphicsPipelines(0, 1, &info, 0, &Handle));
 }
+} // namespace mz
