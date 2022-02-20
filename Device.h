@@ -86,8 +86,6 @@ struct VulkanDevice : std::enable_shared_from_this<VulkanDevice>,
         return std::bit_cast<u64, u8[VK_LUID_SIZE]>(IDProps.deviceLUID);
     }
 
-    template <class F>
-    void Exec(F&&, VkPipelineStageFlags* stage = 0, const VkSemaphore* wait = 0, const VkSemaphore* signal = 0);
 }; // namespace mz
 
 struct VulkanContext : std::enable_shared_from_this<VulkanContext>, Uncopyable

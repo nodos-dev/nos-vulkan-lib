@@ -1,5 +1,6 @@
 
 #include "Image.h"
+#include "mzCommon.h"
 #include "vulkan/vulkan_core.h"
 
 namespace mz
@@ -52,25 +53,57 @@ VulkanImage::VulkanImage(VulkanAllocator* Allocator, ImageCreateInfo const& crea
       Sync(createInfo.Ext.sync)
 {
 
-    assert(IsImportable(Vk->PhysicalDevice, Format, Usage));
+    VkSemaphoreTypeCreateInfo timelineCreateInfo = {
+        .sType         = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
+        .semaphoreType = VK_SEMAPHORE_TYPE_BINARY,
+        .initialValue  = 0,
+    };
 
     if (!Sync)
     {
-        Sync = Allocator->API->CreateSharedSync();
-    }
+        VkExportSemaphoreWin32HandleInfoKHR handleInfo = {
+            .sType    = VK_STRUCTURE_TYPE_EXPORT_SEMAPHORE_WIN32_HANDLE_INFO_KHR,
+            .pNext    = &timelineCreateInfo,
+            .dwAccess = GENERIC_ALL,
+        };
 
-    {
+        VkExportSemaphoreCreateInfo exportInfo = {
+            .sType       = VK_STRUCTURE_TYPE_EXPORT_SEMAPHORE_CREATE_INFO,
+            .pNext       = &handleInfo,
+            .handleTypes = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT,
+        };
 
         VkSemaphoreCreateInfo createInfo = {
             .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+            .pNext = &exportInfo,
         };
 
-        Vk->CreateSemaphore(&createInfo, nullptr, &Sema);
+        MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateSemaphore(&createInfo, 0, &Sema));
+
+        VkSemaphoreGetWin32HandleInfoKHR getHandleInfo = {
+            .sType      = VK_STRUCTURE_TYPE_SEMAPHORE_GET_WIN32_HANDLE_INFO_KHR,
+            .semaphore  = Sema,
+            .handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT,
+        };
+
+        MZ_VULKAN_ASSERT_SUCCESS(Vk->GetSemaphoreWin32HandleKHR(&getHandleInfo, &Sync));
+    }
+    else
+    {
+
+        WaitForSingleObject(Sync, -1);
+
+        VkSemaphoreCreateInfo createInfo = {
+            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+            .pNext = &timelineCreateInfo,
+        };
+
+        MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateSemaphore(&createInfo, 0, &Sema));
 
         VkImportSemaphoreWin32HandleInfoKHR importInfo = {
             .sType      = VK_STRUCTURE_TYPE_IMPORT_SEMAPHORE_WIN32_HANDLE_INFO_KHR,
             .semaphore  = Sema,
-            .handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_D3D12_FENCE_BIT,
+            .handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT,
             .handle     = Sync,
         };
 
@@ -136,12 +169,12 @@ VulkanImage::VulkanImage(VulkanAllocator* Allocator, ImageCreateInfo const& crea
 
 VulkanImage::~VulkanImage()
 {
+    assert(SUCCEEDED(CloseHandle(Sync)));
+
     Vk->DestroyImage(Handle, 0);
     Vk->DestroyImageView(View, 0);
     Vk->DestroySampler(Sampler, 0);
     Vk->DestroySemaphore(Sema, 0);
-    
-    assert(SUCCEEDED(CloseHandle(Sync)));
 
     Allocation.Free();
 }
@@ -298,7 +331,16 @@ void VulkanImage::Upload(u64 sz, u8* data, VulkanAllocator* Allocator, CommandPo
 
     memcpy(StagingBuffer->Map(), data, sz);
 
-    Pool->Exec([&](std::shared_ptr<CommandBuffer> Cmd) {
+    std::shared_ptr<CommandBuffer> Cmd = Pool->AllocCommandBuffer();
+
+    VkCommandBufferBeginInfo beginInfo = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+    };
+
+    MZ_VULKAN_ASSERT_SUCCESS(Cmd->Begin(&beginInfo));
+
+    {
         Transition(Cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
         VkBufferImageCopy region = {
@@ -316,8 +358,25 @@ void VulkanImage::Upload(u64 sz, u8* data, VulkanAllocator* Allocator, CommandPo
         Cmd->CopyBufferToImage(StagingBuffer->Handle, Handle, Layout, 1, &region);
 
         Transition(Cmd, FinalLayout);
-    });
-}
+    }
+
+    MZ_VULKAN_ASSERT_SUCCESS(Cmd->End());
+
+    VkSubmitInfo submitInfo = {
+        .sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .waitSemaphoreCount   = 1,
+        .pWaitSemaphores      = &Sema,
+        .commandBufferCount   = 1,
+        .pCommandBuffers      = &Cmd->handle,
+        .signalSemaphoreCount = 1,
+        .pSignalSemaphores    = &Sema,
+    };
+
+    VkPipelineStageFlags stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+
+    Cmd->Submit(1, &Sema, &stage, 1, &Sema);
+
+} // namespace mz
 
 std::shared_ptr<VulkanBuffer> VulkanImage::Download(VulkanAllocator* Allocator, CommandPool* Pool)
 {
@@ -335,7 +394,16 @@ std::shared_ptr<VulkanBuffer> VulkanImage::Download(VulkanAllocator* Allocator, 
 
     std::shared_ptr<VulkanBuffer> StagingBuffer = std::make_shared<VulkanBuffer>(Allocator, Allocation.Size, VK_BUFFER_USAGE_TRANSFER_DST_BIT, true);
 
-    Pool->Exec([&](std::shared_ptr<CommandBuffer> Cmd) {
+    std::shared_ptr<CommandBuffer> Cmd = Pool->AllocCommandBuffer();
+
+    VkCommandBufferBeginInfo beginInfo = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+    };
+
+    MZ_VULKAN_ASSERT_SUCCESS(Cmd->Begin(&beginInfo));
+
+    {
         Transition(Cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 
         VkBufferImageCopy region = {
@@ -353,7 +421,23 @@ std::shared_ptr<VulkanBuffer> VulkanImage::Download(VulkanAllocator* Allocator, 
         Cmd->CopyImageToBuffer(Handle, Layout, StagingBuffer->Handle, 1, &region);
 
         Transition(Cmd, FinalLayout);
-    });
+    }
+
+    MZ_VULKAN_ASSERT_SUCCESS(Cmd->End());
+
+    VkSubmitInfo submitInfo = {
+        .sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .waitSemaphoreCount   = 1,
+        .pWaitSemaphores      = &Sema,
+        .commandBufferCount   = 1,
+        .pCommandBuffers      = &Cmd->handle,
+        .signalSemaphoreCount = 1,
+        .pSignalSemaphores    = &Sema,
+    };
+
+    VkPipelineStageFlags stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+
+    Cmd->Submit(1, &Sema, &stage, 1, &Sema);
 
     return StagingBuffer;
 }

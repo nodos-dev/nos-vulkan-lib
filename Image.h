@@ -34,6 +34,7 @@ struct VulkanImage : std::enable_shared_from_this<VulkanImage>
 
     HANDLE      Sync;
     VkSemaphore Sema;
+    VkFence     Fence;
 
     ExtHandle GetOSHandle()
     {

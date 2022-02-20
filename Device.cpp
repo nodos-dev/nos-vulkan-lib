@@ -40,16 +40,15 @@ VulkanDevice::VulkanDevice(VkInstance                      Instance,
         .pQueuePriorities = &prio,
     };
 
-    VkPhysicalDeviceDescriptorIndexingFeatures indexingFeatures = {
-        .sType                           = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES,
-        .descriptorBindingPartiallyBound = VK_TRUE,
+    VkPhysicalDeviceDynamicRenderingFeatures dynamicRenderingFeatures = {
+        .sType            = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR,
+        .dynamicRendering = 1,
     };
 
-    VkPhysicalDeviceDynamicRenderingFeatures dynamicRenderingFeatures = {
-        .sType =
-            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR,
-        .pNext            = &indexingFeatures,
-        .dynamicRendering = 1,
+    VkPhysicalDeviceVulkan12Features vk12featuers = {
+        .sType             = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
+        .pNext             = &dynamicRenderingFeatures,
+        .timelineSemaphore = VK_TRUE,
     };
 
     VkPhysicalDeviceFeatures2 features = {
@@ -73,7 +72,6 @@ VulkanDevice::VulkanDevice(VkInstance                      Instance,
 
     ImmAllocator = std::make_shared<VulkanAllocator>(this);
     ImmCmdPool   = std::make_shared<CommandPool>(this, QueueFamily);
-
 }
 
 VulkanDevice::~VulkanDevice()
@@ -86,6 +84,7 @@ VulkanDevice::~VulkanDevice()
     ImmAllocator.reset();
     ImmCmdPool.reset();
     DestroyDevice(0);
+
 }
 
 VulkanContext::VulkanContext()
@@ -142,7 +141,7 @@ VulkanContext::VulkanContext()
         "VK_KHR_external_memory_win32",
         "VK_EXT_external_memory_host",
         "VK_KHR_dynamic_rendering",
-        "VK_KHR_timeline_semaphore"
+        // "VK_KHR_timeline_semaphore",
     };
 
     for (auto pdev : pdevices)
@@ -155,7 +154,9 @@ VulkanContext::VulkanContext()
 VulkanContext::~VulkanContext()
 {
     Devices.clear();
+
     vkDestroyInstance(Instance, 0);
+  
     dynalo::close((dynalo::native::handle)lib);
 }
 } // namespace mz

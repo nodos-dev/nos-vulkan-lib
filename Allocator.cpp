@@ -276,8 +276,6 @@ Allocation VulkanAllocator::AllocateResourceMemory(std::variant<VkBuffer, VkImag
         {
             externalHandle = API->CreateSharedMemory(size);
 
-            MARK_LINE;
-
             VkImportMemoryWin32HandleInfoKHR importInfo = {
                 .sType      = VK_STRUCTURE_TYPE_IMPORT_MEMORY_WIN32_HANDLE_INFO_KHR,
                 .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_HEAP_BIT,
