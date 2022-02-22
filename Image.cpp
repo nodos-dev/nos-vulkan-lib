@@ -1,5 +1,6 @@
 
 #include "Image.h"
+#include "InfoStructs.h"
 #include "mzCommon.h"
 #include "vulkan/vulkan_core.h"
 
@@ -70,6 +71,14 @@ VulkanImage::VulkanImage(VulkanAllocator* Allocator, ImageCreateInfo const& crea
         };
 
         MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateSemaphore(&createInfo, 0, &Sema));
+
+        VkSemaphoreGetWin32HandleInfoKHR getHandleInfo = {
+            .sType      = VK_STRUCTURE_TYPE_SEMAPHORE_GET_WIN32_HANDLE_INFO_KHR,
+            .semaphore  = Sema,
+            .handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT,
+        };
+
+        MZ_VULKAN_ASSERT_SUCCESS(Vk->GetSemaphoreWin32HandleKHR(&getHandleInfo, &Sync));
     }
     else
     {
@@ -89,22 +98,17 @@ VulkanImage::VulkanImage(VulkanAllocator* Allocator, ImageCreateInfo const& crea
         MZ_VULKAN_ASSERT_SUCCESS(Vk->ImportSemaphoreWin32HandleKHR(&importInfo));
     }
 
-    VkSemaphoreGetWin32HandleInfoKHR getHandleInfo = {
-        .sType      = VK_STRUCTURE_TYPE_SEMAPHORE_GET_WIN32_HANDLE_INFO_KHR,
-        .semaphore  = Sema,
-        .handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT,
-    };
-
-    MZ_VULKAN_ASSERT_SUCCESS(Vk->GetSemaphoreWin32HandleKHR(&getHandleInfo, &Sync));
-
     VkExternalMemoryImageCreateInfo resourceCreateInfo = {
         .sType       = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
-        .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT,
+        .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_HEAP_BIT,
     };
+
+    u32 Queues[] = {Vk->QueueFamily, VK_QUEUE_FAMILY_EXTERNAL};
 
     VkImageCreateInfo info = {
         .sType       = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
         .pNext       = &resourceCreateInfo,
+        .flags       = VK_IMAGE_CREATE_ALIAS_BIT,
         .imageType   = VK_IMAGE_TYPE_2D,
         .format      = Format,
         .extent      = {Extent.width, Extent.height, 1},
@@ -113,13 +117,19 @@ VulkanImage::VulkanImage(VulkanAllocator* Allocator, ImageCreateInfo const& crea
         .samples     = VK_SAMPLE_COUNT_1_BIT,
         .tiling      = VK_IMAGE_TILING_OPTIMAL,
         .usage       = Usage,
+
+        // .sharingMode           = VK_SHARING_MODE_CONCURRENT,
+        // .queueFamilyIndexCount = 2,
+        // .pQueueFamilyIndices   = Queues,
+
+        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
     };
 
     MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateImage(&info, 0, &Handle));
 
     Allocation = Allocator->AllocateResourceMemory(Handle, false, createInfo.Ext.memory);
 
-    Vk->BindImageMemory(Handle, Allocation.Block->Memory, Allocation.Offset);
+    MZ_VULKAN_ASSERT_SUCCESS(Vk->BindImageMemory(Handle, Allocation.Block->Memory, Allocation.Offset));
 
     VkImageViewCreateInfo viewInfo = {
         .sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
@@ -164,125 +174,44 @@ VulkanImage::~VulkanImage()
     Allocation.Free();
 }
 
-std::shared_ptr<CommandBuffer> ImageLayoutTransition(VkImage                        Image,
-                                                     std::shared_ptr<CommandBuffer> Cmd,
-                                                     VkImageLayout                  CurrentLayout,
-                                                     VkImageLayout                  TargetLayout)
+void ImageLayoutTransition(VkImage                        Image,
+                           std::shared_ptr<CommandBuffer> Cmd,
+                           u32                            srcQueueFamilyIndex,
+                           u32                            dstQueueFamilyIndex,
+                           VkImageLayout                  CurrentLayout,
+                           VkImageLayout                  TargetLayout,
+                           VkAccessFlags                  srcAccessMask,
+                           VkAccessFlags                  dstAccessMask)
 {
-
     // Create an image barrier object
     VkImageMemoryBarrier imageMemoryBarrier = {
-        .sType            = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-        .oldLayout        = CurrentLayout,
-        .newLayout        = TargetLayout,
-        .image            = Image,
-        .subresourceRange = {
-            .aspectMask   = VK_IMAGE_ASPECT_COLOR_BIT,
-            .baseMipLevel = 0,
-            .levelCount   = 1,
-            .layerCount   = 1,
+        .sType               = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+        .srcAccessMask       = srcAccessMask,
+        .dstAccessMask       = dstAccessMask,
+        .oldLayout           = CurrentLayout,
+        .newLayout           = TargetLayout,
+        .srcQueueFamilyIndex = srcQueueFamilyIndex,
+        .dstQueueFamilyIndex = dstQueueFamilyIndex,
+        .image               = Image,
+        .subresourceRange    = {
+               .aspectMask   = VK_IMAGE_ASPECT_COLOR_BIT,
+               .baseMipLevel = 0,
+               .levelCount   = 1,
+               .layerCount   = 1,
         },
     };
 
-    // Source layouts (old)
-    // Source access mask controls actions that have to be finished on the old layout
-    // before it will be transitioned to the new layout
-    switch (CurrentLayout)
-    {
-    case VK_IMAGE_LAYOUT_UNDEFINED:
-        // Image layout is undefined (or does not matter)
-        // Only valid as initial layout
-        // No flags required, listed only for completeness
-        imageMemoryBarrier.srcAccessMask = 0;
-        break;
-
-    case VK_IMAGE_LAYOUT_PREINITIALIZED:
-        // Image is preinitialized
-        // Only valid as initial layout for linear images, preserves memory contents
-        // Make sure host writes have been finished
-        imageMemoryBarrier.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT;
-        break;
-
-    case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
-        // Image is a color attachment
-        // Make sure any writes to the color buffer have been finished
-        imageMemoryBarrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-        break;
-
-    case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
-        // Image is a depth/stencil attachment
-        // Make sure any writes to the depth/stencil buffer have been finished
-        imageMemoryBarrier.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-        break;
-
-    case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
-        // Image is a transfer source
-        // Make sure any reads from the image have been finished
-        imageMemoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-        break;
-
-    case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
-        // Image is a transfer destination
-        // Make sure any writes to the image have been finished
-        imageMemoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        break;
-
-    case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-        // Image is read by a shader
-        // Make sure any shader reads from the image have been finished
-        imageMemoryBarrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
-        break;
-    default:
-        // Other source layouts aren't handled (yet)
-        break;
-    }
-
-    // Target layouts (new)
-    // Destination access mask controls the dependency for the new image layout
-    switch (TargetLayout)
-    {
-    case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
-        // Image will be used as a transfer destination
-        // Make sure any writes to the image have been finished
-        imageMemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        break;
-
-    case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
-        // Image will be used as a transfer source
-        // Make sure any reads from the image have been finished
-        imageMemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-        break;
-
-    case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
-        // Image will be used as a color attachment
-        // Make sure any writes to the color buffer have been finished
-        imageMemoryBarrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-        break;
-
-    case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
-        // Image layout will be used as a depth/stencil attachment
-        // Make sure any writes to depth/stencil buffer have been finished
-        imageMemoryBarrier.dstAccessMask = imageMemoryBarrier.dstAccessMask | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-        break;
-
-    case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-        // Image will be read in a shader (sampler, input attachment)
-        // Make sure any writes to the image have been finished
-        if (imageMemoryBarrier.srcAccessMask == 0)
-        {
-            imageMemoryBarrier.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT;
-        }
-        imageMemoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-        break;
-    default:
-        // Other source layouts aren't handled (yet)
-        break;
-    }
-
     // Put barrier inside setup command buffer
-    Cmd->PipelineBarrier(VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, 0, 0, 0, 1, &imageMemoryBarrier);
-
-    return Cmd;
+    Cmd->PipelineBarrier(
+        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        &imageMemoryBarrier);
 }
 
 void VulkanImage::Transition(VkImageLayout TargetLayout)
@@ -293,7 +222,11 @@ void VulkanImage::Transition(VkImageLayout TargetLayout)
         return;
     }
 
-    ImageLayoutTransition(Handle, Vk->ImmCmdPool->BeginCmd(), Layout, TargetLayout)->Submit();
+    auto Cmd = Vk->ImmCmdPool->BeginCmd();
+
+    ImageLayoutTransition(Handle, Cmd, CurrentQueueFamilyIndex, CurrentQueueFamilyIndex, Layout, TargetLayout);
+
+    Cmd->Submit();
 
     Layout = TargetLayout;
 }
@@ -308,7 +241,7 @@ void VulkanImage::Transition(
         return;
     }
 
-    ImageLayoutTransition(Handle, Cmd, Layout, TargetLayout);
+    ImageLayoutTransition(Handle, Cmd, CurrentQueueFamilyIndex, CurrentQueueFamilyIndex, Layout, TargetLayout);
 
     Layout = TargetLayout;
 }
@@ -351,10 +284,58 @@ void VulkanImage::Upload(u64 sz, u8* data, VulkanAllocator* Allocator, CommandPo
         Cmd->CopyBufferToImage(StagingBuffer->Handle, Handle, Layout, 1, &region);
     }
 
-    Cmd->Submit(shared_from_this(), VK_PIPELINE_STAGE_TRANSFER_BIT);
+    Cmd->Submit(this, VK_PIPELINE_STAGE_TRANSFER_BIT);
     Cmd->Wait();
 
 } // namespace mz
+
+std::shared_ptr<VulkanImage> VulkanImage::Copy(VulkanAllocator* Allocator, CommandPool* Pool)
+{
+    assert(Usage & VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+
+    if (0 == Allocator)
+    {
+        Allocator = Vk->ImmAllocator.get();
+    }
+
+    if (0 == Pool)
+    {
+        Pool = Vk->ImmCmdPool.get();
+    }
+
+    std::shared_ptr<VulkanImage> Image = std::make_shared<VulkanImage>(
+        Allocator, ImageCreateInfo{
+                       .Extent = Extent,
+                       .Format = Format,
+                       .Usage  = Usage | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+                   });
+
+    std::shared_ptr<CommandBuffer> Cmd = Pool->BeginCmd();
+
+    {
+        Image->Transition(Cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+        Transition(Cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+
+        VkImageCopy region = {
+            .srcSubresource = {
+                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .layerCount = 1,
+            },
+            .dstSubresource = {
+                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .layerCount = 1,
+            },
+            .extent = {Extent.width, Extent.height, 1},
+        };
+
+        Cmd->CopyImage(Handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, Image->Handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+    }
+
+    Cmd->Submit({Image.get(), this}, VK_PIPELINE_STAGE_TRANSFER_BIT);
+    Cmd->Wait();
+
+    return Image;
+}
 
 std::shared_ptr<VulkanBuffer> VulkanImage::Download(VulkanAllocator* Allocator, CommandPool* Pool)
 {
@@ -392,9 +373,7 @@ std::shared_ptr<VulkanBuffer> VulkanImage::Download(VulkanAllocator* Allocator, 
         Cmd->CopyImageToBuffer(Handle, Layout, StagingBuffer->Handle, 1, &region);
     }
 
-    VkPipelineStageFlags stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-
-    Cmd->Submit(shared_from_this(), VK_PIPELINE_STAGE_TRANSFER_BIT);
+    Cmd->Submit(this, VK_PIPELINE_STAGE_TRANSFER_BIT);
     Cmd->Wait();
 
     return StagingBuffer;

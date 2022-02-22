@@ -52,10 +52,26 @@ void CommandBuffer::Submit(
     MZ_VULKAN_ASSERT_SUCCESS(Pool->Queue.Submit(1, &submitInfo, Fence));
 }
 
-void CommandBuffer::Submit(std::shared_ptr<VulkanImage> image, VkPipelineStageFlags stage)
+void CommandBuffer::Submit(VulkanImage* image, VkPipelineStageFlags stage)
 {
-
     Submit(1, &image->Sema, &stage, 1, &image->Sema);
+}
+
+void CommandBuffer::Submit(std::vector<VulkanImage*> images, VkPipelineStageFlags stage)
+{
+    std::vector<VkSemaphore>          semaphores;
+    std::vector<VkPipelineStageFlags> stages;
+
+    semaphores.reserve(images.size());
+    stages.reserve(images.size());
+
+    for (auto img : images)
+    {
+        semaphores.push_back(img->Sema);
+        stages.push_back(stage);
+    }
+
+    Submit(semaphores.size(), semaphores.data(), stages.data(), semaphores.size(), semaphores.data());
 }
 
 } // namespace mz

@@ -18,10 +18,7 @@ struct CircularIndex
 
     u64 operator++()
     {
-        val++;
-        if (val >= max)
-            val = 0;
-        return val;
+        return ++val %= max;
     }
 
     u64 operator++(int)
@@ -107,7 +104,8 @@ struct CommandBuffer : std::enable_shared_from_this<CommandBuffer>,
         uint32_t                    signalSemaphoreCount = 0,
         const VkSemaphore*          pSignalSemaphores    = 0);
 
-    void Submit(std::shared_ptr<struct VulkanImage>, VkPipelineStageFlags);
+    void Submit(struct VulkanImage*, VkPipelineStageFlags);
+    void Submit(std::vector<struct VulkanImage*>, VkPipelineStageFlags);
 };
 
 struct CommandPool : std::enable_shared_from_this<CommandPool>, Uncopyable
@@ -162,10 +160,13 @@ struct CommandPool : std::enable_shared_from_this<CommandPool>, Uncopyable
 
     std::shared_ptr<CommandBuffer> AllocCommandBuffer(VkCommandBufferLevel level = VK_COMMAND_BUFFER_LEVEL_PRIMARY)
     {
-        while (!Buffers[++NextBuffer]->Ready())
-            ;
+        while (!Buffers[NextBuffer]->Ready())
+            NextBuffer++;
+        ;
 
         auto cmd = Buffers[NextBuffer];
+
+        assert(cmd->Ready());
 
         GetDevice()->ResetFences(1, &cmd->Fence);
         return cmd;

@@ -9,10 +9,14 @@
 namespace mz
 {
 
-std::shared_ptr<CommandBuffer> ImageLayoutTransition(VkImage                        Image,
-                                                     std::shared_ptr<CommandBuffer> Cmd,
-                                                     VkImageLayout                  CurrentLayout,
-                                                     VkImageLayout                  TargetLayout);
+void ImageLayoutTransition(VkImage                        Image,
+                           std::shared_ptr<CommandBuffer> Cmd,
+                           u32                            srcQueueFamilyIndex,
+                           u32                            dstQueueFamilyIndex,
+                           VkImageLayout                  CurrentLayout,
+                           VkImageLayout                  TargetLayout,
+                           VkAccessFlags                  srcAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT,
+                           VkAccessFlags                  dstAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT);
 
 struct VulkanImage : std::enable_shared_from_this<VulkanImage>
 {
@@ -32,9 +36,15 @@ struct VulkanImage : std::enable_shared_from_this<VulkanImage>
     HANDLE      Sync;
     VkSemaphore Sema;
 
-    ExtHandle GetOSHandle()
+    u32 CurrentQueueFamilyIndex;
+
+    ImageExportInfo
+    GetExportInfo()
     {
-        return {Sync, Allocation.GetOSHandle()};
+        return ImageExportInfo{
+            .sync   = Sync,
+            .memory = Allocation.GetOSHandle(),
+        };
     }
 
     DescriptorResourceInfo GetDescriptorInfo() const
@@ -53,6 +63,8 @@ struct VulkanImage : std::enable_shared_from_this<VulkanImage>
     void Transition(VkImageLayout TargetLayout);
 
     void Upload(u64 sz, u8* data, VulkanAllocator* = 0, CommandPool* = 0);
+
+    std::shared_ptr<VulkanImage> Copy(VulkanAllocator* = 0, CommandPool* = 0);
 
     std::shared_ptr<VulkanBuffer> Download(VulkanAllocator* = 0, CommandPool* = 0);
 
