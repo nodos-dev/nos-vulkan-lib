@@ -192,17 +192,17 @@ Allocation VulkanAllocator::AllocateResourceMemory(std::variant<VkBuffer, VkImag
     if (externalHandle)
     {
 
-        VkMemoryWin32HandlePropertiesKHR handleProps = {
-            .sType = VK_STRUCTURE_TYPE_MEMORY_WIN32_HANDLE_PROPERTIES_KHR,
-        };
+        // VkMemoryWin32HandlePropertiesKHR handleProps = {
+        //     .sType = VK_STRUCTURE_TYPE_MEMORY_WIN32_HANDLE_PROPERTIES_KHR,
+        // };
 
-        MZ_VULKAN_ASSERT_SUCCESS(Vk->GetMemoryWin32HandlePropertiesKHR(VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_HEAP_BIT, externalHandle, &handleProps));
+        // MZ_VULKAN_ASSERT_SUCCESS(Vk->GetMemoryWin32HandlePropertiesKHR(VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_HEAP_BIT, externalHandle, &handleProps));
 
         // assert(actualProps == handleProps.memoryTypeBits);
 
         VkImportMemoryWin32HandleInfoKHR importInfo = {
             .sType      = VK_STRUCTURE_TYPE_IMPORT_MEMORY_WIN32_HANDLE_INFO_KHR,
-            .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_HEAP_BIT,
+            .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT,
             .handle     = externalHandle,
         };
 
@@ -249,7 +249,7 @@ Allocation VulkanAllocator::AllocateResourceMemory(std::variant<VkBuffer, VkImag
         VkExportMemoryAllocateInfo exportInfo = {
             .sType       = VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO,
             .pNext       = &handleInfo,
-            .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT | VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_HEAP_BIT,
+            .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT | VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT,
         };
 
         VkMemoryAllocateInfo info = {

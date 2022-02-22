@@ -53,9 +53,9 @@ struct VulkanBuffer : std::enable_shared_from_this<VulkanBuffer>
             }};
     }
 
-    VulkanBuffer(VulkanDevice* Vk, u64 size, VkBufferUsageFlags usage, bool map);
+    VulkanBuffer(VulkanDevice* Vk, u64 size, VkBufferUsageFlags usage);
 
-    VulkanBuffer(VulkanAllocator* Allocator, u64 size, VkBufferUsageFlags usage, bool map);
+    VulkanBuffer(VulkanAllocator* Allocator, u64 size, VkBufferUsageFlags usage);
 
     ~VulkanBuffer()
     {

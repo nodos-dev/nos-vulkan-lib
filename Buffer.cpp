@@ -2,7 +2,7 @@
 
 namespace mz
 {
-VulkanBuffer::VulkanBuffer(VulkanAllocator* Allocator, u64 size, VkBufferUsageFlags usage, bool map)
+VulkanBuffer::VulkanBuffer(VulkanAllocator* Allocator, u64 size, VkBufferUsageFlags usage)
     : Vk(Allocator->GetDevice())
 {
 
@@ -20,13 +20,13 @@ VulkanBuffer::VulkanBuffer(VulkanAllocator* Allocator, u64 size, VkBufferUsageFl
 
     MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateBuffer(&info, 0, &Handle));
 
-    Allocation = Allocator->AllocateResourceMemory(Handle, map);
+    Allocation = Allocator->AllocateResourceMemory(Handle, usage & (VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT));
 
     Vk->BindBufferMemory(Handle, Allocation.Block->Memory, Allocation.Offset);
 }
 
-VulkanBuffer::VulkanBuffer(VulkanDevice* Vk, u64 size, VkBufferUsageFlags usage, bool map)
-    : VulkanBuffer(Vk->ImmAllocator.get(), size, usage, map)
+VulkanBuffer::VulkanBuffer(VulkanDevice* Vk, u64 size, VkBufferUsageFlags usage)
+    : VulkanBuffer(Vk->ImmAllocator.get(), size, usage)
 {
 }
 

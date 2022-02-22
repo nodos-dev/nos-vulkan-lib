@@ -84,7 +84,6 @@ VulkanDevice::~VulkanDevice()
     ImmAllocator.reset();
     ImmCmdPool.reset();
     DestroyDevice(0);
-
 }
 
 VulkanContext::VulkanContext()
@@ -107,7 +106,9 @@ VulkanContext::VulkanContext()
         .apiVersion = VK_API_VERSION_1_3,
     };
 
-    std::vector<const char*> layers = {"VK_LAYER_KHRONOS_validation"};
+    std::vector<const char*> layers = {
+        "VK_LAYER_KHRONOS_validation",
+    };
 
     std::vector<const char*> extensions = {
         "VK_KHR_surface",
@@ -135,6 +136,8 @@ VulkanContext::VulkanContext()
 
     MZ_VULKAN_ASSERT_SUCCESS(vkEnumeratePhysicalDevices(Instance, &count, pdevices.data()));
 
+VK_KHR_dynamic_rendering;
+
     std::vector<const char*> deviceExtensions = {
         "VK_KHR_swapchain",
         "VK_KHR_external_semaphore_win32",
@@ -156,7 +159,7 @@ VulkanContext::~VulkanContext()
     Devices.clear();
 
     vkDestroyInstance(Instance, 0);
-  
+
     dynalo::close((dynalo::native::handle)lib);
 }
 } // namespace mz

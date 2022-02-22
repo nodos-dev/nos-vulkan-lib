@@ -10,7 +10,7 @@ static bool IsImportable(VkPhysicalDevice PhysicalDevice, VkFormat Format, VkIma
 {
     VkPhysicalDeviceExternalImageFormatInfo externalimageFormatInfo = {
         .sType      = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_IMAGE_FORMAT_INFO,
-        .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_HEAP_BIT,
+        .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT,
     };
 
     VkPhysicalDeviceImageFormatInfo2 imageFormatInfo = {
@@ -20,6 +20,7 @@ static bool IsImportable(VkPhysicalDevice PhysicalDevice, VkFormat Format, VkIma
         .type   = VK_IMAGE_TYPE_2D,
         .tiling = VK_IMAGE_TILING_OPTIMAL,
         .usage  = Usage,
+        .flags  = VK_IMAGE_CREATE_ALIAS_BIT,
     };
 
     VkExternalImageFormatProperties extProps = {
@@ -35,7 +36,7 @@ static bool IsImportable(VkPhysicalDevice PhysicalDevice, VkFormat Format, VkIma
 
     assert(!(extProps.externalMemoryProperties.externalMemoryFeatures & VK_EXTERNAL_MEMORY_FEATURE_DEDICATED_ONLY_BIT));
 
-    return extProps.externalMemoryProperties.externalMemoryFeatures & (VK_EXTERNAL_MEMORY_FEATURE_IMPORTABLE_BIT);
+    return extProps.externalMemoryProperties.externalMemoryFeatures & (VK_EXTERNAL_MEMORY_FEATURE_EXPORTABLE_BIT | VK_EXTERNAL_MEMORY_FEATURE_IMPORTABLE_BIT);
 }
 
 VulkanImage::VulkanImage(VulkanDevice* Vk, ImageCreateInfo const& createInfo)
@@ -51,6 +52,8 @@ VulkanImage::VulkanImage(VulkanAllocator* Allocator, ImageCreateInfo const& crea
       Usage(createInfo.Usage),
       Sync(createInfo.Ext.sync)
 {
+
+    assert(IsImportable(Vk->PhysicalDevice, Format, Usage));
 
     if (!Sync)
     {
@@ -71,14 +74,6 @@ VulkanImage::VulkanImage(VulkanAllocator* Allocator, ImageCreateInfo const& crea
         };
 
         MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateSemaphore(&createInfo, 0, &Sema));
-
-        VkSemaphoreGetWin32HandleInfoKHR getHandleInfo = {
-            .sType      = VK_STRUCTURE_TYPE_SEMAPHORE_GET_WIN32_HANDLE_INFO_KHR,
-            .semaphore  = Sema,
-            .handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT,
-        };
-
-        MZ_VULKAN_ASSERT_SUCCESS(Vk->GetSemaphoreWin32HandleKHR(&getHandleInfo, &Sync));
     }
     else
     {
@@ -98,10 +93,23 @@ VulkanImage::VulkanImage(VulkanAllocator* Allocator, ImageCreateInfo const& crea
         MZ_VULKAN_ASSERT_SUCCESS(Vk->ImportSemaphoreWin32HandleKHR(&importInfo));
     }
 
+    VkSemaphoreGetWin32HandleInfoKHR getHandleInfo = {
+        .sType      = VK_STRUCTURE_TYPE_SEMAPHORE_GET_WIN32_HANDLE_INFO_KHR,
+        .semaphore  = Sema,
+        .handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT,
+    };
+
+    MZ_VULKAN_ASSERT_SUCCESS(Vk->GetSemaphoreWin32HandleKHR(&getHandleInfo, &Sync));
+
     VkExternalMemoryImageCreateInfo resourceCreateInfo = {
         .sType       = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
-        .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_HEAP_BIT,
+        .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT,
     };
+
+    if (createInfo.Ext.memory)
+    {
+        resourceCreateInfo.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT;
+    }
 
     u32 Queues[] = {Vk->QueueFamily, VK_QUEUE_FAMILY_EXTERNAL};
 
@@ -260,7 +268,7 @@ void VulkanImage::Upload(u64 sz, u8* data, VulkanAllocator* Allocator, CommandPo
         Pool = Vk->ImmCmdPool.get();
     }
 
-    std::shared_ptr<VulkanBuffer> StagingBuffer = std::make_shared<VulkanBuffer>(Allocator, sz, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, true);
+    std::shared_ptr<VulkanBuffer> StagingBuffer = MakeShared<VulkanBuffer>(Allocator, sz, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
 
     memcpy(StagingBuffer->Map(), data, sz);
 
@@ -303,7 +311,7 @@ std::shared_ptr<VulkanImage> VulkanImage::Copy(VulkanAllocator* Allocator, Comma
         Pool = Vk->ImmCmdPool.get();
     }
 
-    std::shared_ptr<VulkanImage> Image = std::make_shared<VulkanImage>(
+    std::shared_ptr<VulkanImage> Image = MakeShared<VulkanImage>(
         Allocator, ImageCreateInfo{
                        .Extent = Extent,
                        .Format = Format,
@@ -351,7 +359,7 @@ std::shared_ptr<VulkanBuffer> VulkanImage::Download(VulkanAllocator* Allocator, 
         Pool = Vk->ImmCmdPool.get();
     }
 
-    std::shared_ptr<VulkanBuffer> StagingBuffer = std::make_shared<VulkanBuffer>(Allocator, Allocation.Size, VK_BUFFER_USAGE_TRANSFER_DST_BIT, true);
+    std::shared_ptr<VulkanBuffer> StagingBuffer = MakeShared<VulkanBuffer>(Allocator, Allocation.Size, VK_BUFFER_USAGE_TRANSFER_DST_BIT);
 
     std::shared_ptr<CommandBuffer> Cmd = Pool->BeginCmd();
 
