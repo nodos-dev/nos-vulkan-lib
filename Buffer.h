@@ -11,7 +11,6 @@ union DescriptorResourceInfo {
 
 struct VulkanBuffer : std::enable_shared_from_this<VulkanBuffer>
 {
-
     VulkanDevice* Vk;
 
     Allocation Allocation;
@@ -34,6 +33,11 @@ struct VulkanBuffer : std::enable_shared_from_this<VulkanBuffer>
     u8* Map()
     {
         return Allocation.Map();
+    }
+
+    void Flush()
+    {
+        Allocation.Flush();
     }
 
     HANDLE GetOSHandle()

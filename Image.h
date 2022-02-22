@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Allocator.h"
 #include "InfoStructs.h"
 
 #include "Buffer.h"
@@ -44,6 +45,8 @@ struct VulkanImage : std::enable_shared_from_this<VulkanImage>
         return ImageExportInfo{
             .sync   = Sync,
             .memory = Allocation.GetOSHandle(),
+            .offset = Allocation.Offset,
+            .size   = Allocation.Block->Size,
         };
     }
 
@@ -62,7 +65,7 @@ struct VulkanImage : std::enable_shared_from_this<VulkanImage>
     void Transition(std::shared_ptr<CommandBuffer> cmd, VkImageLayout TargetLayout);
     void Transition(VkImageLayout TargetLayout);
 
-    void Upload(u64 sz, u8* data, VulkanAllocator* = 0, CommandPool* = 0);
+    void Upload(u8* data, VulkanAllocator* = 0, CommandPool* = 0);
 
     std::shared_ptr<VulkanImage> Copy(VulkanAllocator* = 0, CommandPool* = 0);
 

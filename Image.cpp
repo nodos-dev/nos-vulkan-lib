@@ -103,13 +103,8 @@ VulkanImage::VulkanImage(VulkanAllocator* Allocator, ImageCreateInfo const& crea
 
     VkExternalMemoryImageCreateInfo resourceCreateInfo = {
         .sType       = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
-        .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT,
+        .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT,
     };
-
-    if (createInfo.Ext.memory)
-    {
-        resourceCreateInfo.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT;
-    }
 
     u32 Queues[] = {Vk->QueueFamily, VK_QUEUE_FAMILY_EXTERNAL};
 
@@ -135,9 +130,9 @@ VulkanImage::VulkanImage(VulkanAllocator* Allocator, ImageCreateInfo const& crea
 
     MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateImage(&info, 0, &Handle));
 
-    Allocation = Allocator->AllocateResourceMemory(Handle, false, createInfo.Ext.memory);
+    Allocation = Allocator->AllocateResourceMemory(Handle, false, createInfo.Ext);
 
-    MZ_VULKAN_ASSERT_SUCCESS(Vk->BindImageMemory(Handle, Allocation.Block->Memory, Allocation.Offset));
+    MZ_VULKAN_ASSERT_SUCCESS(Vk->BindImageMemory(Handle, Allocation.Block->Memory, Allocation.Offset + createInfo.Ext.offset));
 
     VkImageViewCreateInfo viewInfo = {
         .sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
@@ -202,10 +197,10 @@ void ImageLayoutTransition(VkImage                        Image,
         .dstQueueFamilyIndex = dstQueueFamilyIndex,
         .image               = Image,
         .subresourceRange    = {
-               .aspectMask   = VK_IMAGE_ASPECT_COLOR_BIT,
-               .baseMipLevel = 0,
-               .levelCount   = 1,
-               .layerCount   = 1,
+            .aspectMask   = VK_IMAGE_ASPECT_COLOR_BIT,
+            .baseMipLevel = 0,
+            .levelCount   = 1,
+            .layerCount   = 1,
         },
     };
 
@@ -254,7 +249,7 @@ void VulkanImage::Transition(
     Layout = TargetLayout;
 }
 
-void VulkanImage::Upload(u64 sz, u8* data, VulkanAllocator* Allocator, CommandPool* Pool)
+void VulkanImage::Upload(u8* data, VulkanAllocator* Allocator, CommandPool* Pool)
 {
     assert(Usage & VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
@@ -268,9 +263,13 @@ void VulkanImage::Upload(u64 sz, u8* data, VulkanAllocator* Allocator, CommandPo
         Pool = Vk->ImmCmdPool.get();
     }
 
-    std::shared_ptr<VulkanBuffer> StagingBuffer = MakeShared<VulkanBuffer>(Allocator, sz, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+    u64 Size = Extent.width * Extent.height * 4;
 
-    memcpy(StagingBuffer->Map(), data, sz);
+    std::shared_ptr<VulkanBuffer> StagingBuffer = MakeShared<VulkanBuffer>(Allocator, Size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+
+    memcpy(StagingBuffer->Map(), data, Size);
+
+    StagingBuffer->Flush();
 
     std::shared_ptr<CommandBuffer> Cmd = Pool->BeginCmd();
 

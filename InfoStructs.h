@@ -9,6 +9,9 @@ struct ImageExportInfo
 {
     HANDLE sync;
     HANDLE memory;
+
+    VkDeviceSize offset;
+    VkDeviceSize size;
 };
 
 struct ImageCreateInfo

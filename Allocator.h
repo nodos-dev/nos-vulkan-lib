@@ -38,9 +38,21 @@ struct MemoryBlock : std::enable_shared_from_this<MemoryBlock>, Uncopyable
         {
             if (Block->Mapping)
             {
-                return Block->Mapping + Offset;
+                return Block->Mapping + Offset + Block->Offset;
             }
             return 0;
+        }
+
+        void Flush()
+        {
+            VkMappedMemoryRange range = {
+                .sType  = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE,
+                .memory = Block->Memory,
+                .offset = Offset + Block->Offset,
+                .size   = Size,
+            };
+
+            MZ_VULKAN_ASSERT_SUCCESS(Block->Vk->FlushMappedMemoryRanges(1, &range));
         }
 
         HANDLE GetOSHandle() const
@@ -69,32 +81,30 @@ struct MemoryBlock : std::enable_shared_from_this<MemoryBlock>, Uncopyable
 
     const bool Imported;
 
+    u64 Offset;
     u64 Size;
     u64 InUse;
 
     std::map<VkDeviceSize, VkDeviceSize> Chunks;
     std::map<VkDeviceSize, VkDeviceSize> FreeList;
 
-    MemoryBlock(VulkanDevice* Vk, VkDeviceMemory mem, VkMemoryPropertyFlags props, u64 size, HANDLE externalHandle)
-        : Vk(Vk), Memory(mem), Props(props), Size(size), InUse(0), Mapping(0), OSHandle(externalHandle), Imported(externalHandle != 0)
+    MemoryBlock(VulkanDevice* Vk, VkDeviceMemory mem, VkMemoryPropertyFlags props, u64 offset, u64 size, HANDLE externalHandle)
+        : Vk(Vk), Memory(mem), Props(props), Offset(offset), Size(size), InUse(0), Mapping(0), OSHandle(0), Imported(externalHandle != 0)
     {
         FreeList[0] = size;
 
         if (props & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
         {
-            MZ_VULKAN_ASSERT_SUCCESS(Vk->MapMemory(Memory, 0, VK_WHOLE_SIZE, 0, (void**)&Mapping));
+            MZ_VULKAN_ASSERT_SUCCESS(Vk->MapMemory(Memory, Offset, Size, 0, (void**)&Mapping));
         }
 
-        if (!Imported)
-        {
-            VkMemoryGetWin32HandleInfoKHR handleInfo = {
-                .sType      = VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR,
-                .memory     = Memory,
-                .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT,
-            };
+        VkMemoryGetWin32HandleInfoKHR handleInfo = {
+            .sType      = VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR,
+            .memory     = Memory,
+            .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT,
+        };
 
-            MZ_VULKAN_ASSERT_SUCCESS(Vk->GetMemoryWin32HandleKHR(&handleInfo, &OSHandle));
-        }
+        MZ_VULKAN_ASSERT_SUCCESS(Vk->GetMemoryWin32HandleKHR(&handleInfo, &OSHandle));
     }
 
     ~MemoryBlock()
@@ -127,6 +137,6 @@ struct VulkanAllocator : std::enable_shared_from_this<VulkanAllocator>, Uncopyab
         return Vk;
     }
 
-    Allocation AllocateResourceMemory(std::variant<VkBuffer, VkImage> resource, bool map = false, HANDLE = 0);
+    Allocation AllocateResourceMemory(std::variant<VkBuffer, VkImage> resource, bool map = false, ImageExportInfo = {});
 };
 } // namespace mz

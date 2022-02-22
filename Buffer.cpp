@@ -22,7 +22,7 @@ VulkanBuffer::VulkanBuffer(VulkanAllocator* Allocator, u64 size, VkBufferUsageFl
 
     Allocation = Allocator->AllocateResourceMemory(Handle, usage & (VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT));
 
-    Vk->BindBufferMemory(Handle, Allocation.Block->Memory, Allocation.Offset);
+    Vk->BindBufferMemory(Handle, Allocation.Block->Memory, Allocation.Offset + Allocation.Block->Offset);
 }
 
 VulkanBuffer::VulkanBuffer(VulkanDevice* Vk, u64 size, VkBufferUsageFlags usage)

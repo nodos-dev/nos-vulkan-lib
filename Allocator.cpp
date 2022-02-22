@@ -84,6 +84,8 @@ Allocation MemoryBlock::Allocate(VkDeviceSize reqSize, VkDeviceSize alignment)
         next->second = offset - next->first;
     }
 
+    printf("[%p] %d Allocated %llu bytes at offset %llu\n", OSHandle, Imported, reqSize, offset + this->Offset);
+
     InUse += reqSize;
     return chunk;
 }
@@ -91,7 +93,7 @@ Allocation MemoryBlock::Allocate(VkDeviceSize reqSize, VkDeviceSize alignment)
 void MemoryBlock::Free(Allocation c)
 {
 
-    if (c.Block.get() != this || Imported)
+    if ((c.Block.get() != this) || Imported)
     {
         return;
     }
@@ -104,6 +106,8 @@ void MemoryBlock::Free(Allocation c)
     {
         return;
     }
+
+    printf("[%p] %d Freed %llu bytes at offset %llu\n", OSHandle, Imported, c.Size, c.Offset + this->Offset);
 
     InUse -= c.Size;
 
@@ -165,7 +169,7 @@ VulkanAllocator::VulkanAllocator(VulkanDevice* Vk)
 {
 }
 
-Allocation VulkanAllocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> resource, bool map, HANDLE externalHandle)
+Allocation VulkanAllocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> resource, bool map, ImageExportInfo ext)
 {
     VkMemoryRequirements             req;
     VkPhysicalDeviceMemoryProperties props;
@@ -189,7 +193,7 @@ Allocation VulkanAllocator::AllocateResourceMemory(std::variant<VkBuffer, VkImag
 
     Allocation allocation = {};
 
-    if (externalHandle)
+    if (ext.memory)
     {
 
         // VkMemoryWin32HandlePropertiesKHR handleProps = {
@@ -202,20 +206,22 @@ Allocation VulkanAllocator::AllocateResourceMemory(std::variant<VkBuffer, VkImag
 
         VkImportMemoryWin32HandleInfoKHR importInfo = {
             .sType      = VK_STRUCTURE_TYPE_IMPORT_MEMORY_WIN32_HANDLE_INFO_KHR,
-            .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT,
-            .handle     = externalHandle,
+            .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT,
+            .handle     = ext.memory,
         };
 
         VkMemoryAllocateInfo info = {
             .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
             .pNext           = &importInfo,
-            .allocationSize  = req.size,
+            .allocationSize  = ext.size,
             .memoryTypeIndex = typeIndex,
         };
 
         VkDeviceMemory mem;
         MZ_VULKAN_ASSERT_SUCCESS(Vk->AllocateMemory(&info, 0, &mem));
-        return std::make_shared<MemoryBlock>(Vk, mem, actualProps, info.allocationSize, externalHandle)->Allocate(req.size, req.alignment);
+        auto Block = MakeShared<MemoryBlock>(Vk, mem, actualProps, ext.offset, info.allocationSize, ext.memory);
+        printf("Imported %p\n", Block->OSHandle);
+        return Block->Allocate(req.size, req.alignment);
     }
 
     if (auto it = Allocations.find(typeIndex); it != Allocations.end())
@@ -236,6 +242,7 @@ Allocation VulkanAllocator::AllocateResourceMemory(std::variant<VkBuffer, VkImag
 
     if (!allocation.IsValid())
     {
+        assert(!ext.memory);
 
         VkDeviceMemory mem;
 
@@ -249,7 +256,7 @@ Allocation VulkanAllocator::AllocateResourceMemory(std::variant<VkBuffer, VkImag
         VkExportMemoryAllocateInfo exportInfo = {
             .sType       = VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO,
             .pNext       = &handleInfo,
-            .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT | VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT,
+            .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT,
         };
 
         VkMemoryAllocateInfo info = {
@@ -261,7 +268,9 @@ Allocation VulkanAllocator::AllocateResourceMemory(std::variant<VkBuffer, VkImag
 
         MZ_VULKAN_ASSERT_SUCCESS(Vk->AllocateMemory(&info, 0, &mem));
 
-        auto block = std::make_shared<MemoryBlock>(Vk, mem, actualProps, size, externalHandle);
+        auto block = MakeShared<MemoryBlock>(Vk, mem, actualProps, 0, size, ext.memory);
+        printf("Exported %p\n", block->OSHandle);
+
         allocation = block->Allocate(req.size, req.alignment);
         Allocations[typeIndex].emplace_back(block);
     }
