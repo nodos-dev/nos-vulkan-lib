@@ -1,7 +1,8 @@
 
 #include "Image.h"
 #include "InfoStructs.h"
-#include "mzCommon.h"
+
+#include "NativeAPID3D12.h"
 #include "vulkan/vulkan_core.h"
 
 namespace mz
@@ -50,44 +51,47 @@ VulkanImage::VulkanImage(VulkanAllocator* Allocator, ImageCreateInfo const& crea
       Layout(VK_IMAGE_LAYOUT_UNDEFINED),
       Format(createInfo.Format),
       Usage(createInfo.Usage),
-      Sync(createInfo.Ext.sync)
+      Sync(createInfo.Ext.sync),
+      AccessMask(createInfo.Ext.accessMask),
+      SignalValue(0)
 {
+
+    Vk->DeviceWaitIdle();
 
     assert(IsImportable(Vk->PhysicalDevice, Format, Usage));
 
-    if (!Sync)
+    VkExportSemaphoreWin32HandleInfoKHR handleInfo = {
+        .sType    = VK_STRUCTURE_TYPE_EXPORT_SEMAPHORE_WIN32_HANDLE_INFO_KHR,
+        .dwAccess = GENERIC_ALL,
+    };
+
+    VkExportSemaphoreCreateInfo exportInfo = {
+        .sType       = VK_STRUCTURE_TYPE_EXPORT_SEMAPHORE_CREATE_INFO,
+        .pNext       = &handleInfo,
+        .handleTypes = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT,
+    };
+
+    VkSemaphoreTypeCreateInfo semaphoreTypeInfo = {
+        .sType         = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
+        .pNext         = &exportInfo,
+        .semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE,
+        .initialValue  = 0,
+    };
+
+    VkSemaphoreCreateInfo semaphoreCreateInfo = {
+        .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+        .pNext = &semaphoreTypeInfo,
+    };
+
+    MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateSemaphore(&semaphoreCreateInfo, 0, &Sema));
+
+    if (createInfo.Ext.sync)
     {
-        VkExportSemaphoreWin32HandleInfoKHR handleInfo = {
-            .sType    = VK_STRUCTURE_TYPE_EXPORT_SEMAPHORE_WIN32_HANDLE_INFO_KHR,
-            .dwAccess = GENERIC_ALL,
-        };
-
-        VkExportSemaphoreCreateInfo exportInfo = {
-            .sType       = VK_STRUCTURE_TYPE_EXPORT_SEMAPHORE_CREATE_INFO,
-            .pNext       = &handleInfo,
-            .handleTypes = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT,
-        };
-
-        VkSemaphoreCreateInfo createInfo = {
-            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-            .pNext = &exportInfo,
-        };
-
-        MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateSemaphore(&createInfo, 0, &Sema));
-    }
-    else
-    {
-        VkSemaphoreCreateInfo createInfo = {
-            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-        };
-
-        MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateSemaphore(&createInfo, 0, &Sema));
-
         VkImportSemaphoreWin32HandleInfoKHR importInfo = {
             .sType      = VK_STRUCTURE_TYPE_IMPORT_SEMAPHORE_WIN32_HANDLE_INFO_KHR,
             .semaphore  = Sema,
             .handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT,
-            .handle     = Sync,
+            .handle     = createInfo.Ext.sync,
         };
 
         MZ_VULKAN_ASSERT_SUCCESS(Vk->ImportSemaphoreWin32HandleKHR(&importInfo));
@@ -100,33 +104,36 @@ VulkanImage::VulkanImage(VulkanAllocator* Allocator, ImageCreateInfo const& crea
     };
 
     MZ_VULKAN_ASSERT_SUCCESS(Vk->GetSemaphoreWin32HandleKHR(&getHandleInfo, &Sync));
+    assert(Sync);
+
+    DWORD flags;
+    WIN32_ASSERT(GetHandleInformation(Sync, &flags));
 
     VkExternalMemoryImageCreateInfo resourceCreateInfo = {
         .sType       = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
         .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT,
     };
 
-    u32 Queues[] = {Vk->QueueFamily, VK_QUEUE_FAMILY_EXTERNAL};
-
     VkImageCreateInfo info = {
-        .sType       = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-        .pNext       = &resourceCreateInfo,
-        .flags       = VK_IMAGE_CREATE_ALIAS_BIT,
-        .imageType   = VK_IMAGE_TYPE_2D,
-        .format      = Format,
-        .extent      = {Extent.width, Extent.height, 1},
-        .mipLevels   = 1,
-        .arrayLayers = 1,
-        .samples     = VK_SAMPLE_COUNT_1_BIT,
-        .tiling      = VK_IMAGE_TILING_OPTIMAL,
-        .usage       = Usage,
-
-        // .sharingMode           = VK_SHARING_MODE_CONCURRENT,
-        // .queueFamilyIndexCount = 2,
-        // .pQueueFamilyIndices   = Queues,
-
+        .sType         = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+        .pNext         = &resourceCreateInfo,
+        .flags         = VK_IMAGE_CREATE_ALIAS_BIT,
+        .imageType     = VK_IMAGE_TYPE_2D,
+        .format        = Format,
+        .extent        = {Extent.width, Extent.height, 1},
+        .mipLevels     = 1,
+        .arrayLayers   = 1,
+        .samples       = VK_SAMPLE_COUNT_1_BIT,
+        .tiling        = VK_IMAGE_TILING_OPTIMAL,
+        .usage         = Usage,
         .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
     };
+
+    if (createInfo.Ext.memory)
+    {
+        info.initialLayout = VK_IMAGE_LAYOUT_PREINITIALIZED;
+        Layout             = VK_IMAGE_LAYOUT_PREINITIALIZED;
+    }
 
     MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateImage(&info, 0, &Handle));
 
@@ -165,11 +172,12 @@ VulkanImage::VulkanImage(VulkanAllocator* Allocator, ImageCreateInfo const& crea
     };
 
     MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateSampler(&samplerInfo, 0, &Sampler));
+
 } // namespace mz
 
 VulkanImage::~VulkanImage()
 {
-    assert(SUCCEEDED(CloseHandle(Sync)));
+    // assert(SUCCEEDED(CloseHandle(Sync)));
     Vk->DestroyImage(Handle, 0);
     Vk->DestroyImageView(View, 0);
     Vk->DestroySampler(Sampler, 0);
@@ -179,8 +187,6 @@ VulkanImage::~VulkanImage()
 
 void ImageLayoutTransition(VkImage                        Image,
                            std::shared_ptr<CommandBuffer> Cmd,
-                           u32                            srcQueueFamilyIndex,
-                           u32                            dstQueueFamilyIndex,
                            VkImageLayout                  CurrentLayout,
                            VkImageLayout                  TargetLayout,
                            VkAccessFlags                  srcAccessMask,
@@ -193,16 +199,116 @@ void ImageLayoutTransition(VkImage                        Image,
         .dstAccessMask       = dstAccessMask,
         .oldLayout           = CurrentLayout,
         .newLayout           = TargetLayout,
-        .srcQueueFamilyIndex = srcQueueFamilyIndex,
-        .dstQueueFamilyIndex = dstQueueFamilyIndex,
+        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
         .image               = Image,
         .subresourceRange    = {
-            .aspectMask   = VK_IMAGE_ASPECT_COLOR_BIT,
-            .baseMipLevel = 0,
-            .levelCount   = 1,
-            .layerCount   = 1,
+               .aspectMask   = VK_IMAGE_ASPECT_COLOR_BIT,
+               .baseMipLevel = 0,
+               .levelCount   = 1,
+               .layerCount   = 1,
         },
     };
+
+    {
+
+        // // https://github.com/SaschaWillems/Vulkan/blob/821a0659a76131662b1fc4a77c5a1ee6a9a330d8/base/VulkanTools.cpp#L142
+
+        // // Source layouts (old)
+        // // Source access mask controls actions that have to be finished on the old layout
+        // // before it will be transitioned to the new layout
+        // switch (CurrentLayout)
+        // {
+        // case VK_IMAGE_LAYOUT_UNDEFINED:
+        //     // Image layout is undefined (or does not matter)
+        //     // Only valid as initial layout
+        //     // No flags required, listed only for completeness
+        //     imageMemoryBarrier.srcAccessMask = 0;
+        //     break;
+
+        // case VK_IMAGE_LAYOUT_PREINITIALIZED:
+        //     // Image is preinitialized
+        //     // Only valid as initial layout for linear images, preserves memory contents
+        //     // Make sure host writes have been finished
+        //     imageMemoryBarrier.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT;
+        //     break;
+
+        // case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+        //     // Image is a color attachment
+        //     // Make sure any writes to the color buffer have been finished
+        //     imageMemoryBarrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+        //     break;
+
+        // case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+        //     // Image is a depth/stencil attachment
+        //     // Make sure any writes to the depth/stencil buffer have been finished
+        //     imageMemoryBarrier.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+        //     break;
+
+        // case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+        //     // Image is a transfer source
+        //     // Make sure any reads from the image have been finished
+        //     imageMemoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+        //     break;
+
+        // case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+        //     // Image is a transfer destination
+        //     // Make sure any writes to the image have been finished
+        //     imageMemoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        //     break;
+
+        // case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+        //     // Image is read by a shader
+        //     // Make sure any shader reads from the image have been finished
+        //     imageMemoryBarrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        //     break;
+        // default:
+        //     // Other source layouts aren't handled (yet)
+        //     break;
+        // }
+
+        // // Target layouts (new)
+        // // Destination access mask controls the dependency for the new image layout
+        // switch (TargetLayout)
+        // {
+        // case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+        //     // Image will be used as a transfer destination
+        //     // Make sure any writes to the image have been finished
+        //     imageMemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        //     break;
+
+        // case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+        //     // Image will be used as a transfer source
+        //     // Make sure any reads from the image have been finished
+        //     imageMemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+        //     break;
+
+        // case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+        //     // Image will be used as a color attachment
+        //     // Make sure any writes to the color buffer have been finished
+        //     imageMemoryBarrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+        //     break;
+
+        // case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+        //     // Image layout will be used as a depth/stencil attachment
+        //     // Make sure any writes to depth/stencil buffer have been finished
+        //     imageMemoryBarrier.dstAccessMask = imageMemoryBarrier.dstAccessMask | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+        //     break;
+
+        // case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+        //     // Image will be read in a shader (sampler, input attachment)
+        //     // Make sure any writes to the image have been finished
+        //     if (imageMemoryBarrier.srcAccessMask == 0)
+        //     {
+        //         imageMemoryBarrier.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT;
+        //     }
+        //     imageMemoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        //     break;
+        // default:
+        //     // Other source layouts aren't handled (yet)
+        //     break;
+        // }
+    }
 
     // Put barrier inside setup command buffer
     Cmd->PipelineBarrier(
@@ -217,36 +323,28 @@ void ImageLayoutTransition(VkImage                        Image,
         &imageMemoryBarrier);
 }
 
-void VulkanImage::Transition(VkImageLayout TargetLayout)
+void VulkanImage::Transition(VkImageLayout TargetLayout, VkAccessFlags TargetAccessMask)
 {
-
-    if (Layout == TargetLayout)
-    {
-        return;
-    }
-
     auto Cmd = Vk->ImmCmdPool->BeginCmd();
 
-    ImageLayoutTransition(Handle, Cmd, CurrentQueueFamilyIndex, CurrentQueueFamilyIndex, Layout, TargetLayout);
+    ImageLayoutTransition(Handle, Cmd, Layout, TargetLayout, AccessMask, TargetAccessMask);
 
-    Cmd->Submit();
+    Cmd->Submit2(this, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
 
-    Layout = TargetLayout;
+    Layout     = TargetLayout;
+    AccessMask = TargetAccessMask;
 }
 
 void VulkanImage::Transition(
     std::shared_ptr<CommandBuffer> Cmd,
-    VkImageLayout                  TargetLayout)
+    VkImageLayout                  TargetLayout,
+    VkAccessFlags                  TargetAccessMask)
 {
 
-    if (Layout == TargetLayout)
-    {
-        return;
-    }
+    ImageLayoutTransition(Handle, Cmd, Layout, TargetLayout, AccessMask, TargetAccessMask);
 
-    ImageLayoutTransition(Handle, Cmd, CurrentQueueFamilyIndex, CurrentQueueFamilyIndex, Layout, TargetLayout);
-
-    Layout = TargetLayout;
+    Layout     = TargetLayout;
+    AccessMask = TargetAccessMask;
 }
 
 void VulkanImage::Upload(u8* data, VulkanAllocator* Allocator, CommandPool* Pool)
@@ -274,7 +372,7 @@ void VulkanImage::Upload(u8* data, VulkanAllocator* Allocator, CommandPool* Pool
     std::shared_ptr<CommandBuffer> Cmd = Pool->BeginCmd();
 
     {
-        Transition(Cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+        Transition(Cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_ACCESS_TRANSFER_WRITE_BIT);
 
         VkBufferImageCopy region = {
             .imageSubresource = {
@@ -291,7 +389,7 @@ void VulkanImage::Upload(u8* data, VulkanAllocator* Allocator, CommandPool* Pool
         Cmd->CopyBufferToImage(StagingBuffer->Handle, Handle, Layout, 1, &region);
     }
 
-    Cmd->Submit(this, VK_PIPELINE_STAGE_TRANSFER_BIT);
+    Cmd->Submit2(this, VK_PIPELINE_STAGE_TRANSFER_BIT);
     Cmd->Wait();
 
 } // namespace mz
@@ -320,8 +418,8 @@ std::shared_ptr<VulkanImage> VulkanImage::Copy(VulkanAllocator* Allocator, Comma
     std::shared_ptr<CommandBuffer> Cmd = Pool->BeginCmd();
 
     {
-        Image->Transition(Cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-        Transition(Cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+        Image->Transition(Cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_ACCESS_TRANSFER_WRITE_BIT);
+        Transition(Cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_ACCESS_TRANSFER_READ_BIT);
 
         VkImageCopy region = {
             .srcSubresource = {
@@ -338,7 +436,7 @@ std::shared_ptr<VulkanImage> VulkanImage::Copy(VulkanAllocator* Allocator, Comma
         Cmd->CopyImage(Handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, Image->Handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
     }
 
-    Cmd->Submit({Image.get(), this}, VK_PIPELINE_STAGE_TRANSFER_BIT);
+    Cmd->Submit2({Image.get(), this}, VK_PIPELINE_STAGE_TRANSFER_BIT);
     Cmd->Wait();
 
     return Image;
@@ -363,7 +461,7 @@ std::shared_ptr<VulkanBuffer> VulkanImage::Download(VulkanAllocator* Allocator, 
     std::shared_ptr<CommandBuffer> Cmd = Pool->BeginCmd();
 
     {
-        Transition(Cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+        Transition(Cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_ACCESS_TRANSFER_READ_BIT);
 
         VkBufferImageCopy region = {
             .imageSubresource = {
@@ -380,7 +478,7 @@ std::shared_ptr<VulkanBuffer> VulkanImage::Download(VulkanAllocator* Allocator, 
         Cmd->CopyImageToBuffer(Handle, Layout, StagingBuffer->Handle, 1, &region);
     }
 
-    Cmd->Submit(this, VK_PIPELINE_STAGE_TRANSFER_BIT);
+    Cmd->Submit2(this, VK_PIPELINE_STAGE_TRANSFER_BIT);
     Cmd->Wait();
 
     return StagingBuffer;

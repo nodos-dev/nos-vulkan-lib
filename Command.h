@@ -97,15 +97,19 @@ struct CommandBuffer : std::enable_shared_from_this<CommandBuffer>,
         return static_cast<VulkanDevice*>(fnptrs);
     }
 
-    void Submit(
-        uint32_t                    waitSemaphoreCount   = 0,
-        const VkSemaphore*          pWaitSemaphores      = 0,
-        const VkPipelineStageFlags* pWaitDstStageMask    = 0,
-        uint32_t                    signalSemaphoreCount = 0,
-        const VkSemaphore*          pSignalSemaphores    = 0);
+    void Submit2(struct VulkanImage*, VkPipelineStageFlags stage);
+    void Submit2(std::vector<VulkanImage*> images, VkPipelineStageFlags stage);
+    void Submit1();
 
-    void Submit(struct VulkanImage*, VkPipelineStageFlags);
-    void Submit(std::vector<struct VulkanImage*>, VkPipelineStageFlags);
+    void Submit(
+        uint32_t                    waitSemaphoreCount,
+        const VkSemaphore*          pWaitSemaphores,
+        const VkPipelineStageFlags* pWaitDstStageMask,
+        uint32_t                    signalSemaphoreCount,
+        const VkSemaphore*          pSignalSemaphores);
+
+    // void Submit(struct VulkanImage*, VkPipelineStageFlags);
+    // void Submit(std::vector<struct VulkanImage*>, VkPipelineStageFlags);
 };
 
 struct CommandPool : std::enable_shared_from_this<CommandPool>, Uncopyable

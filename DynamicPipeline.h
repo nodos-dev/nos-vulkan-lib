@@ -67,7 +67,7 @@ struct DynamicPipeline : std::enable_shared_from_this<DynamicPipeline>, Uncopyab
 
     VkPipeline Handle;
 
-    DynamicPipeline(VulkanDevice* Vk, VkExtent2D extent, const u32* src, u64 sz);
+    DynamicPipeline(VulkanDevice* Vk, VkExtent2D extent, u32 rts, const u32* src, u64 sz);
 
     ~DynamicPipeline()
     {

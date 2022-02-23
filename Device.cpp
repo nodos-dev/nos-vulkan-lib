@@ -53,7 +53,7 @@ VulkanDevice::VulkanDevice(VkInstance                      Instance,
 
     VkPhysicalDeviceFeatures2 features = {
         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
-        .pNext = &dynamicRenderingFeatures,
+        .pNext = &vk12featuers,
     };
 
     VkDeviceCreateInfo info = {
@@ -136,15 +136,13 @@ VulkanContext::VulkanContext()
 
     MZ_VULKAN_ASSERT_SUCCESS(vkEnumeratePhysicalDevices(Instance, &count, pdevices.data()));
 
-VK_KHR_dynamic_rendering;
-
     std::vector<const char*> deviceExtensions = {
         "VK_KHR_swapchain",
         "VK_KHR_external_semaphore_win32",
         "VK_KHR_external_memory_win32",
         "VK_EXT_external_memory_host",
         "VK_KHR_dynamic_rendering",
-        // "VK_KHR_timeline_semaphore",
+        "VK_KHR_timeline_semaphore",
     };
 
     for (auto pdev : pdevices)

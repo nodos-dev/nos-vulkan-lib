@@ -4,6 +4,7 @@
 
 namespace mz
 {
+
 union DescriptorResourceInfo {
     VkDescriptorImageInfo  image;
     VkDescriptorBufferInfo buffer;

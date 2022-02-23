@@ -5,7 +5,7 @@
 
 namespace mz
 {
-DynamicPipeline::DynamicPipeline(VulkanDevice* Vk, VkExtent2D extent, const u32* src, u64 sz)
+DynamicPipeline::DynamicPipeline(VulkanDevice* Vk, VkExtent2D extent, u32 rts, const u32* src, u64 sz)
     : Vk(Vk), Shader(std::make_shared<MZShader>(Vk, VK_SHADER_STAGE_FRAGMENT_BIT, src, sz)), Layout(std::make_shared<PipelineLayout>(Vk, src, sz))
 {
 
@@ -18,12 +18,12 @@ DynamicPipeline::DynamicPipeline(VulkanDevice* Vk, VkExtent2D extent, const u32*
         VS = Vk->RegisterGlobal<VertexShader>("GlobVS", Vk, (const u32*)GlobalVSSPV.data(), GlobalVSSPV.size());
     }
 
-    VkFormat format = VK_FORMAT_R8G8B8A8_UNORM;
+    VkFormat format[2] = {VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_R8G8B8A8_UNORM};
 
     VkPipelineRenderingCreateInfo renderInfo = {
         .sType                   = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
-        .colorAttachmentCount    = 1,
-        .pColorAttachmentFormats = &format,
+        .colorAttachmentCount    = rts,
+        .pColorAttachmentFormats = format,
     };
 
     VkPipelineVertexInputStateCreateInfo inputLayout = VS->GetInputLayout();
@@ -76,14 +76,15 @@ DynamicPipeline::DynamicPipeline(VulkanDevice* Vk, VkExtent2D extent, const u32*
         .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
     };
 
-    VkPipelineColorBlendAttachmentState attachments = {
-        .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT,
+    VkPipelineColorBlendAttachmentState attachments[2] = {
+        {.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT},
+        {.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT},
     };
 
     VkPipelineColorBlendStateCreateInfo colorBlendState = {
         .sType           = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
-        .attachmentCount = 1,
-        .pAttachments    = &attachments,
+        .attachmentCount = rts,
+        .pAttachments    = attachments,
     };
 
     VkGraphicsPipelineCreateInfo info = {

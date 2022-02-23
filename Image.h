@@ -12,12 +12,10 @@ namespace mz
 
 void ImageLayoutTransition(VkImage                        Image,
                            std::shared_ptr<CommandBuffer> Cmd,
-                           u32                            srcQueueFamilyIndex,
-                           u32                            dstQueueFamilyIndex,
                            VkImageLayout                  CurrentLayout,
                            VkImageLayout                  TargetLayout,
-                           VkAccessFlags                  srcAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT,
-                           VkAccessFlags                  dstAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT);
+                           VkAccessFlags                  srcAccessMask,
+                           VkAccessFlags                  dstAccessMask);
 
 struct VulkanImage : std::enable_shared_from_this<VulkanImage>
 {
@@ -30,23 +28,26 @@ struct VulkanImage : std::enable_shared_from_this<VulkanImage>
     VkFormat          Format;
     VkImageUsageFlags Usage;
 
-    VkSampler     Sampler;
-    VkImageView   View;
+    VkSampler   Sampler;
+    VkImageView View;
+
     VkImageLayout Layout;
+    VkAccessFlags AccessMask;
 
     HANDLE      Sync;
     VkSemaphore Sema;
 
-    u32 CurrentQueueFamilyIndex;
+    u64 SignalValue;
 
     ImageExportInfo
     GetExportInfo()
     {
         return ImageExportInfo{
-            .sync   = Sync,
-            .memory = Allocation.GetOSHandle(),
-            .offset = Allocation.Offset,
-            .size   = Allocation.Block->Size,
+            .memory     = Allocation.GetOSHandle(),
+            .sync       = Sync,
+            .offset     = Allocation.Offset + Allocation.Block->Offset,
+            .size       = Allocation.Block->Size,
+            .accessMask = AccessMask,
         };
     }
 
@@ -62,8 +63,8 @@ struct VulkanImage : std::enable_shared_from_this<VulkanImage>
 
     ~VulkanImage();
 
-    void Transition(std::shared_ptr<CommandBuffer> cmd, VkImageLayout TargetLayout);
-    void Transition(VkImageLayout TargetLayout);
+    void Transition(std::shared_ptr<CommandBuffer> cmd, VkImageLayout TargetLayout, VkAccessFlags TargetAccessMask);
+    void Transition(VkImageLayout TargetLayout, VkAccessFlags TargetAccessMask);
 
     void Upload(u8* data, VulkanAllocator* = 0, CommandPool* = 0);
 
@@ -74,5 +75,41 @@ struct VulkanImage : std::enable_shared_from_this<VulkanImage>
     VulkanImage(VulkanAllocator*, ImageCreateInfo const&);
 
     VulkanImage(VulkanDevice*, ImageCreateInfo const&);
-};
+
+    u64 AcquireValue()
+    {
+        u64 val;
+        MZ_VULKAN_ASSERT_SUCCESS(Vk->GetSemaphoreCounterValue(Sema, &val));
+        return val;
+    }
+
+    void Acquire()
+    {
+        u64 val     = AcquireValue();
+        SignalValue = val + 1;
+
+        VkSemaphoreWaitInfo waitInfo = {
+            .sType          = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO,
+            .semaphoreCount = 1,
+            .pSemaphores    = &Sema,
+            .pValues        = &val,
+        };
+
+        MZ_VULKAN_ASSERT_SUCCESS(Vk->WaitSemaphores(&waitInfo, -1));
+    }
+
+    void Release()
+    {
+        u64 val;
+        MZ_VULKAN_ASSERT_SUCCESS(Vk->GetSemaphoreCounterValue(Sema, &val));
+
+        VkSemaphoreSignalInfo signalInfo = {
+            .sType     = VK_STRUCTURE_TYPE_SEMAPHORE_SIGNAL_INFO,
+            .semaphore = Sema,
+            .value     = SignalValue,
+        };
+
+        MZ_VULKAN_ASSERT_SUCCESS(Vk->SignalSemaphore(&signalInfo));
+    }
+}; // namespace mz
 }; // namespace mz

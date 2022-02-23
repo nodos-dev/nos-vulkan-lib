@@ -7,11 +7,13 @@ namespace mz
 
 struct ImageExportInfo
 {
-    HANDLE sync;
-    HANDLE memory;
+    HANDLE memory = 0;
+    HANDLE sync   = 0;
 
-    VkDeviceSize offset;
-    VkDeviceSize size;
+    VkDeviceSize offset = 0;
+    VkDeviceSize size   = 0;
+
+    VkAccessFlags accessMask = 0;
 };
 
 struct ImageCreateInfo
