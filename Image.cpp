@@ -191,7 +191,9 @@ void ImageLayoutTransition(VkImage                        Image,
                            VkImageLayout                  CurrentLayout,
                            VkImageLayout                  TargetLayout,
                            VkAccessFlags                  srcAccessMask,
-                           VkAccessFlags                  dstAccessMask)
+                           VkAccessFlags                  dstAccessMask,
+                           u32                            srcQueueFamilyIndex,
+                           u32                            dstQueueFamilyIndex)
 {
     // Create an image barrier object
     VkImageMemoryBarrier imageMemoryBarrier = {
@@ -200,8 +202,8 @@ void ImageLayoutTransition(VkImage                        Image,
         .dstAccessMask       = dstAccessMask,
         .oldLayout           = CurrentLayout,
         .newLayout           = TargetLayout,
-        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_EXTERNAL,
+        .dstQueueFamilyIndex = 0,
         .image               = Image,
         .subresourceRange    = {
                .aspectMask   = VK_IMAGE_ASPECT_COLOR_BIT,
@@ -391,6 +393,7 @@ void VulkanImage::Upload(u8* data, VulkanAllocator* Allocator, CommandPool* Pool
     }
 
     Cmd->Submit(this, VK_PIPELINE_STAGE_TRANSFER_BIT);
+    
     Cmd->Wait();
 
 } // namespace mz

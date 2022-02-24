@@ -23,10 +23,9 @@ CommandBuffer::~CommandBuffer()
     {
         GetDevice()->WaitForFences(1, &Fence, 1, -1);
     }
+    GetDevice()->DestroyFence(Fence, 0);
 
     MZ_VULKAN_ASSERT_SUCCESS(Reset(VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT));
-
-    GetDevice()->DestroyFence(Fence, 0);
 }
 
 void CommandBuffer::Submit(
@@ -36,7 +35,6 @@ void CommandBuffer::Submit(
     uint32_t                    signalSemaphoreCount,
     const VkSemaphore*          pSignalSemaphores)
 {
-    MZ_VULKAN_ASSERT_SUCCESS(End());
 
     VkSubmitInfo submitInfo = {
         .sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,
@@ -49,6 +47,9 @@ void CommandBuffer::Submit(
         .pSignalSemaphores    = pSignalSemaphores,
     };
 
+    MZ_VULKAN_ASSERT_SUCCESS(End());
+
+    // MZ_VULKAN_ASSERT_SUCCESS(Pool->Queue.Submit(1, &submitInfo, 0));
     MZ_VULKAN_ASSERT_SUCCESS(Pool->Queue.Submit(1, &submitInfo, Fence));
 }
 

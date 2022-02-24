@@ -15,7 +15,9 @@ void ImageLayoutTransition(VkImage                        Image,
                            VkImageLayout                  CurrentLayout,
                            VkImageLayout                  TargetLayout,
                            VkAccessFlags                  srcAccessMask,
-                           VkAccessFlags                  dstAccessMask);
+                           VkAccessFlags                  dstAccessMask,
+                           u32                            srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                           u32                            dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED);
 
 struct VulkanImage : std::enable_shared_from_this<VulkanImage>
 {

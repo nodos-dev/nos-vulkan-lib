@@ -86,6 +86,7 @@ struct CommandBuffer : std::enable_shared_from_this<CommandBuffer>,
     void Wait()
     {
         MZ_VULKAN_ASSERT_SUCCESS(GetDevice()->WaitForFences(1, &Fence, 0, -1));
+        // MZ_VULKAN_ASSERT_SUCCESS(GetDevice()->DeviceWaitIdle());
     }
 
     CommandBuffer(CommandPool* Pool, VkCommandBuffer Handle);
@@ -110,6 +111,8 @@ struct CommandBuffer : std::enable_shared_from_this<CommandBuffer>,
 
 struct CommandPool : std::enable_shared_from_this<CommandPool>, Uncopyable
 {
+    static constexpr u64 DefaultPoolSize = 1024;
+
     VkCommandPool Handle;
 
     VulkanQueue Queue;
@@ -118,7 +121,7 @@ struct CommandPool : std::enable_shared_from_this<CommandPool>, Uncopyable
     CircularIndex                               NextBuffer;
 
     CommandPool(VulkanDevice* Vk, u32 family)
-        : Queue(Vk, family, 0), NextBuffer(256)
+        : Queue(Vk, family, 0), NextBuffer(DefaultPoolSize)
     {
         VkCommandPoolCreateInfo info = {
             .sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
@@ -128,18 +131,18 @@ struct CommandPool : std::enable_shared_from_this<CommandPool>, Uncopyable
 
         MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateCommandPool(&info, 0, &Handle));
 
-        VkCommandBuffer buf[256];
+        VkCommandBuffer buf[DefaultPoolSize];
 
         VkCommandBufferAllocateInfo cmdInfo = {
             .sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
             .commandPool        = Handle,
             .level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-            .commandBufferCount = 256,
+            .commandBufferCount = DefaultPoolSize,
         };
 
         MZ_VULKAN_ASSERT_SUCCESS(Vk->AllocateCommandBuffers(&cmdInfo, buf));
 
-        Buffers.reserve(256);
+        Buffers.reserve(DefaultPoolSize);
 
         for (VkCommandBuffer cmd : buf)
         {
@@ -186,34 +189,6 @@ struct CommandPool : std::enable_shared_from_this<CommandPool>, Uncopyable
         return Cmd;
     }
 
-    // template <class F>
-    // void Exec(F&& f, VkPipelineStageFlags* stage = 0, const VkSemaphore* wait = 0, const VkSemaphore* signal = 0)
-    // {
-    //     std::shared_ptr<CommandBuffer> cmd = AllocCommandBuffer();
-
-    //     VkCommandBufferBeginInfo beginInfo = {
-    //         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-    //         .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-    //     };
-
-    //     MZ_VULKAN_ASSERT_SUCCESS(cmd->Begin(&beginInfo));
-    //     f(cmd);
-    //     MZ_VULKAN_ASSERT_SUCCESS(cmd->End());
-
-    //     VkSubmitInfo submitInfo = {
-    //         .sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-    //         .waitSemaphoreCount   = 0 != wait,
-    //         .pWaitSemaphores      = wait,
-    //         .pWaitDstStageMask    = stage,
-    //         .commandBufferCount   = 1,
-    //         .pCommandBuffers      = &cmd->handle,
-    //         .signalSemaphoreCount = 0 != signal,
-    //         .pSignalSemaphores    = signal,
-    //     };
-
-    //     MZ_VULKAN_ASSERT_SUCCESS(Queue.Submit(1, &submitInfo, 0));
-    //     MZ_VULKAN_ASSERT_SUCCESS(Queue.WaitIdle());
-    // }
 };
 
 } // namespace mz
