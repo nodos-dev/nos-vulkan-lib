@@ -44,7 +44,7 @@ struct VulkanImage : std::enable_shared_from_this<VulkanImage>
             .memory     = Allocation.GetOSHandle(),
             .sync       = Sync,
             .offset     = Allocation.Offset + Allocation.Block->Offset,
-            .size       = Allocation.Size,
+            .size       = Allocation.Block->Size,
             .accessMask = AccessMask,
         };
     }

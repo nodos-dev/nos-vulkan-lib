@@ -175,7 +175,10 @@ VulkanImage::VulkanImage(VulkanAllocator* Allocator, ImageCreateInfo const& crea
 
 VulkanImage::~VulkanImage()
 {
-    // assert(SUCCEEDED(CloseHandle(Sync)));
+    if (!Allocation.IsImported())
+    {
+        assert(SUCCEEDED(CloseHandle(Sync)));
+    }
     Vk->DestroyImage(Handle, 0);
     Vk->DestroyImageView(View, 0);
     Vk->DestroySampler(Sampler, 0);
