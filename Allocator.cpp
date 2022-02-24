@@ -84,8 +84,6 @@ Allocation MemoryBlock::Allocate(VkDeviceSize reqSize, VkDeviceSize alignment)
         next->second = offset - next->first;
     }
 
-    printf("[%p] %d Allocated %llu bytes at offset %llu\n", OSHandle, Imported, reqSize, offset + this->Offset);
-
     InUse += reqSize;
     return chunk;
 }
@@ -107,7 +105,6 @@ void MemoryBlock::Free(Allocation c)
         return;
     }
 
-    printf("[%p] %d Freed %llu bytes at offset %llu\n", OSHandle, Imported, c.Size, c.Offset + this->Offset);
 
     InUse -= c.Size;
 
@@ -220,7 +217,7 @@ Allocation VulkanAllocator::AllocateResourceMemory(std::variant<VkBuffer, VkImag
         VkDeviceMemory mem;
         MZ_VULKAN_ASSERT_SUCCESS(Vk->AllocateMemory(&info, 0, &mem));
         auto Block = MakeShared<MemoryBlock>(Vk, mem, actualProps, ext.offset, info.allocationSize, ext.memory);
-        printf("Imported %p\n", Block->OSHandle);
+        
         return Block->Allocate(req.size, req.alignment);
     }
 
@@ -269,7 +266,6 @@ Allocation VulkanAllocator::AllocateResourceMemory(std::variant<VkBuffer, VkImag
         MZ_VULKAN_ASSERT_SUCCESS(Vk->AllocateMemory(&info, 0, &mem));
 
         auto block = MakeShared<MemoryBlock>(Vk, mem, actualProps, 0, size, ext.memory);
-        printf("Exported %p\n", block->OSHandle);
 
         allocation = block->Allocate(req.size, req.alignment);
         Allocations[typeIndex].emplace_back(block);

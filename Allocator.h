@@ -89,7 +89,7 @@ struct MemoryBlock : std::enable_shared_from_this<MemoryBlock>, Uncopyable
     std::map<VkDeviceSize, VkDeviceSize> FreeList;
 
     MemoryBlock(VulkanDevice* Vk, VkDeviceMemory mem, VkMemoryPropertyFlags props, u64 offset, u64 size, HANDLE externalHandle)
-        : Vk(Vk), Memory(mem), Props(props), Offset(offset), Size(size), InUse(0), Mapping(0), OSHandle(0), Imported(externalHandle != 0)
+        : Vk(Vk), Memory(mem), Props(props), Offset(offset), Size(size), InUse(0), Mapping(0), Imported(externalHandle != 0)
     {
         FreeList[0] = size;
 
@@ -109,8 +109,14 @@ struct MemoryBlock : std::enable_shared_from_this<MemoryBlock>, Uncopyable
 
     ~MemoryBlock()
     {
+
         Vk->FreeMemory(Memory, 0);
-        assert(SUCCEEDED(CloseHandle(OSHandle)));
+
+        // Imported blocks do not need to decrease the refcount
+        if (!Imported)
+        {
+            assert(SUCCEEDED(CloseHandle(OSHandle)));
+        }
     }
 
     Allocation Allocate(VkDeviceSize size, VkDeviceSize alignment);

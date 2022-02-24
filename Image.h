@@ -37,8 +37,6 @@ struct VulkanImage : std::enable_shared_from_this<VulkanImage>
     HANDLE      Sync;
     VkSemaphore Sema;
 
-    u64 SignalValue;
-
     ImageExportInfo
     GetExportInfo()
     {
@@ -46,7 +44,7 @@ struct VulkanImage : std::enable_shared_from_this<VulkanImage>
             .memory     = Allocation.GetOSHandle(),
             .sync       = Sync,
             .offset     = Allocation.Offset + Allocation.Block->Offset,
-            .size       = Allocation.Block->Size,
+            .size       = Allocation.Size,
             .accessMask = AccessMask,
         };
     }
@@ -76,40 +74,5 @@ struct VulkanImage : std::enable_shared_from_this<VulkanImage>
 
     VulkanImage(VulkanDevice*, ImageCreateInfo const&);
 
-    u64 AcquireValue()
-    {
-        u64 val;
-        MZ_VULKAN_ASSERT_SUCCESS(Vk->GetSemaphoreCounterValue(Sema, &val));
-        return val;
-    }
-
-    void Acquire()
-    {
-        u64 val     = AcquireValue();
-        SignalValue = val + 1;
-
-        VkSemaphoreWaitInfo waitInfo = {
-            .sType          = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO,
-            .semaphoreCount = 1,
-            .pSemaphores    = &Sema,
-            .pValues        = &val,
-        };
-
-        MZ_VULKAN_ASSERT_SUCCESS(Vk->WaitSemaphores(&waitInfo, -1));
-    }
-
-    void Release()
-    {
-        u64 val;
-        MZ_VULKAN_ASSERT_SUCCESS(Vk->GetSemaphoreCounterValue(Sema, &val));
-
-        VkSemaphoreSignalInfo signalInfo = {
-            .sType     = VK_STRUCTURE_TYPE_SEMAPHORE_SIGNAL_INFO,
-            .semaphore = Sema,
-            .value     = SignalValue,
-        };
-
-        MZ_VULKAN_ASSERT_SUCCESS(Vk->SignalSemaphore(&signalInfo));
-    }
 }; // namespace mz
 }; // namespace mz

@@ -10,7 +10,7 @@
 
 void ReadInputLayout(const u32* src, u64 sz, VkVertexInputBindingDescription& binding, std::vector<VkVertexInputAttributeDescription>& attributes);
 
-std::map<u32, std::vector<VkDescriptorSetLayoutBinding>> GetLayouts(const u32* src, u64 sz);
+std::map<u32, std::vector<VkDescriptorSetLayoutBinding>> GetLayouts(const u32* src, u64 sz, u32& RTcount);
 
 struct f32x2
 {

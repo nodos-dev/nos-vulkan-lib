@@ -52,8 +52,7 @@ VulkanImage::VulkanImage(VulkanAllocator* Allocator, ImageCreateInfo const& crea
       Format(createInfo.Format),
       Usage(createInfo.Usage),
       Sync(createInfo.Ext.sync),
-      AccessMask(createInfo.Ext.accessMask),
-      SignalValue(0)
+      AccessMask(createInfo.Ext.accessMask)
 {
 
     Vk->DeviceWaitIdle();
@@ -74,8 +73,7 @@ VulkanImage::VulkanImage(VulkanAllocator* Allocator, ImageCreateInfo const& crea
     VkSemaphoreTypeCreateInfo semaphoreTypeInfo = {
         .sType         = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
         .pNext         = &exportInfo,
-        .semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE,
-        .initialValue  = 0,
+        .semaphoreType = VK_SEMAPHORE_TYPE_BINARY,
     };
 
     VkSemaphoreCreateInfo semaphoreCreateInfo = {
@@ -329,7 +327,7 @@ void VulkanImage::Transition(VkImageLayout TargetLayout, VkAccessFlags TargetAcc
 
     ImageLayoutTransition(Handle, Cmd, Layout, TargetLayout, AccessMask, TargetAccessMask);
 
-    Cmd->Submit2(this, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
+    Cmd->Submit(this, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
 
     Layout     = TargetLayout;
     AccessMask = TargetAccessMask;
@@ -389,7 +387,7 @@ void VulkanImage::Upload(u8* data, VulkanAllocator* Allocator, CommandPool* Pool
         Cmd->CopyBufferToImage(StagingBuffer->Handle, Handle, Layout, 1, &region);
     }
 
-    Cmd->Submit2(this, VK_PIPELINE_STAGE_TRANSFER_BIT);
+    Cmd->Submit(this, VK_PIPELINE_STAGE_TRANSFER_BIT);
     Cmd->Wait();
 
 } // namespace mz
@@ -436,7 +434,7 @@ std::shared_ptr<VulkanImage> VulkanImage::Copy(VulkanAllocator* Allocator, Comma
         Cmd->CopyImage(Handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, Image->Handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
     }
 
-    Cmd->Submit2({Image.get(), this}, VK_PIPELINE_STAGE_TRANSFER_BIT);
+    Cmd->Submit({Image.get(), this}, VK_PIPELINE_STAGE_TRANSFER_BIT);
     Cmd->Wait();
 
     return Image;
@@ -478,7 +476,7 @@ std::shared_ptr<VulkanBuffer> VulkanImage::Download(VulkanAllocator* Allocator, 
         Cmd->CopyImageToBuffer(Handle, Layout, StagingBuffer->Handle, 1, &region);
     }
 
-    Cmd->Submit2(this, VK_PIPELINE_STAGE_TRANSFER_BIT);
+    Cmd->Submit(this, VK_PIPELINE_STAGE_TRANSFER_BIT);
     Cmd->Wait();
 
     return StagingBuffer;

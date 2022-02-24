@@ -116,13 +116,10 @@ struct PipelineLayout : std::enable_shared_from_this<PipelineLayout>
 
     std::shared_ptr<DescriptorPool> Pool;
 
-    VkShaderStageFlags Stage;
-    u32                PushConstantSize;
+    u32 PushConstantSize;
+    u32 RTcount;
 
     std::map<u32, std::shared_ptr<DescriptorLayout>> Descriptors;
-
-    PipelineLayout(VulkanDevice* Vk, const u32* src, u64 sz);
-    PipelineLayout(VulkanDevice* Vk, std::map<u32, std::vector<VkDescriptorSetLayoutBinding>> layouts);
 
     ~PipelineLayout()
     {
@@ -134,5 +131,10 @@ struct PipelineLayout : std::enable_shared_from_this<PipelineLayout>
         return std::make_shared<DescriptorSet>(Pool.get(), set);
     }
     void Dump();
+
+    PipelineLayout(VulkanDevice* Vk, const u32* src, u64 sz);
+
+  private:
+    PipelineLayout(VulkanDevice* Vk, std::map<u32, std::vector<VkDescriptorSetLayoutBinding>> layouts);
 };
 } // namespace mz

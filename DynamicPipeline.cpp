@@ -2,10 +2,11 @@
 #include "DynamicPipeline.h"
 
 #include "Layout.h"
+#include "vulkan/vulkan_core.h"
 
 namespace mz
 {
-DynamicPipeline::DynamicPipeline(VulkanDevice* Vk, VkExtent2D extent, u32 rts, const u32* src, u64 sz)
+DynamicPipeline::DynamicPipeline(VulkanDevice* Vk, VkExtent2D extent, const u32* src, u64 sz)
     : Vk(Vk), Shader(std::make_shared<MZShader>(Vk, VK_SHADER_STAGE_FRAGMENT_BIT, src, sz)), Layout(std::make_shared<PipelineLayout>(Vk, src, sz))
 {
 
@@ -18,12 +19,19 @@ DynamicPipeline::DynamicPipeline(VulkanDevice* Vk, VkExtent2D extent, u32 rts, c
         VS = Vk->RegisterGlobal<VertexShader>("GlobVS", Vk, (const u32*)GlobalVSSPV.data(), GlobalVSSPV.size());
     }
 
-    VkFormat format[2] = {VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_R8G8B8A8_UNORM};
+#define FMT0 VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_R8G8B8A8_UNORM
+#define FMT1 FMT0, FMT0
+#define FMT2 FMT1, FMT1
+#define FMT  FMT2, FMT2
+
+    constexpr static VkFormat FORMAT[] = {FMT, FMT};
+
+    assert(Layout->RTcount <= sizeof(FORMAT) / sizeof(VkFormat));
 
     VkPipelineRenderingCreateInfo renderInfo = {
         .sType                   = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
-        .colorAttachmentCount    = rts,
-        .pColorAttachmentFormats = format,
+        .colorAttachmentCount    = Layout->RTcount,
+        .pColorAttachmentFormats = FORMAT,
     };
 
     VkPipelineVertexInputStateCreateInfo inputLayout = VS->GetInputLayout();
@@ -76,14 +84,20 @@ DynamicPipeline::DynamicPipeline(VulkanDevice* Vk, VkExtent2D extent, u32 rts, c
         .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
     };
 
-    VkPipelineColorBlendAttachmentState attachments[2] = {
-        {.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT},
-        {.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT},
-    };
+#define ATT0                                                                                                                        \
+    {                                                                                                                               \
+        .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT \
+    }
+#define ATT1 ATT0, ATT0
+#define ATT2 ATT1, ATT1
+#define ATT3 ATT2, ATT2
+#define ATT  ATT3, ATT3
+
+    VkPipelineColorBlendAttachmentState attachments[] = {ATT, ATT};
 
     VkPipelineColorBlendStateCreateInfo colorBlendState = {
         .sType           = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
-        .attachmentCount = rts,
+        .attachmentCount = Layout->RTcount,
         .pAttachments    = attachments,
     };
 

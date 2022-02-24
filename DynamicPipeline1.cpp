@@ -3,7 +3,6 @@
 
 #include <spirv_cross.hpp>
 
-
 std::pair<VkFormat, u32> TypeAttributes(spirv_cross::SPIRType ty)
 {
 
@@ -93,7 +92,7 @@ void ReadInputLayout(const u32* src, u64 sz, VkVertexInputBindingDescription& bi
 }
 
 std::map<u32, std::vector<VkDescriptorSetLayoutBinding>>
-GetLayouts(const u32* src, u64 sz)
+GetLayouts(const u32* src, u64 sz, u32& RTcount)
 {
     using namespace spirv_cross;
     Compiler        cc(src, sz / 4);
@@ -101,6 +100,8 @@ GetLayouts(const u32* src, u64 sz)
     EntryPoint      entry     = cc.get_entry_points_and_stages()[0];
 
     VkShaderStageFlags stage = VkShaderStageFlagBits(1 << (u32)entry.execution_model);
+
+    RTcount = resources.stage_outputs.size();
 
     std::pair<VkDescriptorType, SmallVector<Resource>*> res[] = {
         std::pair{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &resources.sampled_images},

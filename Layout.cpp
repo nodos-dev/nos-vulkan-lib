@@ -79,12 +79,12 @@ DescriptorPool::~DescriptorPool()
 }
 
 PipelineLayout::PipelineLayout(VulkanDevice* Vk, const u32* src, u64 sz)
-    : PipelineLayout(Vk, GetLayouts(src, sz))
+    : PipelineLayout(Vk, GetLayouts(src, sz, RTcount))
 {
 }
 
 PipelineLayout::PipelineLayout(VulkanDevice* Vk, std::map<u32, std::vector<VkDescriptorSetLayoutBinding>> layouts)
-    : Vk(Vk), Stage(0), PushConstantSize(0), Pool(0)
+    : Vk(Vk), PushConstantSize(0), Pool(0)
 {
     std::vector<VkDescriptorSetLayout> handles;
 
