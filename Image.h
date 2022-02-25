@@ -56,9 +56,8 @@ struct VulkanImage : SharedFactory<VulkanImage>
     {
         return DescriptorResourceInfo{
             .image = {
-                .sampler     = Sampler,
-                .imageView   = View,
-                .imageLayout = Layout,
+                .sampler   = Sampler,
+                .imageView = View,
             }};
     }
 

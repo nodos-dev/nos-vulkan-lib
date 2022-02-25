@@ -9,11 +9,10 @@ namespace mz
 
 void DescriptorSet::Bind(std::shared_ptr<CommandBuffer> Cmd)
 {
-    for (auto res : Bound)
+    for (auto& res : Bound)
     {
         res.Bind();
     }
-
     Cmd->BindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, Pool->Layout->Handle, Index, 1, &Handle, 0, 0);
 }
 

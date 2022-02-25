@@ -45,14 +45,11 @@ struct Binding
     {
     }
 
-    void Bind()
+    void Bind() const
     {
-        if (VulkanImage** ppimage = std::get_if<VulkanImage*>(&resource))
+        if (VulkanImage* const* ppimage = std::get_if<VulkanImage*>(&resource))
         {
-            if ((**ppimage).Layout != info.image.imageLayout)
-            {
-                (**ppimage).Transition(info.image.imageLayout, access);
-            }
+            (**ppimage).Transition(info.image.imageLayout, access);
         }
     }
 
@@ -190,9 +187,9 @@ struct DescriptorSet : SharedFactory<DescriptorSet>
     requires(std::is_same_v<Resource, Binding>&&...)
         std::shared_ptr<DescriptorSet> UpdateWith(Resource... res)
     {
-        Bound.insert(res...);
         VkWriteDescriptorSet writes[sizeof...(Resource)] = {res.GetDescriptorInfo(Handle, GetType(res.binding))...};
         Layout->Vk->UpdateDescriptorSets(sizeof...(Resource), writes, 0, 0);
+        Bound.insert(res...);
         return shared_from_this();
     }
 
@@ -221,6 +218,7 @@ struct PipelineLayout : SharedFactory<PipelineLayout>
     {
         return DescriptorSet::New(Pool.get(), set);
     }
+
     void Dump();
 
     PipelineLayout(VulkanDevice* Vk, const u32* src, u64 sz);
