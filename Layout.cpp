@@ -1,9 +1,22 @@
 #include "Layout.h"
+#include "Command.h"
 
+#include <algorithm>
 #include <spirv_cross.hpp>
 
 namespace mz
 {
+
+void DescriptorSet::Bind(std::shared_ptr<CommandBuffer> Cmd)
+{
+    for (auto res : Bound)
+    {
+        res.Bind();
+    }
+
+    Cmd->BindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, Pool->Layout->Handle, Index, 1, &Handle, 0, 0);
+}
+
 DescriptorSet::DescriptorSet(DescriptorPool* pool, u32 Index)
     : Pool(pool), Layout(pool->Layout->Descriptors[Index].get()), Index(Index)
 {
@@ -90,7 +103,7 @@ PipelineLayout::PipelineLayout(VulkanDevice* Vk, std::map<u32, std::vector<VkDes
 
     for (auto& [set, descriptor] : layouts)
     {
-        auto layout = std::make_shared<DescriptorLayout>(Vk, std::move(descriptor));
+        auto layout = DescriptorLayout::New(Vk, std::move(descriptor));
         handles.push_back(layout->Handle);
         Descriptors[set] = layout;
     }
@@ -113,7 +126,7 @@ PipelineLayout::PipelineLayout(VulkanDevice* Vk, std::map<u32, std::vector<VkDes
 
     if (!Descriptors.empty())
     {
-        Pool = std::make_shared<DescriptorPool>(this);
+        Pool = DescriptorPool::New(this);
     }
 }
 

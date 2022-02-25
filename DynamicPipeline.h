@@ -5,7 +5,7 @@
 
 namespace mz
 {
-struct MZShader : std::enable_shared_from_this<MZShader>, Uncopyable
+struct MZShader : SharedFactory<MZShader>
 {
     VulkanDevice*      Vk;
     VkShaderModule     Module;
@@ -58,7 +58,7 @@ struct VertexShader : MZShader
     }
 };
 
-struct DynamicPipeline : std::enable_shared_from_this<DynamicPipeline>, Uncopyable
+struct DynamicPipeline : SharedFactory<DynamicPipeline>
 {
     VulkanDevice* Vk;
 
@@ -67,11 +67,46 @@ struct DynamicPipeline : std::enable_shared_from_this<DynamicPipeline>, Uncopyab
 
     VkPipeline Handle;
 
+    VkExtent2D Extent;
+
     DynamicPipeline(VulkanDevice* Vk, VkExtent2D extent, const u32* src, u64 sz);
 
     ~DynamicPipeline()
     {
         Vk->DestroyPipeline(Handle, 0);
+    }
+
+    template <class... RT>
+    requires((std::is_same_v<RT, VulkanImage*> || std::is_same_v<RT, std::shared_ptr<VulkanImage>>)&&...) void Bind(std::shared_ptr<CommandBuffer> Cmd, RT... Images)
+    {
+        assert(sizeof...(Images) == Layout->RTcount);
+
+        (Images->Transition(VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT), ...);
+
+        VkRenderingAttachmentInfo colorAttachments[sizeof...(Images)] = {{
+            .sType       = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+            .imageView   = Images->View,
+            .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+            .loadOp      = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+            .storeOp     = VK_ATTACHMENT_STORE_OP_STORE,
+        }...};
+
+        VkRenderingInfo renderInfo = {
+            .sType                = VK_STRUCTURE_TYPE_RENDERING_INFO,
+            .renderArea           = {.extent = Extent},
+            .layerCount           = 1,
+            .colorAttachmentCount = sizeof...(Images),
+            .pColorAttachments    = colorAttachments,
+        };
+
+        Cmd->BeginRendering(&renderInfo);
+        Cmd->BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, Handle);
+    }
+
+    template <class T>
+    void PushConstants(std::shared_ptr<CommandBuffer> Cmd, T const& data)
+    {
+        Cmd->PushConstants(Layout->Handle, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(T), &data);
     }
 };
 } // namespace mz

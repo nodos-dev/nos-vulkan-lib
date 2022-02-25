@@ -70,9 +70,8 @@ struct VulkanQueue : VklQueueFunctions
     }
 };
 
-struct CommandBuffer : std::enable_shared_from_this<CommandBuffer>,
-                       VklCommandFunctions,
-                       Uncopyable
+struct CommandBuffer : SharedFactory<CommandBuffer>,
+                       VklCommandFunctions
 {
     struct CommandPool* Pool;
 
@@ -109,7 +108,7 @@ struct CommandBuffer : std::enable_shared_from_this<CommandBuffer>,
     void Submit(std::vector<struct VulkanImage*>, VkPipelineStageFlags);
 };
 
-struct CommandPool : std::enable_shared_from_this<CommandPool>, Uncopyable
+struct CommandPool : SharedFactory<CommandPool>
 {
     static constexpr u64 DefaultPoolSize = 1024;
 
@@ -146,7 +145,7 @@ struct CommandPool : std::enable_shared_from_this<CommandPool>, Uncopyable
 
         for (VkCommandBuffer cmd : buf)
         {
-            Buffers.emplace_back(std::make_shared<CommandBuffer>(this, cmd));
+            Buffers.emplace_back(CommandBuffer::New(this, cmd));
         }
     }
 
@@ -188,7 +187,6 @@ struct CommandPool : std::enable_shared_from_this<CommandPool>, Uncopyable
 
         return Cmd;
     }
-
 };
 
 } // namespace mz

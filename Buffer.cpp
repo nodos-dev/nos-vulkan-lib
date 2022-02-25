@@ -3,7 +3,7 @@
 namespace mz
 {
 VulkanBuffer::VulkanBuffer(VulkanAllocator* Allocator, u64 size, VkBufferUsageFlags usage)
-    : Vk(Allocator->GetDevice())
+    : Vk(Allocator->GetDevice()), Usage(usage)
 {
 
     VkExternalMemoryBufferCreateInfo resourceCreateInfo = {

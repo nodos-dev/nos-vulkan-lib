@@ -1,36 +1,122 @@
 #pragma once
 
 #include "Image.h"
+#include "vulkan/vulkan_core.h"
+#include <type_traits>
+#include <variant>
 
 namespace mz
 {
 
-template <class Resource>
-requires(std::is_same_v<Resource, VulkanBuffer> || std::is_same_v<Resource, VulkanImage>) struct Binding
+struct Binding
 {
-    Resource* resource;
-    u32       binding;
+    using Type = std::variant<VulkanBuffer*, VulkanImage*>;
+
+    Type resource;
+
+    u32 binding;
 
     DescriptorResourceInfo info;
 
-    Binding(Resource& res, u32 binding)
-        : resource(&res), binding(binding)
+    VkAccessFlags access;
+
+    auto operator<=>(const Binding& other) const
+    {
+        return binding <=> other.binding;
+    }
+
+    Binding(std::shared_ptr<VulkanBuffer> res, u32 binding)
+        : Binding(res.get(), binding)
     {
     }
 
-    Binding(std::shared_ptr<Resource> res, u32 binding)
-        : resource(res.get()), binding(binding)
+    Binding(VulkanBuffer* res, u32 binding)
+        : resource(res), binding(binding), info(res->GetDescriptorInfo())
     {
     }
 
-    Binding(Resource* res, u32 binding)
-        : resource(res), binding(binding)
+    Binding(std::shared_ptr<VulkanImage> res, u32 binding)
+        : Binding(res.get(), binding)
     {
+    }
+
+    Binding(VulkanImage* res, u32 binding)
+        : resource(res), binding(binding), info(res->GetDescriptorInfo())
+    {
+    }
+
+    void Bind()
+    {
+        if (VulkanImage** ppimage = std::get_if<VulkanImage*>(&resource))
+        {
+            if ((**ppimage).Layout != info.image.imageLayout)
+            {
+                (**ppimage).Transition(info.image.imageLayout, access);
+            }
+        }
+    }
+
+    void SanityCheck(VkDescriptorType type)
+    {
+        VkFlags Usage = 0;
+
+        switch (type)
+        {
+        case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+        case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+        case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
+        case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
+            assert(std::holds_alternative<VulkanImage*>(resource));
+            Usage = std::get<VulkanImage*>(resource)->Usage;
+            break;
+        default:
+            assert(std::holds_alternative<VulkanBuffer*>(resource));
+            Usage = std::get<VulkanBuffer*>(resource)->Usage;
+            break;
+        }
+
+        switch (type)
+        {
+        case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+        case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+            assert(Usage & VK_IMAGE_USAGE_SAMPLED_BIT);
+            info.image.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            access                 = VK_ACCESS_SHADER_READ_BIT;
+            break;
+        case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
+            assert(Usage & VK_IMAGE_USAGE_STORAGE_BIT);
+            info.image.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+            access                 = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+            break;
+        case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
+            assert(Usage & VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT);
+            info.image.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            access                 = VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
+            break;
+        case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
+            assert(Usage & VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT);
+            break;
+        case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
+            assert(Usage & VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT);
+            break;
+        case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+        case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC:
+        case VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK:
+            assert(Usage & VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
+            break;
+        case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+        case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
+            assert(Usage & VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+            break;
+        default:
+            assert(0);
+            break;
+        }
     }
 
     VkWriteDescriptorSet GetDescriptorInfo(VkDescriptorSet set, VkDescriptorType type)
     {
-        info = resource->GetDescriptorInfo();
+        SanityCheck(type);
 
         return VkWriteDescriptorSet{
             .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
@@ -38,13 +124,13 @@ requires(std::is_same_v<Resource, VulkanBuffer> || std::is_same_v<Resource, Vulk
             .dstBinding      = binding,
             .descriptorCount = 1,
             .descriptorType  = type,
-            .pImageInfo      = (std::is_same_v<Resource, VulkanImage> ? (&info.image) : 0),
-            .pBufferInfo     = (std::is_same_v<Resource, VulkanBuffer> ? (&info.buffer) : 0),
+            .pImageInfo      = (std::holds_alternative<VulkanImage*>(resource) ? (&info.image) : 0),
+            .pBufferInfo     = (std::holds_alternative<VulkanBuffer*>(resource) ? (&info.buffer) : 0),
         };
     }
 };
 
-struct DescriptorLayout : std::enable_shared_from_this<DescriptorLayout>
+struct DescriptorLayout : SharedFactory<DescriptorLayout>
 {
     VulkanDevice* Vk;
 
@@ -70,7 +156,7 @@ struct DescriptorLayout : std::enable_shared_from_this<DescriptorLayout>
     }
 };
 
-struct DescriptorPool : std::enable_shared_from_this<DescriptorPool>
+struct DescriptorPool : SharedFactory<DescriptorPool>
 {
     struct PipelineLayout* Layout;
 
@@ -84,7 +170,7 @@ struct DescriptorPool : std::enable_shared_from_this<DescriptorPool>
     ~DescriptorPool();
 };
 
-struct DescriptorSet : std::enable_shared_from_this<DescriptorSet>
+struct DescriptorSet : SharedFactory<DescriptorSet>
 {
     DescriptorPool*   Pool;
     DescriptorLayout* Layout;
@@ -93,22 +179,27 @@ struct DescriptorSet : std::enable_shared_from_this<DescriptorSet>
     VkDescriptorSet Handle;
 
     DescriptorSet(DescriptorPool*, u32);
+
     ~DescriptorSet();
+
+    std::set<Binding> Bound;
 
     VkDescriptorType GetType(u32 Binding);
 
     template <class... Resource>
-    std::shared_ptr<DescriptorSet> UpdateWith(Binding<Resource>... res)
+    requires(std::is_same_v<Resource, Binding>&&...)
+        std::shared_ptr<DescriptorSet> UpdateWith(Resource... res)
     {
+        Bound.insert(res...);
         VkWriteDescriptorSet writes[sizeof...(Resource)] = {res.GetDescriptorInfo(Handle, GetType(res.binding))...};
-
         Layout->Vk->UpdateDescriptorSets(sizeof...(Resource), writes, 0, 0);
-
         return shared_from_this();
     }
+
+    void Bind(std::shared_ptr<CommandBuffer> Cmd);
 };
 
-struct PipelineLayout : std::enable_shared_from_this<PipelineLayout>
+struct PipelineLayout : SharedFactory<PipelineLayout>
 {
     VulkanDevice* Vk;
 
@@ -128,7 +219,7 @@ struct PipelineLayout : std::enable_shared_from_this<PipelineLayout>
 
     std::shared_ptr<DescriptorSet> AllocateSet(u32 set)
     {
-        return std::make_shared<DescriptorSet>(Pool.get(), set);
+        return DescriptorSet::New(Pool.get(), set);
     }
     void Dump();
 

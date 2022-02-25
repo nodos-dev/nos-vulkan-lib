@@ -105,7 +105,6 @@ void MemoryBlock::Free(Allocation c)
         return;
     }
 
-
     InUse -= c.Size;
 
     if (auto [it, inserted] = FreeList.insert(std::make_pair(c.Offset, c.Size)); inserted)
@@ -216,8 +215,8 @@ Allocation VulkanAllocator::AllocateResourceMemory(std::variant<VkBuffer, VkImag
 
         VkDeviceMemory mem;
         MZ_VULKAN_ASSERT_SUCCESS(Vk->AllocateMemory(&info, 0, &mem));
-        auto Block = MakeShared<MemoryBlock>(Vk, mem, actualProps, ext.offset, info.allocationSize, ext.memory);
-        
+        auto Block = MemoryBlock::New(Vk, mem, actualProps, ext.offset, info.allocationSize, ext.memory);
+
         return Block->Allocate(req.size, req.alignment);
     }
 
@@ -265,7 +264,7 @@ Allocation VulkanAllocator::AllocateResourceMemory(std::variant<VkBuffer, VkImag
 
         MZ_VULKAN_ASSERT_SUCCESS(Vk->AllocateMemory(&info, 0, &mem));
 
-        auto block = MakeShared<MemoryBlock>(Vk, mem, actualProps, 0, size, ext.memory);
+        auto block = MemoryBlock::New(Vk, mem, actualProps, 0, size, ext.memory);
 
         allocation = block->Allocate(req.size, req.alignment);
         Allocations[typeIndex].emplace_back(block);

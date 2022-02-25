@@ -70,8 +70,8 @@ VulkanDevice::VulkanDevice(VkInstance                      Instance,
     MZ_VULKAN_ASSERT_SUCCESS(vkCreateDevice(PhysicalDevice, &info, 0, &handle));
     vkl_load_device_functions(handle, this);
 
-    ImmAllocator = std::make_shared<VulkanAllocator>(this);
-    ImmCmdPool   = std::make_shared<CommandPool>(this, QueueFamily);
+    ImmAllocator = VulkanAllocator::New(this);
+    ImmCmdPool   = CommandPool::New(this, QueueFamily);
 }
 
 VulkanDevice::~VulkanDevice()
@@ -147,8 +147,7 @@ VulkanContext::VulkanContext()
 
     for (auto pdev : pdevices)
     {
-        Devices.emplace_back(std::make_shared<VulkanDevice>(
-            Instance, pdev, layers, deviceExtensions));
+        Devices.emplace_back(VulkanDevice::New(Instance, pdev, layers, deviceExtensions));
     }
 }
 

@@ -6,6 +6,7 @@
 #include "Buffer.h"
 
 #include "Command.h"
+#include "vulkan/vulkan_core.h"
 
 namespace mz
 {
@@ -19,7 +20,7 @@ void ImageLayoutTransition(VkImage                        Image,
                            u32                            srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
                            u32                            dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED);
 
-struct VulkanImage : std::enable_shared_from_this<VulkanImage>
+struct VulkanImage : SharedFactory<VulkanImage>
 {
     VulkanDevice* Vk;
 
@@ -30,14 +31,14 @@ struct VulkanImage : std::enable_shared_from_this<VulkanImage>
     VkFormat          Format;
     VkImageUsageFlags Usage;
 
-    VkSampler   Sampler;
-    VkImageView View;
-
     VkImageLayout Layout;
     VkAccessFlags AccessMask;
 
     HANDLE      Sync;
     VkSemaphore Sema;
+
+    VkSampler   Sampler;
+    VkImageView View;
 
     ImageExportInfo
     GetExportInfo()
@@ -61,12 +62,11 @@ struct VulkanImage : std::enable_shared_from_this<VulkanImage>
             }};
     }
 
-    ~VulkanImage();
-
     void Transition(std::shared_ptr<CommandBuffer> cmd, VkImageLayout TargetLayout, VkAccessFlags TargetAccessMask);
     void Transition(VkImageLayout TargetLayout, VkAccessFlags TargetAccessMask);
 
     void Upload(u8* data, VulkanAllocator* = 0, CommandPool* = 0);
+    void Upload(std::shared_ptr<VulkanBuffer>, CommandPool* = 0);
 
     std::shared_ptr<VulkanImage> Copy(VulkanAllocator* = 0, CommandPool* = 0);
 
@@ -74,7 +74,23 @@ struct VulkanImage : std::enable_shared_from_this<VulkanImage>
 
     VulkanImage(VulkanAllocator*, ImageCreateInfo const&);
 
-    VulkanImage(VulkanDevice*, ImageCreateInfo const&);
+    VulkanImage(VulkanDevice* Vk, ImageCreateInfo const& createInfo)
+        : VulkanImage(Vk->ImmAllocator.get(), createInfo)
+    {
+    }
 
-}; // namespace mz
+    ~VulkanImage()
+    {
+        if (!Allocation.IsImported())
+        {
+            assert(SUCCEEDED(CloseHandle(Sync)));
+        }
+        Vk->DestroySemaphore(Sema, 0);
+        Vk->DestroyImage(Handle, 0);
+        Vk->DestroyImageView(View, 0);
+        Vk->DestroySampler(Sampler, 0);
+        Allocation.Free();
+    };
+};
+
 }; // namespace mz

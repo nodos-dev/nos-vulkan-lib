@@ -10,13 +10,15 @@ union DescriptorResourceInfo {
     VkDescriptorBufferInfo buffer;
 };
 
-struct VulkanBuffer : std::enable_shared_from_this<VulkanBuffer>
+struct VulkanBuffer : SharedFactory<VulkanBuffer>
 {
     VulkanDevice* Vk;
 
     Allocation Allocation;
 
     VkBuffer Handle;
+
+    VkBufferUsageFlags Usage;
 
     void Copy(size_t len, void* pp, size_t offset = 0)
     {

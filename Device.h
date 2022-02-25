@@ -4,9 +4,8 @@
 
 namespace mz
 {
-struct VulkanDevice : std::enable_shared_from_this<VulkanDevice>,
-                      VklDeviceFunctions,
-                      Uncopyable
+struct VulkanDevice : SharedFactory<VulkanDevice>,
+                      VklDeviceFunctions
 {
     struct Global
     {
@@ -88,7 +87,7 @@ struct VulkanDevice : std::enable_shared_from_this<VulkanDevice>,
 
 }; // namespace mz
 
-struct VulkanContext : std::enable_shared_from_this<VulkanContext>, Uncopyable
+struct VulkanContext : SharedFactory<VulkanContext>
 {
     void* lib;
 

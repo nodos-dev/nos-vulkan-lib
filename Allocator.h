@@ -6,7 +6,7 @@
 
 namespace mz
 {
-struct MemoryBlock : std::enable_shared_from_this<MemoryBlock>, Uncopyable
+struct MemoryBlock : SharedFactory<MemoryBlock>
 {
     struct Allocation
     {
@@ -128,7 +128,7 @@ using Allocation = MemoryBlock::Allocation;
 
 std::pair<u32, VkMemoryPropertyFlags> MemoryTypeIndex(VkPhysicalDevice physicalDevice, u32 memoryTypeBits, VkMemoryPropertyFlags requestedProps);
 
-struct VulkanAllocator : std::enable_shared_from_this<VulkanAllocator>, Uncopyable
+struct VulkanAllocator : SharedFactory<VulkanAllocator>
 {
     static constexpr u64 DefaultChunkSize = 256 * 1024 * 1024;
 
