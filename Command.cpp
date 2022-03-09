@@ -3,7 +3,7 @@
 
 #include "Image.h"
 
-namespace mz
+namespace mz::vk
 {
 CommandBuffer::CommandBuffer(CommandPool* Pool, VkCommandBuffer Handle)
     : VklCommandFunctions{Pool->GetDevice(), Handle}, Pool(Pool)
@@ -53,12 +53,12 @@ void CommandBuffer::Submit(
     MZ_VULKAN_ASSERT_SUCCESS(Pool->Queue.Submit(1, &submitInfo, Fence));
 }
 
-void CommandBuffer::Submit(VulkanImage* image, VkPipelineStageFlags stage)
+void CommandBuffer::Submit(Image* image, VkPipelineStageFlags stage)
 {
     Submit(1, &image->Sema, &stage, 1, &image->Sema);
 }
 
-void CommandBuffer::Submit(std::vector<VulkanImage*> images, VkPipelineStageFlags stage)
+void CommandBuffer::Submit(std::vector<Image*> images, VkPipelineStageFlags stage)
 {
     std::vector<VkSemaphore>          semaphores;
     std::vector<VkPipelineStageFlags> stages;
@@ -75,4 +75,4 @@ void CommandBuffer::Submit(std::vector<VulkanImage*> images, VkPipelineStageFlag
     Submit(semaphores.size(), semaphores.data(), stages.data(), semaphores.size(), semaphores.data());
 }
 
-} // namespace mz
+} // namespace mz::vk

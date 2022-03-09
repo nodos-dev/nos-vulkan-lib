@@ -3,15 +3,15 @@
 
 #include "Layout.h"
 
-namespace mz
+namespace mz::vk
 {
 struct MZShader : SharedFactory<MZShader>
 {
-    VulkanDevice*      Vk;
+    Device*      Vk;
     VkShaderModule     Module;
     VkShaderStageFlags Stage;
 
-    MZShader(VulkanDevice* Vk, VkShaderStageFlags stage, const u32* src, u64 sz)
+    MZShader(Device* Vk, VkShaderStageFlags stage, const u32* src, u64 sz)
         : Vk(Vk), Stage(stage)
     {
         VkShaderModuleCreateInfo info = {
@@ -34,7 +34,7 @@ struct VertexShader : MZShader
     VkVertexInputBindingDescription                Binding;
     std::vector<VkVertexInputAttributeDescription> Attributes;
 
-    VertexShader(VulkanDevice* Vk, const u32* src, u64 sz)
+    VertexShader(Device* Vk, const u32* src, u64 sz)
         : MZShader(Vk, VK_SHADER_STAGE_VERTEX_BIT, src, sz)
     {
         ReadInputLayout(src, sz, Binding, Attributes);
@@ -60,7 +60,7 @@ struct VertexShader : MZShader
 
 struct DynamicPipeline : SharedFactory<DynamicPipeline>
 {
-    VulkanDevice* Vk;
+    Device* Vk;
 
     std::shared_ptr<MZShader>       Shader;
     std::shared_ptr<PipelineLayout> Layout;
@@ -69,7 +69,7 @@ struct DynamicPipeline : SharedFactory<DynamicPipeline>
 
     VkExtent2D Extent;
 
-    DynamicPipeline(VulkanDevice* Vk, VkExtent2D extent, const u32* src, u64 sz);
+    DynamicPipeline(Device* Vk, VkExtent2D extent, const u32* src, u64 sz);
 
     ~DynamicPipeline()
     {
@@ -77,7 +77,7 @@ struct DynamicPipeline : SharedFactory<DynamicPipeline>
     }
 
     template <class... RT>
-    requires((std::is_same_v<RT, VulkanImage*> || std::is_same_v<RT, std::shared_ptr<VulkanImage>>)&&...) void Bind(std::shared_ptr<CommandBuffer> Cmd, RT... Images)
+    requires((std::is_same_v<RT, Image*> || std::is_same_v<RT, std::shared_ptr<Image>>)&&...) void Bind(std::shared_ptr<CommandBuffer> Cmd, RT... Images)
     {
         assert(sizeof...(Images) == Layout->RTcount);
 
@@ -109,4 +109,4 @@ struct DynamicPipeline : SharedFactory<DynamicPipeline>
         Cmd->PushConstants(Layout->Handle, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(T), &data);
     }
 };
-} // namespace mz
+} // namespace mz::vk

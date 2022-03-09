@@ -5,9 +5,9 @@
 
 #include "dynalo/dynalo.hpp"
 
-namespace mz
+namespace mz::vk
 {
-VulkanDevice::VulkanDevice(VkInstance                      Instance,
+Device::Device(VkInstance                      Instance,
                            VkPhysicalDevice                PhysicalDevice,
                            std::vector<const char*> const& layers,
                            std::vector<const char*> const& extensions)
@@ -70,11 +70,11 @@ VulkanDevice::VulkanDevice(VkInstance                      Instance,
     MZ_VULKAN_ASSERT_SUCCESS(vkCreateDevice(PhysicalDevice, &info, 0, &handle));
     vkl_load_device_functions(handle, this);
 
-    ImmAllocator = VulkanAllocator::New(this);
+    ImmAllocator = Allocator::New(this);
     ImmCmdPool   = CommandPool::New(this, QueueFamily);
 }
 
-VulkanDevice::~VulkanDevice()
+Device::~Device()
 {
     for (auto& [id, glob] : Globals)
     {
@@ -86,7 +86,7 @@ VulkanDevice::~VulkanDevice()
     DestroyDevice(0);
 }
 
-VulkanContext::VulkanContext()
+Context::Context()
     : lib(dynalo::open("vulkan-1.dll"))
 {
 
@@ -147,11 +147,11 @@ VulkanContext::VulkanContext()
 
     for (auto pdev : pdevices)
     {
-        Devices.emplace_back(VulkanDevice::New(Instance, pdev, layers, deviceExtensions));
+        Devices.emplace_back(Device::New(Instance, pdev, layers, deviceExtensions));
     }
 }
 
-VulkanContext::~VulkanContext()
+Context::~Context()
 {
     Devices.clear();
 
@@ -159,4 +159,4 @@ VulkanContext::~VulkanContext()
 
     dynalo::close((dynalo::native::handle)lib);
 }
-} // namespace mz
+} // namespace mz::vk

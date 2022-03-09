@@ -8,7 +8,7 @@
 #include "Command.h"
 #include "vulkan/vulkan_core.h"
 
-namespace mz
+namespace mz::vk
 {
 
 void ImageLayoutTransition(VkImage                        Image,
@@ -20,9 +20,9 @@ void ImageLayoutTransition(VkImage                        Image,
                            u32                            srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
                            u32                            dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED);
 
-struct VulkanImage : SharedFactory<VulkanImage>
+struct Image : SharedFactory<Image>
 {
-    VulkanDevice* Vk;
+    Device* Vk;
 
     Allocation Allocation;
 
@@ -64,21 +64,21 @@ struct VulkanImage : SharedFactory<VulkanImage>
     void Transition(std::shared_ptr<CommandBuffer> cmd, VkImageLayout TargetLayout, VkAccessFlags TargetAccessMask);
     void Transition(VkImageLayout TargetLayout, VkAccessFlags TargetAccessMask);
 
-    void Upload(u8* data, VulkanAllocator* = 0, CommandPool* = 0);
-    void Upload(std::shared_ptr<VulkanBuffer>, CommandPool* = 0);
+    void Upload(u8* data, Allocator* = 0, CommandPool* = 0);
+    void Upload(std::shared_ptr<Buffer>, CommandPool* = 0);
 
-    std::shared_ptr<VulkanImage> Copy(VulkanAllocator* = 0, CommandPool* = 0);
+    std::shared_ptr<Image> Copy(Allocator* = 0, CommandPool* = 0);
 
-    std::shared_ptr<VulkanBuffer> Download(VulkanAllocator* = 0, CommandPool* = 0);
+    std::shared_ptr<Buffer> Download(Allocator* = 0, CommandPool* = 0);
 
-    VulkanImage(VulkanAllocator*, ImageCreateInfo const&);
+    Image(Allocator*, ImageCreateInfo const&);
 
-    VulkanImage(VulkanDevice* Vk, ImageCreateInfo const& createInfo)
-        : VulkanImage(Vk->ImmAllocator.get(), createInfo)
+    Image(Device* Vk, ImageCreateInfo const& createInfo)
+        : Image(Vk->ImmAllocator.get(), createInfo)
     {
     }
 
-    ~VulkanImage()
+    ~Image()
     {
         if (!Allocation.IsImported())
         {
@@ -92,4 +92,4 @@ struct VulkanImage : SharedFactory<VulkanImage>
     };
 };
 
-}; // namespace mz
+}; // namespace mz::vk

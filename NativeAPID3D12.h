@@ -62,14 +62,14 @@ inline std::string GetLastErrorAsString()
 }
 
 
-namespace mz
+namespace mz::vk
 {
 
 struct NativeAPID3D12 : NativeAPI
 {
     ID3D12Device* dx12;
 
-    NativeAPID3D12(VulkanDevice* Vk)
+    NativeAPID3D12(Device* Vk)
         : NativeAPI(Vk)
     {
         IDXGIFactory* pDXGIFactory;
@@ -143,4 +143,4 @@ struct NativeAPID3D12 : NativeAPI
     }
 };
 
-}; // namespace mz
+}; // namespace mz::vk

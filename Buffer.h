@@ -2,7 +2,7 @@
 
 #include "Allocator.h"
 
-namespace mz
+namespace mz::vk
 {
 
 union DescriptorResourceInfo {
@@ -10,9 +10,9 @@ union DescriptorResourceInfo {
     VkDescriptorBufferInfo buffer;
 };
 
-struct VulkanBuffer : SharedFactory<VulkanBuffer>
+struct Buffer : SharedFactory<Buffer>
 {
-    VulkanDevice* Vk;
+    Device* Vk;
 
     Allocation Allocation;
 
@@ -60,14 +60,14 @@ struct VulkanBuffer : SharedFactory<VulkanBuffer>
             }};
     }
 
-    VulkanBuffer(VulkanDevice* Vk, u64 size, VkBufferUsageFlags usage);
+    Buffer(Device* Vk, u64 size, VkBufferUsageFlags usage);
 
-    VulkanBuffer(VulkanAllocator* Allocator, u64 size, VkBufferUsageFlags usage);
+    Buffer(Allocator* Allocator, u64 size, VkBufferUsageFlags usage);
 
-    ~VulkanBuffer()
+    ~Buffer()
     {
         Vk->DestroyBuffer(Handle, 0);
         Allocation.Free();
     }
 };
-} // namespace mz
+} // namespace mz::vk

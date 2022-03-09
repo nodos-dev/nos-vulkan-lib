@@ -40,7 +40,7 @@ static std::string MemPropsToString(VkMemoryPropertyFlags flags)
     return std::accumulate(re.begin() + 1, re.end(), re.front(), [](auto a, auto b) { return a + "|" + b; });
 }
 
-namespace mz
+namespace mz::vk
 {
 
 Allocation MemoryBlock::Allocate(VkDeviceSize reqSize, VkDeviceSize alignment)
@@ -160,12 +160,12 @@ std::pair<u32, VkMemoryPropertyFlags> MemoryTypeIndex(VkPhysicalDevice physicalD
     return std::make_pair(typeIndex, props.memoryTypes[typeIndex].propertyFlags);
 }
 
-VulkanAllocator::VulkanAllocator(VulkanDevice* Vk)
+Allocator::Allocator(Device* Vk)
     : Vk(Vk)
 {
 }
 
-Allocation VulkanAllocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> resource, bool map, ImageExportInfo ext)
+Allocation Allocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> resource, bool map, ImageExportInfo ext)
 {
     VkMemoryRequirements             req;
     VkPhysicalDeviceMemoryProperties props;
@@ -272,4 +272,4 @@ Allocation VulkanAllocator::AllocateResourceMemory(std::variant<VkBuffer, VkImag
 
     return allocation;
 }
-} // namespace mz
+} // namespace mz::vk

@@ -4,14 +4,14 @@
 
 #include "InfoStructs.h"
 
-namespace mz
+namespace mz::vk
 {
 
 struct NativeAPI
 {
-    struct VulkanDevice* Vk;
+    struct Device* Vk;
 
-    NativeAPI(VulkanDevice* Vk)
+    NativeAPI(Device* Vk)
         : Vk(Vk)
     {
     }
@@ -20,4 +20,4 @@ struct NativeAPI
     virtual void* CreateSharedSync() = 0;
 };
 
-} // namespace mz
+} // namespace mz::vk

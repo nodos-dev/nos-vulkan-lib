@@ -4,8 +4,9 @@
 
 #include "InfoStructs.h"
 
-namespace mz
+namespace mz::vk
 {
+
 struct MemoryBlock : SharedFactory<MemoryBlock>
 {
     struct Allocation
@@ -71,7 +72,7 @@ struct MemoryBlock : SharedFactory<MemoryBlock>
         }
     };
 
-    VulkanDevice* Vk;
+    Device* Vk;
 
     VkDeviceMemory        Memory;
     VkMemoryPropertyFlags Props;
@@ -88,7 +89,7 @@ struct MemoryBlock : SharedFactory<MemoryBlock>
     std::map<VkDeviceSize, VkDeviceSize> Chunks;
     std::map<VkDeviceSize, VkDeviceSize> FreeList;
 
-    MemoryBlock(VulkanDevice* Vk, VkDeviceMemory mem, VkMemoryPropertyFlags props, u64 offset, u64 size, HANDLE externalHandle)
+    MemoryBlock(Device* Vk, VkDeviceMemory mem, VkMemoryPropertyFlags props, u64 offset, u64 size, HANDLE externalHandle)
         : Vk(Vk), Memory(mem), Props(props), Offset(offset), Size(size), InUse(0), Mapping(0), Imported(externalHandle != 0)
     {
         FreeList[0] = size;
@@ -128,21 +129,21 @@ using Allocation = MemoryBlock::Allocation;
 
 std::pair<u32, VkMemoryPropertyFlags> MemoryTypeIndex(VkPhysicalDevice physicalDevice, u32 memoryTypeBits, VkMemoryPropertyFlags requestedProps);
 
-struct VulkanAllocator : SharedFactory<VulkanAllocator>
+struct Allocator : SharedFactory<Allocator>
 {
     static constexpr u64 DefaultChunkSize = 256 * 1024 * 1024;
 
-    VulkanDevice* Vk;
+    Device* Vk;
 
     std::map<u32, std::vector<std::shared_ptr<MemoryBlock>>> Allocations;
 
-    VulkanAllocator(VulkanDevice* Vk);
+    Allocator(Device* Vk);
 
-    VulkanDevice* GetDevice()
+    Device* GetDevice()
     {
         return Vk;
     }
 
     Allocation AllocateResourceMemory(std::variant<VkBuffer, VkImage> resource, bool map = false, ImageExportInfo = {});
 };
-} // namespace mz
+} // namespace mz::vk

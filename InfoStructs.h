@@ -2,7 +2,7 @@
 
 #include "mzVkCommon.h"
 
-namespace mz
+namespace mz::vk
 {
 
 struct ImageExportInfo
@@ -24,4 +24,4 @@ struct ImageCreateInfo
     ImageExportInfo   Ext;
 };
 
-}; // namespace mz
+}; // namespace mz::vk

@@ -1,8 +1,8 @@
 #include "Buffer.h"
 
-namespace mz
+namespace mz::vk
 {
-VulkanBuffer::VulkanBuffer(VulkanAllocator* Allocator, u64 size, VkBufferUsageFlags usage)
+Buffer::Buffer(Allocator* Allocator, u64 size, VkBufferUsageFlags usage)
     : Vk(Allocator->GetDevice()), Usage(usage)
 {
 
@@ -25,12 +25,12 @@ VulkanBuffer::VulkanBuffer(VulkanAllocator* Allocator, u64 size, VkBufferUsageFl
     Vk->BindBufferMemory(Handle, Allocation.Block->Memory, Allocation.Offset + Allocation.Block->Offset);
 }
 
-VulkanBuffer::VulkanBuffer(VulkanDevice* Vk, u64 size, VkBufferUsageFlags usage)
-    : VulkanBuffer(Vk->ImmAllocator.get(), size, usage)
+Buffer::Buffer(Device* Vk, u64 size, VkBufferUsageFlags usage)
+    : Buffer(Vk->ImmAllocator.get(), size, usage)
 {
 }
 
-void VulkanBuffer::Bind(VkDescriptorType type, u32 bind, VkDescriptorSet set)
+void Buffer::Bind(VkDescriptorType type, u32 bind, VkDescriptorSet set)
 {
     VkDescriptorBufferInfo info = {
         .buffer = Handle,
@@ -49,4 +49,4 @@ void VulkanBuffer::Bind(VkDescriptorType type, u32 bind, VkDescriptorSet set)
 
     Vk->UpdateDescriptorSets(1, &write, 0, 0);
 }
-} // namespace mz
+} // namespace mz::vk

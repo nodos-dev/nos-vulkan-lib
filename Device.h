@@ -2,9 +2,9 @@
 
 #include "mzVkCommon.h"
 
-namespace mz
+namespace mz::vk
 {
-struct VulkanDevice : SharedFactory<VulkanDevice>,
+struct Device : SharedFactory<Device>,
                       VklDeviceFunctions
 {
     struct Global
@@ -27,7 +27,7 @@ struct VulkanDevice : SharedFactory<VulkanDevice>,
     VkInstance       Instance;
     VkPhysicalDevice PhysicalDevice;
 
-    std::shared_ptr<struct VulkanAllocator> ImmAllocator;
+    std::shared_ptr<struct Allocator> ImmAllocator;
     std::shared_ptr<struct CommandPool>     ImmCmdPool;
 
     u32 QueueFamily;
@@ -61,11 +61,11 @@ struct VulkanDevice : SharedFactory<VulkanDevice>,
         return data;
     }
 
-    VulkanDevice(VkInstance                      Instance,
+    Device(VkInstance                      Instance,
                  VkPhysicalDevice                PhysicalDevice,
                  std::vector<const char*> const& layers,
                  std::vector<const char*> const& extensions);
-    ~VulkanDevice();
+    ~Device();
 
     u64 GetLuid()
     {
@@ -85,17 +85,17 @@ struct VulkanDevice : SharedFactory<VulkanDevice>,
         return std::bit_cast<u64, u8[VK_LUID_SIZE]>(IDProps.deviceLUID);
     }
 
-}; // namespace mz
+}; // namespace mz::vk
 
-struct VulkanContext : SharedFactory<VulkanContext>
+struct Context : SharedFactory<Context>
 {
     void* lib;
 
     VkInstance Instance;
 
-    std::vector<std::shared_ptr<VulkanDevice>> Devices;
+    std::vector<std::shared_ptr<Device>> Devices;
 
-    ~VulkanContext();
-    VulkanContext();
+    ~Context();
+    Context();
 };
-} // namespace mz
+} // namespace mz::vk

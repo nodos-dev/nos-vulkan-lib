@@ -4,9 +4,9 @@
 #include "Layout.h"
 #include "vulkan/vulkan_core.h"
 
-namespace mz
+namespace mz::vk
 {
-DynamicPipeline::DynamicPipeline(VulkanDevice* Vk, VkExtent2D extent, const u32* src, u64 sz)
+DynamicPipeline::DynamicPipeline(Device* Vk, VkExtent2D extent, const u32* src, u64 sz)
     : Vk(Vk), Shader(MZShader::New(Vk, VK_SHADER_STAGE_FRAGMENT_BIT, src, sz)), Layout(PipelineLayout::New(Vk, src, sz)), Extent(extent)
 {
 
@@ -117,4 +117,4 @@ DynamicPipeline::DynamicPipeline(VulkanDevice* Vk, VkExtent2D extent, const u32*
 
     MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateGraphicsPipelines(0, 1, &info, 0, &Handle));
 }
-} // namespace mz
+} // namespace mz::vk

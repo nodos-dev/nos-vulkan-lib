@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <spirv_cross.hpp>
 
-namespace mz
+namespace mz::vk
 {
 
 void DescriptorSet::Bind(std::shared_ptr<CommandBuffer> Cmd)
@@ -90,12 +90,12 @@ DescriptorPool::~DescriptorPool()
     }
 }
 
-PipelineLayout::PipelineLayout(VulkanDevice* Vk, const u32* src, u64 sz)
+PipelineLayout::PipelineLayout(Device* Vk, const u32* src, u64 sz)
     : PipelineLayout(Vk, GetLayouts(src, sz, RTcount))
 {
 }
 
-PipelineLayout::PipelineLayout(VulkanDevice* Vk, std::map<u32, std::vector<VkDescriptorSetLayoutBinding>> layouts)
+PipelineLayout::PipelineLayout(Device* Vk, std::map<u32, std::vector<VkDescriptorSetLayoutBinding>> layouts)
     : Vk(Vk), PushConstantSize(0), Pool(0)
 {
     std::vector<VkDescriptorSetLayout> handles;
@@ -140,4 +140,4 @@ void PipelineLayout::Dump()
         }
     }
 }
-} // namespace mz
+} // namespace mz::vk

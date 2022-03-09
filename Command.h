@@ -3,7 +3,7 @@
 #include "Device.h"
 #include "mzVkCommon.h"
 
-namespace mz
+namespace mz::vk
 {
 
 struct CircularIndex
@@ -53,20 +53,20 @@ struct CircularIndex
     }
 };
 
-struct VulkanQueue : VklQueueFunctions
+struct Queue : VklQueueFunctions
 {
     u32 Family;
     u32 Index;
 
-    VulkanQueue(VulkanDevice* Device, u32 Family, u32 Index)
+    Queue(Device* Device, u32 Family, u32 Index)
         : VklQueueFunctions{Device}, Family(Family), Index(Index)
     {
         Device->GetDeviceQueue(Family, Index, &handle);
     }
 
-    VulkanDevice* GetDevice()
+    Device* GetDevice()
     {
-        return static_cast<VulkanDevice*>(fnptrs);
+        return static_cast<Device*>(fnptrs);
     }
 };
 
@@ -92,9 +92,9 @@ struct CommandBuffer : SharedFactory<CommandBuffer>,
 
     ~CommandBuffer();
 
-    VulkanDevice* GetDevice()
+    Device* GetDevice()
     {
-        return static_cast<VulkanDevice*>(fnptrs);
+        return static_cast<Device*>(fnptrs);
     }
 
     void Submit(
@@ -104,8 +104,8 @@ struct CommandBuffer : SharedFactory<CommandBuffer>,
         uint32_t                    signalSemaphoreCount,
         const VkSemaphore*          pSignalSemaphores);
 
-    void Submit(struct VulkanImage*, VkPipelineStageFlags);
-    void Submit(std::vector<struct VulkanImage*>, VkPipelineStageFlags);
+    void Submit(struct Image*, VkPipelineStageFlags);
+    void Submit(std::vector<struct Image*>, VkPipelineStageFlags);
 };
 
 struct CommandPool : SharedFactory<CommandPool>
@@ -114,12 +114,12 @@ struct CommandPool : SharedFactory<CommandPool>
 
     VkCommandPool Handle;
 
-    VulkanQueue Queue;
+    Queue Queue;
 
     std::vector<std::shared_ptr<CommandBuffer>> Buffers;
     CircularIndex                               NextBuffer;
 
-    CommandPool(VulkanDevice* Vk, u32 family)
+    CommandPool(Device* Vk, u32 family)
         : Queue(Vk, family, 0), NextBuffer(DefaultPoolSize)
     {
         VkCommandPoolCreateInfo info = {
@@ -149,7 +149,7 @@ struct CommandPool : SharedFactory<CommandPool>
         }
     }
 
-    VulkanDevice* GetDevice()
+    Device* GetDevice()
     {
         return Queue.GetDevice();
     }
@@ -189,4 +189,4 @@ struct CommandPool : SharedFactory<CommandPool>
     }
 };
 
-} // namespace mz
+} // namespace mz::vk

@@ -5,7 +5,7 @@
 #include "NativeAPID3D12.h"
 #include "vulkan/vulkan_core.h"
 
-namespace mz
+namespace mz::vk
 {
 static bool IsImportable(VkPhysicalDevice PhysicalDevice, VkFormat Format, VkImageUsageFlags Usage)
 {
@@ -40,7 +40,7 @@ static bool IsImportable(VkPhysicalDevice PhysicalDevice, VkFormat Format, VkIma
     return extProps.externalMemoryProperties.externalMemoryFeatures & (VK_EXTERNAL_MEMORY_FEATURE_EXPORTABLE_BIT | VK_EXTERNAL_MEMORY_FEATURE_IMPORTABLE_BIT);
 }
 
-VulkanImage::VulkanImage(VulkanAllocator* Allocator, ImageCreateInfo const& createInfo)
+Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo)
     : Vk(Allocator->GetDevice()),
       Extent(createInfo.Extent),
       Layout(VK_IMAGE_LAYOUT_UNDEFINED),
@@ -166,7 +166,7 @@ VulkanImage::VulkanImage(VulkanAllocator* Allocator, ImageCreateInfo const& crea
 
     MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateSampler(&samplerInfo, 0, &Sampler));
 
-} // namespace mz
+} // namespace mz::vk
 
 void ImageLayoutTransition(VkImage                        Image,
                            std::shared_ptr<CommandBuffer> Cmd,
@@ -197,7 +197,7 @@ void ImageLayoutTransition(VkImage                        Image,
 
     {
 
-        // // https://github.com/SaschaWillems/Vulkan/blob/821a0659a76131662b1fc4a77c5a1ee6a9a330d8/base/VulkanTools.cpp#L142
+        // // https://github.com/SaschaWillems/Vulkan/blob/821a0659a76131662b1fc4a77c5a1ee6a9a330d8/base/Tools.cpp#L142
 
         // // Source layouts (old)
         // // Source access mask controls actions that have to be finished on the old layout
@@ -308,7 +308,7 @@ void ImageLayoutTransition(VkImage                        Image,
         &imageMemoryBarrier);
 }
 
-void VulkanImage::Transition(VkImageLayout TargetLayout, VkAccessFlags TargetAccessMask)
+void Image::Transition(VkImageLayout TargetLayout, VkAccessFlags TargetAccessMask)
 {
     auto Cmd = Vk->ImmCmdPool->BeginCmd();
 
@@ -320,7 +320,7 @@ void VulkanImage::Transition(VkImageLayout TargetLayout, VkAccessFlags TargetAcc
     AccessMask = TargetAccessMask;
 }
 
-void VulkanImage::Transition(
+void Image::Transition(
     std::shared_ptr<CommandBuffer> Cmd,
     VkImageLayout                  TargetLayout,
     VkAccessFlags                  TargetAccessMask)
@@ -332,7 +332,7 @@ void VulkanImage::Transition(
     AccessMask = TargetAccessMask;
 }
 
-void VulkanImage::Upload(u8* data, VulkanAllocator* Allocator, CommandPool* Pool)
+void Image::Upload(u8* data, Allocator* Allocator, CommandPool* Pool)
 {
     assert(Usage & VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
@@ -342,14 +342,14 @@ void VulkanImage::Upload(u8* data, VulkanAllocator* Allocator, CommandPool* Pool
     }
 
     u64                           Size          = Extent.width * Extent.height * 4;
-    std::shared_ptr<VulkanBuffer> StagingBuffer = VulkanBuffer::New(Allocator, Size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+    std::shared_ptr<Buffer> StagingBuffer = Buffer::New(Allocator, Size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
     memcpy(StagingBuffer->Map(), data, Size);
     StagingBuffer->Flush();
     Upload(StagingBuffer, Pool);
 
-} // namespace mz
+} // namespace mz::vk
 
-void VulkanImage::Upload(std::shared_ptr<VulkanBuffer> StagingBuffer, CommandPool* Pool)
+void Image::Upload(std::shared_ptr<Buffer> StagingBuffer, CommandPool* Pool)
 {
     if (0 == Pool)
     {
@@ -381,7 +381,7 @@ void VulkanImage::Upload(std::shared_ptr<VulkanBuffer> StagingBuffer, CommandPoo
     Cmd->Wait();
 }
 
-std::shared_ptr<VulkanImage> VulkanImage::Copy(VulkanAllocator* Allocator, CommandPool* Pool)
+std::shared_ptr<Image> Image::Copy(Allocator* Allocator, CommandPool* Pool)
 {
     assert(Usage & VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
 
@@ -395,7 +395,7 @@ std::shared_ptr<VulkanImage> VulkanImage::Copy(VulkanAllocator* Allocator, Comma
         Pool = Vk->ImmCmdPool.get();
     }
 
-    std::shared_ptr<VulkanImage> Image = VulkanImage::New(
+    std::shared_ptr<Image> Image = Image::New(
         Allocator, ImageCreateInfo{
                        .Extent = Extent,
                        .Format = Format,
@@ -429,7 +429,7 @@ std::shared_ptr<VulkanImage> VulkanImage::Copy(VulkanAllocator* Allocator, Comma
     return Image;
 }
 
-std::shared_ptr<VulkanBuffer> VulkanImage::Download(VulkanAllocator* Allocator, CommandPool* Pool)
+std::shared_ptr<Buffer> Image::Download(Allocator* Allocator, CommandPool* Pool)
 {
     assert(Usage & VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
 
@@ -443,7 +443,7 @@ std::shared_ptr<VulkanBuffer> VulkanImage::Download(VulkanAllocator* Allocator, 
         Pool = Vk->ImmCmdPool.get();
     }
 
-    std::shared_ptr<VulkanBuffer> StagingBuffer = VulkanBuffer::New(Allocator, Allocation.Size, VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+    std::shared_ptr<Buffer> StagingBuffer = Buffer::New(Allocator, Allocation.Size, VK_BUFFER_USAGE_TRANSFER_DST_BIT);
 
     std::shared_ptr<CommandBuffer> Cmd = Pool->BeginCmd();
 
@@ -470,4 +470,4 @@ std::shared_ptr<VulkanBuffer> VulkanImage::Download(VulkanAllocator* Allocator, 
 
     return StagingBuffer;
 }
-} // namespace mz
+} // namespace mz::vk

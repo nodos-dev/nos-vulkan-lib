@@ -5,12 +5,12 @@
 #include <type_traits>
 #include <variant>
 
-namespace mz
+namespace mz::vk
 {
 
 struct Binding
 {
-    using Type = std::variant<VulkanBuffer*, VulkanImage*>;
+    using Type = std::variant<Buffer*, Image*>;
 
     Type resource;
 
@@ -25,29 +25,29 @@ struct Binding
         return binding <=> other.binding;
     }
 
-    Binding(std::shared_ptr<VulkanBuffer> res, u32 binding)
+    Binding(std::shared_ptr<Buffer> res, u32 binding)
         : Binding(res.get(), binding)
     {
     }
 
-    Binding(VulkanBuffer* res, u32 binding)
+    Binding(Buffer* res, u32 binding)
         : resource(res), binding(binding), info(res->GetDescriptorInfo())
     {
     }
 
-    Binding(std::shared_ptr<VulkanImage> res, u32 binding)
+    Binding(std::shared_ptr<Image> res, u32 binding)
         : Binding(res.get(), binding)
     {
     }
 
-    Binding(VulkanImage* res, u32 binding)
+    Binding(Image* res, u32 binding)
         : resource(res), binding(binding), info(res->GetDescriptorInfo())
     {
     }
 
     void Bind() const
     {
-        if (VulkanImage* const* ppimage = std::get_if<VulkanImage*>(&resource))
+        if (Image* const* ppimage = std::get_if<Image*>(&resource))
         {
             (**ppimage).Transition(info.image.imageLayout, access);
         }
@@ -63,12 +63,12 @@ struct Binding
         case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
         case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
         case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
-            assert(std::holds_alternative<VulkanImage*>(resource));
-            Usage = std::get<VulkanImage*>(resource)->Usage;
+            assert(std::holds_alternative<Image*>(resource));
+            Usage = std::get<Image*>(resource)->Usage;
             break;
         default:
-            assert(std::holds_alternative<VulkanBuffer*>(resource));
-            Usage = std::get<VulkanBuffer*>(resource)->Usage;
+            assert(std::holds_alternative<Buffer*>(resource));
+            Usage = std::get<Buffer*>(resource)->Usage;
             break;
         }
 
@@ -121,21 +121,21 @@ struct Binding
             .dstBinding      = binding,
             .descriptorCount = 1,
             .descriptorType  = type,
-            .pImageInfo      = (std::holds_alternative<VulkanImage*>(resource) ? (&info.image) : 0),
-            .pBufferInfo     = (std::holds_alternative<VulkanBuffer*>(resource) ? (&info.buffer) : 0),
+            .pImageInfo      = (std::holds_alternative<Image*>(resource) ? (&info.image) : 0),
+            .pBufferInfo     = (std::holds_alternative<Buffer*>(resource) ? (&info.buffer) : 0),
         };
     }
 };
 
 struct DescriptorLayout : SharedFactory<DescriptorLayout>
 {
-    VulkanDevice* Vk;
+    Device* Vk;
 
     VkDescriptorSetLayout Handle;
 
     std::vector<VkDescriptorSetLayoutBinding> Bindings;
 
-    DescriptorLayout(VulkanDevice* Vk, std::vector<VkDescriptorSetLayoutBinding> bindings)
+    DescriptorLayout(Device* Vk, std::vector<VkDescriptorSetLayoutBinding> bindings)
         : Vk(Vk), Bindings(std::move(bindings))
     {
         VkDescriptorSetLayoutCreateInfo info = {
@@ -198,7 +198,7 @@ struct DescriptorSet : SharedFactory<DescriptorSet>
 
 struct PipelineLayout : SharedFactory<PipelineLayout>
 {
-    VulkanDevice* Vk;
+    Device* Vk;
 
     VkPipelineLayout Handle;
 
@@ -221,9 +221,9 @@ struct PipelineLayout : SharedFactory<PipelineLayout>
 
     void Dump();
 
-    PipelineLayout(VulkanDevice* Vk, const u32* src, u64 sz);
+    PipelineLayout(Device* Vk, const u32* src, u64 sz);
 
   private:
-    PipelineLayout(VulkanDevice* Vk, std::map<u32, std::vector<VkDescriptorSetLayoutBinding>> layouts);
+    PipelineLayout(Device* Vk, std::map<u32, std::vector<VkDescriptorSetLayoutBinding>> layouts);
 };
-} // namespace mz
+} // namespace mz::vk
