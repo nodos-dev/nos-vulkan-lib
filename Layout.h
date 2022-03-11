@@ -8,6 +8,9 @@
 namespace mz::vk
 {
 
+template <class T>
+concept TypeClassResource = TypeClassImage<T> || TypeClassBuffer<T>;
+
 struct Binding
 {
     using Type = std::variant<Buffer*, Image*>;
@@ -43,14 +46,6 @@ struct Binding
     Binding(Image* res, u32 binding)
         : resource(res), binding(binding), info(res->GetDescriptorInfo())
     {
-    }
-
-    void Bind() const
-    {
-        if (Image* const* ppimage = std::get_if<Image*>(&resource))
-        {
-            (**ppimage).Transition(info.image.imageLayout, access);
-        }
     }
 
     void SanityCheck(VkDescriptorType type)
@@ -133,15 +128,29 @@ struct DescriptorLayout : SharedFactory<DescriptorLayout>
 
     VkDescriptorSetLayout Handle;
 
-    std::vector<VkDescriptorSetLayoutBinding> Bindings;
+    std::vector<NamedDSLBinding> Bindings;
 
-    DescriptorLayout(Device* Vk, std::vector<VkDescriptorSetLayoutBinding> bindings)
-        : Vk(Vk), Bindings(std::move(bindings))
+    DescriptorLayout(Device* Vk, std::vector<NamedDSLBinding> NamedBindings)
+        : Vk(Vk), Bindings(std::move(NamedBindings))
     {
+
+        std::vector<VkDescriptorSetLayoutBinding> bindings;
+        bindings.reserve(Bindings.size());
+
+        for (auto& b : Bindings)
+        {
+            bindings.emplace_back(VkDescriptorSetLayoutBinding{
+                .binding         = b.binding,
+                .descriptorType  = b.descriptorType,
+                .descriptorCount = b.descriptorCount,
+                .stageFlags      = VK_SHADER_STAGE_FRAGMENT_BIT,
+            });
+        }
+
         VkDescriptorSetLayoutCreateInfo info = {
             .sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-            .bindingCount = (u32)Bindings.size(),
-            .pBindings    = Bindings.data(),
+            .bindingCount = (u32)bindings.size(),
+            .pBindings    = bindings.data(),
         };
 
         MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateDescriptorSetLayout(&info, 0, &Handle));
@@ -183,12 +192,11 @@ struct DescriptorSet : SharedFactory<DescriptorSet>
 
     VkDescriptorType GetType(u32 Binding);
 
-    template <class... Resource>
-    requires(std::is_same_v<Resource, Binding>&&...)
-        std::shared_ptr<DescriptorSet> UpdateWith(Resource... res)
+    template <ForceType<Binding>... Binding_t>
+    std::shared_ptr<DescriptorSet> UpdateWith(Binding_t&&... res)
     {
-        VkWriteDescriptorSet writes[sizeof...(Resource)] = {res.GetDescriptorInfo(Handle, GetType(res.binding))...};
-        Layout->Vk->UpdateDescriptorSets(sizeof...(Resource), writes, 0, 0);
+        VkWriteDescriptorSet writes[sizeof...(Binding_t)] = {res.GetDescriptorInfo(Handle, GetType(res.binding))...};
+        Layout->Vk->UpdateDescriptorSets(sizeof...(Binding_t), writes, 0, 0);
         Bound.insert(res...);
         return shared_from_this();
     }
@@ -224,6 +232,6 @@ struct PipelineLayout : SharedFactory<PipelineLayout>
     PipelineLayout(Device* Vk, const u32* src, u64 sz);
 
   private:
-    PipelineLayout(Device* Vk, std::map<u32, std::vector<VkDescriptorSetLayoutBinding>> layouts);
+    PipelineLayout(Device* Vk, std::map<u32, std::vector<NamedDSLBinding>> layouts);
 };
 } // namespace mz::vk

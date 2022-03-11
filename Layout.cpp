@@ -11,7 +11,10 @@ void DescriptorSet::Bind(std::shared_ptr<CommandBuffer> Cmd)
 {
     for (auto& res : Bound)
     {
-        res.Bind();
+        if (Image* const* ppimage = std::get_if<Image*>(&res.resource))
+        {
+            (**ppimage).Transition(res.info.image.imageLayout, res.access);
+        }
     }
     Cmd->BindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, Pool->Layout->Handle, Index, 1, &Handle, 0, 0);
 }
@@ -91,11 +94,11 @@ DescriptorPool::~DescriptorPool()
 }
 
 PipelineLayout::PipelineLayout(Device* Vk, const u32* src, u64 sz)
-    : PipelineLayout(Vk, GetLayouts(src, sz, RTcount))
+    : PipelineLayout(Vk, GetShaderLayouts(src, sz, RTcount))
 {
 }
 
-PipelineLayout::PipelineLayout(Device* Vk, std::map<u32, std::vector<VkDescriptorSetLayoutBinding>> layouts)
+PipelineLayout::PipelineLayout(Device* Vk, std::map<u32, std::vector<NamedDSLBinding>> layouts)
     : Vk(Vk), PushConstantSize(0), Pool(0)
 {
     std::vector<VkDescriptorSetLayout> handles;

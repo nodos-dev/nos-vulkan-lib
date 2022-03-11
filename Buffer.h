@@ -70,4 +70,8 @@ struct Buffer : SharedFactory<Buffer>
         Allocation.Free();
     }
 };
+
+template <class T>
+concept TypeClassBuffer = (std::is_same_v<T, Buffer*> || std::is_same_v<T, std::shared_ptr<Buffer>>);
+
 } // namespace mz::vk

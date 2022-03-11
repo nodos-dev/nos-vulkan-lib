@@ -7,7 +7,7 @@ namespace mz::vk
 {
 struct MZShader : SharedFactory<MZShader>
 {
-    Device*      Vk;
+    Device*            Vk;
     VkShaderModule     Module;
     VkShaderStageFlags Stage;
 
@@ -76,8 +76,8 @@ struct DynamicPipeline : SharedFactory<DynamicPipeline>
         Vk->DestroyPipeline(Handle, 0);
     }
 
-    template <class... RT>
-    requires((std::is_same_v<RT, Image*> || std::is_same_v<RT, std::shared_ptr<Image>>)&&...) void Bind(std::shared_ptr<CommandBuffer> Cmd, RT... Images)
+    template <TypeClassImage... RT>
+    void Bind(std::shared_ptr<CommandBuffer> Cmd, RT... Images)
     {
         assert(sizeof...(Images) == Layout->RTcount);
 
@@ -107,6 +107,10 @@ struct DynamicPipeline : SharedFactory<DynamicPipeline>
     void PushConstants(std::shared_ptr<CommandBuffer> Cmd, T const& data)
     {
         Cmd->PushConstants(Layout->Handle, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(T), &data);
+    }
+
+    void BindResources()
+    {
     }
 };
 } // namespace mz::vk

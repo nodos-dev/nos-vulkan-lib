@@ -56,8 +56,9 @@ struct Image : SharedFactory<Image>
     {
         return DescriptorResourceInfo{
             .image = {
-                .sampler   = Sampler,
-                .imageView = View,
+                .sampler     = Sampler,
+                .imageView   = View,
+                .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
             }};
     }
 
@@ -91,5 +92,8 @@ struct Image : SharedFactory<Image>
         Allocation.Free();
     };
 };
+
+template <class T>
+concept TypeClassImage = (std::is_same_v<T, Image*> || std::is_same_v<T, std::shared_ptr<Image>>);
 
 }; // namespace mz::vk

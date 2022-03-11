@@ -3,7 +3,10 @@
 
 #include <spirv_cross.hpp>
 
-std::pair<VkFormat, u32> TypeAttributes(spirv_cross::SPIRType ty)
+namespace mz::vk
+{
+
+static std::pair<VkFormat, u32> TypeAttributes(spirv_cross::SPIRType ty)
 {
 
 #define MKFORMATWT(w, t)                           \
@@ -91,8 +94,7 @@ void ReadInputLayout(const u32* src, u64 sz, VkVertexInputBindingDescription& bi
     }
 }
 
-std::map<u32, std::vector<VkDescriptorSetLayoutBinding>>
-GetLayouts(const u32* src, u64 sz, u32& RTcount)
+std::map<u32, std::vector<NamedDSLBinding>> GetShaderLayouts(const u32* src, u64 sz, u32& RTcount)
 {
     using namespace spirv_cross;
     Compiler        cc(src, sz / 4);
@@ -112,7 +114,7 @@ GetLayouts(const u32* src, u64 sz, u32& RTcount)
         std::pair{VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, &resources.subpass_inputs},
     };
 
-    std::map<u32, std::vector<VkDescriptorSetLayoutBinding>> Descriptors;
+    std::map<u32, std::vector<NamedDSLBinding>> Descriptors;
 
     for (auto& [ty, desc] : res)
     {
@@ -121,14 +123,15 @@ GetLayouts(const u32* src, u64 sz, u32& RTcount)
             SmallVector<u32> array = cc.get_type(res.type_id).array;
             u32              set   = cc.get_decoration(res.id, spv::DecorationDescriptorSet);
             Descriptors[set].push_back(
-                VkDescriptorSetLayoutBinding{
+                NamedDSLBinding{
                     .binding         = cc.get_decoration(res.id, spv::DecorationBinding),
                     .descriptorType  = ty,
                     .descriptorCount = std::accumulate(array.begin(), array.end(), 1u, [](u32 a, u32 b) { return a * b; }),
-                    .stageFlags      = stage,
+                    .name            = res.name,
                 });
         }
     };
 
     return Descriptors;
 }
+} // namespace mz::vk

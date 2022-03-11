@@ -1,35 +1,33 @@
 #pragma once
 
-#ifndef VK_USE_PLATFORM_WIN32_KHR
-
-#endif
-
 #include <vkl.h>
 
 #include <mzCommon.h>
 
+#define MZ_VULKAN_ASSERT_SUCCESS(expr)                                                                \
+    {                                                                                                 \
+        VkResult re = (expr);                                                                         \
+        while (VK_SUCCESS != re)                                                                      \
+        {                                                                                             \
+            printf("Error: %s %d\n %s:%d\n", ::mz::vk::vk_result_string(re), re, __FILE__, __LINE__); \
+            abort();                                                                                  \
+        }                                                                                             \
+    }
+
+namespace mz::vk
+{
+
+struct NamedDSLBinding
+{
+    uint32_t         binding;
+    VkDescriptorType descriptorType;
+    uint32_t         descriptorCount;
+    std::string      name;
+};
+
 void ReadInputLayout(const u32* src, u64 sz, VkVertexInputBindingDescription& binding, std::vector<VkVertexInputAttributeDescription>& attributes);
 
-std::map<u32, std::vector<VkDescriptorSetLayoutBinding>> GetLayouts(const u32* src, u64 sz, u32& RTcount);
-
-struct f32x2
-{
-    f32 x, y;
-};
-struct i32x2
-{
-    i32 x, y;
-};
-
-struct u64x2
-{
-    u64 x, y;
-};
-
-struct f32x4
-{
-    f32 x, y, z, w;
-};
+std::map<u32, std::vector<NamedDSLBinding>> GetShaderLayouts(const u32* src, u64 sz, u32& RTcount);
 
 inline const char* vk_result_string(VkResult re)
 {
@@ -155,13 +153,4 @@ inline const char* descriptor_type_to_string(VkDescriptorType ty)
         return "";
     }
 }
-
-#define MZ_VULKAN_ASSERT_SUCCESS(expr)                                                      \
-    {                                                                                       \
-        VkResult re = (expr);                                                               \
-        while (VK_SUCCESS != re)                                                            \
-        {                                                                                   \
-            printf("Error: %s %d\n %s:%d\n", vk_result_string(re), re, __FILE__, __LINE__); \
-            abort();                                                                        \
-        }                                                                                   \
-    }
+} // namespace mz::vk
