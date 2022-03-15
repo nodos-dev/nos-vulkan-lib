@@ -94,8 +94,10 @@ void ReadInputLayout(const u32* src, u64 sz, VkVertexInputBindingDescription& bi
     }
 }
 
-std::map<u32, std::vector<NamedDSLBinding>> GetShaderLayouts(const u32* src, u64 sz, u32& RTcount)
+ShaderLayout GetShaderLayouts(const u32* src, u64 sz)
 {
+    ShaderLayout layout = {};
+
     using namespace spirv_cross;
     Compiler        cc(src, sz / 4);
     ShaderResources resources = cc.get_shader_resources();
@@ -103,7 +105,13 @@ std::map<u32, std::vector<NamedDSLBinding>> GetShaderLayouts(const u32* src, u64
 
     VkShaderStageFlags stage = VkShaderStageFlagBits(1 << (u32)entry.execution_model);
 
-    RTcount = resources.stage_outputs.size();
+    layout.RTCount = resources.stage_outputs.size();
+
+    if (!resources.push_constant_buffers.empty())
+    {
+        layout.PushConstantSize =
+            cc.get_declared_struct_size(cc.get_type(resources.push_constant_buffers[0].type_id));
+    }
 
     std::pair<VkDescriptorType, SmallVector<Resource>*> res[] = {
         std::pair{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &resources.sampled_images},
@@ -114,24 +122,24 @@ std::map<u32, std::vector<NamedDSLBinding>> GetShaderLayouts(const u32* src, u64
         std::pair{VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, &resources.subpass_inputs},
     };
 
-    std::map<u32, std::vector<NamedDSLBinding>> Descriptors;
-
     for (auto& [ty, desc] : res)
     {
         for (auto& res : *desc)
         {
-            SmallVector<u32> array = cc.get_type(res.type_id).array;
-            u32              set   = cc.get_decoration(res.id, spv::DecorationDescriptorSet);
-            Descriptors[set].push_back(
-                NamedDSLBinding{
-                    .binding         = cc.get_decoration(res.id, spv::DecorationBinding),
-                    .descriptorType  = ty,
-                    .descriptorCount = std::accumulate(array.begin(), array.end(), 1u, [](u32 a, u32 b) { return a * b; }),
-                    .name            = res.name,
-                });
+            SmallVector<u32> array   = cc.get_type(res.type_id).array;
+            u32              set     = cc.get_decoration(res.id, spv::DecorationDescriptorSet);
+            u32              binding = cc.get_decoration(res.id, spv::DecorationBinding);
+
+            layout.DescriptorSets[set][binding] = {
+                .binding         = binding,
+                .descriptorType  = ty,
+                .descriptorCount = std::accumulate(array.begin(), array.end(), 1u, [](u32 a, u32 b) { return a * b; }),
+                .name            = res.name,
+            };
+            layout.BindingsByName[res.name] = {set, binding};
         }
     };
 
-    return Descriptors;
+    return layout;
 }
 } // namespace mz::vk

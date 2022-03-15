@@ -2,25 +2,28 @@
 #include "Command.h"
 
 #include <algorithm>
+#include <memory>
 #include <spirv_cross.hpp>
 
 namespace mz::vk
 {
 
-void DescriptorSet::Bind(std::shared_ptr<CommandBuffer> Cmd)
+std::shared_ptr<DescriptorSet> DescriptorSet::Bind(std::shared_ptr<CommandBuffer> Cmd)
 {
     for (auto& res : Bound)
     {
         if (Image* const* ppimage = std::get_if<Image*>(&res.resource))
         {
-            (**ppimage).Transition(res.info.image.imageLayout, res.access);
+            (**ppimage).Transition(Cmd, res.info.image.imageLayout, res.access);
         }
     }
     Cmd->BindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, Pool->Layout->Handle, Index, 1, &Handle, 0, 0);
+    
+    return shared_from_this();
 }
 
 DescriptorSet::DescriptorSet(DescriptorPool* pool, u32 Index)
-    : Pool(pool), Layout(pool->Layout->Descriptors[Index].get()), Index(Index)
+    : Pool(pool), Layout(pool->Layout->DescriptorSets[Index].get()), Index(Index)
 {
     VkDescriptorSetAllocateInfo info = {
         .sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
@@ -46,9 +49,9 @@ std::vector<VkDescriptorPoolSize> GetPoolSizes(PipelineLayout* Layout)
 {
     std::map<VkDescriptorType, u32> counter;
 
-    for (auto& [_, set] : Layout->Descriptors)
+    for (auto& [_, set] : Layout->DescriptorSets)
     {
-        for (auto& binding : set->Bindings)
+        for (auto& [_, binding] : set->Bindings)
         {
             counter[binding.descriptorType] += binding.descriptorCount;
         }
@@ -77,7 +80,7 @@ DescriptorPool::DescriptorPool(PipelineLayout* Layout, std::vector<VkDescriptorP
     VkDescriptorPoolCreateInfo poolInfo = {
         .sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
         .flags         = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
-        .maxSets       = (u32)Layout->Descriptors.size() * 2048u,
+        .maxSets       = (u32)Layout->DescriptorSets.size() * 2048u,
         .poolSizeCount = (u32)Sizes.size(),
         .pPoolSizes    = Sizes.data(),
     };
@@ -94,20 +97,20 @@ DescriptorPool::~DescriptorPool()
 }
 
 PipelineLayout::PipelineLayout(Device* Vk, const u32* src, u64 sz)
-    : PipelineLayout(Vk, GetShaderLayouts(src, sz, RTcount))
+    : PipelineLayout(Vk, GetShaderLayouts(src, sz))
 {
 }
 
-PipelineLayout::PipelineLayout(Device* Vk, std::map<u32, std::vector<NamedDSLBinding>> layouts)
-    : Vk(Vk), PushConstantSize(0), Pool(0)
+PipelineLayout::PipelineLayout(Device* Vk, ShaderLayout layout)
+    : Vk(Vk), PushConstantSize(layout.PushConstantSize), RTCount(layout.RTCount), Pool(0), BindingsByName(std::move(layout.BindingsByName))
 {
     std::vector<VkDescriptorSetLayout> handles;
 
-    for (auto& [set, descriptor] : layouts)
+    for (auto& [idx, set] : layout.DescriptorSets)
     {
-        auto layout = DescriptorLayout::New(Vk, std::move(descriptor));
+        auto layout = DescriptorLayout::New(Vk, std::move(set));
         handles.push_back(layout->Handle);
-        Descriptors[set] = layout;
+        DescriptorSets[idx] = layout;
     }
 
     VkPushConstantRange pushConstantRange = {
@@ -126,7 +129,7 @@ PipelineLayout::PipelineLayout(Device* Vk, std::map<u32, std::vector<NamedDSLBin
 
     MZ_VULKAN_ASSERT_SUCCESS(Vk->CreatePipelineLayout(&layoutInfo, 0, &Handle));
 
-    if (!Descriptors.empty())
+    if (!DescriptorSets.empty())
     {
         Pool = DescriptorPool::New(this);
     }
@@ -134,12 +137,12 @@ PipelineLayout::PipelineLayout(Device* Vk, std::map<u32, std::vector<NamedDSLBin
 
 void PipelineLayout::Dump()
 {
-    for (auto& [set, layout] : Descriptors)
+    for (auto& [set, layout] : DescriptorSets)
     {
         printf("Set %u:\n", set);
-        for (auto& binding : layout->Bindings)
+        for (auto& [_, binding] : layout->Bindings)
         {
-            printf("\t Binding %u:%s\n", binding.binding, descriptor_type_to_string(binding.descriptorType));
+            printf("\t Binding %s @%u:%s\n", binding.name.c_str(), binding.binding, descriptor_type_to_string(binding.descriptorType));
         }
     }
 }

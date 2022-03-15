@@ -25,9 +25,18 @@ struct NamedDSLBinding
     std::string      name;
 };
 
+struct ShaderLayout
+{
+    u32 RTCount;
+    u32 PushConstantSize;
+
+    std::map<u32, std::map<u32, NamedDSLBinding>> DescriptorSets;
+    std::unordered_map<std::string, glm::uvec2>   BindingsByName;
+};
+
 void ReadInputLayout(const u32* src, u64 sz, VkVertexInputBindingDescription& binding, std::vector<VkVertexInputAttributeDescription>& attributes);
 
-std::map<u32, std::vector<NamedDSLBinding>> GetShaderLayouts(const u32* src, u64 sz, u32& RTcount);
+ShaderLayout GetShaderLayouts(const u32* src, u64 sz);
 
 inline const char* vk_result_string(VkResult re)
 {

@@ -77,6 +77,8 @@ struct CommandBuffer : SharedFactory<CommandBuffer>,
 
     VkFence Fence;
 
+    std::vector<std::function<void()>> Callbacks;
+
     bool Ready()
     {
         return VK_SUCCESS == GetDevice()->GetFenceStatus(Fence);
@@ -85,7 +87,13 @@ struct CommandBuffer : SharedFactory<CommandBuffer>,
     void Wait()
     {
         MZ_VULKAN_ASSERT_SUCCESS(GetDevice()->WaitForFences(1, &Fence, 0, -1));
-        // MZ_VULKAN_ASSERT_SUCCESS(GetDevice()->DeviceWaitIdle());
+
+        for (auto& fn : Callbacks)
+        {
+            fn();
+        }
+
+        Callbacks.clear();
     }
 
     CommandBuffer(CommandPool* Pool, VkCommandBuffer Handle);

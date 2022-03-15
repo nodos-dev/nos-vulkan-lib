@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Image.h"
+#include "mzVkCommon.h"
 #include "vulkan/vulkan_core.h"
 #include <type_traits>
 #include <variant>
@@ -128,19 +129,18 @@ struct DescriptorLayout : SharedFactory<DescriptorLayout>
 
     VkDescriptorSetLayout Handle;
 
-    std::vector<NamedDSLBinding> Bindings;
+    std::map<u32, NamedDSLBinding> Bindings;
 
-    DescriptorLayout(Device* Vk, std::vector<NamedDSLBinding> NamedBindings)
+    DescriptorLayout(Device* Vk, std::map<u32, NamedDSLBinding> NamedBindings)
         : Vk(Vk), Bindings(std::move(NamedBindings))
     {
-
         std::vector<VkDescriptorSetLayoutBinding> bindings;
         bindings.reserve(Bindings.size());
 
-        for (auto& b : Bindings)
+        for (auto& [i, b] : Bindings)
         {
             bindings.emplace_back(VkDescriptorSetLayoutBinding{
-                .binding         = b.binding,
+                .binding         = i,
                 .descriptorType  = b.descriptorType,
                 .descriptorCount = b.descriptorCount,
                 .stageFlags      = VK_SHADER_STAGE_FRAGMENT_BIT,
@@ -192,16 +192,16 @@ struct DescriptorSet : SharedFactory<DescriptorSet>
 
     VkDescriptorType GetType(u32 Binding);
 
-    template <ForceType<Binding>... Binding_t>
-    std::shared_ptr<DescriptorSet> UpdateWith(Binding_t&&... res)
+    template <std::same_as<Binding>... Bindings>
+    std::shared_ptr<DescriptorSet> UpdateWith(Bindings&&... res)
     {
-        VkWriteDescriptorSet writes[sizeof...(Binding_t)] = {res.GetDescriptorInfo(Handle, GetType(res.binding))...};
-        Layout->Vk->UpdateDescriptorSets(sizeof...(Binding_t), writes, 0, 0);
+        VkWriteDescriptorSet writes[sizeof...(Bindings)] = {res.GetDescriptorInfo(Handle, GetType(res.binding))...};
+        Layout->Vk->UpdateDescriptorSets(sizeof...(Bindings), writes, 0, 0);
         Bound.insert(res...);
         return shared_from_this();
     }
 
-    void Bind(std::shared_ptr<CommandBuffer> Cmd);
+    std::shared_ptr<DescriptorSet> Bind(std::shared_ptr<CommandBuffer> Cmd);
 };
 
 struct PipelineLayout : SharedFactory<PipelineLayout>
@@ -213,9 +213,10 @@ struct PipelineLayout : SharedFactory<PipelineLayout>
     std::shared_ptr<DescriptorPool> Pool;
 
     u32 PushConstantSize;
-    u32 RTcount;
+    u32 RTCount;
 
-    std::map<u32, std::shared_ptr<DescriptorLayout>> Descriptors;
+    std::map<u32, std::shared_ptr<DescriptorLayout>> DescriptorSets;
+    std::unordered_map<std::string, glm::uvec2>      BindingsByName;
 
     ~PipelineLayout()
     {
@@ -232,6 +233,6 @@ struct PipelineLayout : SharedFactory<PipelineLayout>
     PipelineLayout(Device* Vk, const u32* src, u64 sz);
 
   private:
-    PipelineLayout(Device* Vk, std::map<u32, std::vector<NamedDSLBinding>> layouts);
+    PipelineLayout(Device* Vk, ShaderLayout layout);
 };
 } // namespace mz::vk

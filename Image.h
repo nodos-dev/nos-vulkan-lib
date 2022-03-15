@@ -40,8 +40,7 @@ struct Image : SharedFactory<Image>
     VkSampler   Sampler;
     VkImageView View;
 
-    ImageExportInfo
-    GetExportInfo()
+    ImageExportInfo GetExportInfo()
     {
         return ImageExportInfo{
             .memory     = Allocation.GetOSHandle(),

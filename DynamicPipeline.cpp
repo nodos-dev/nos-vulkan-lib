@@ -26,11 +26,11 @@ DynamicPipeline::DynamicPipeline(Device* Vk, VkExtent2D extent, const u32* src, 
 
     constexpr static VkFormat FORMAT[] = {FMT, FMT};
 
-    assert(Layout->RTcount <= sizeof(FORMAT) / sizeof(VkFormat));
+    assert(Layout->RTCount <= sizeof(FORMAT) / sizeof(VkFormat));
 
     VkPipelineRenderingCreateInfo renderInfo = {
         .sType                   = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
-        .colorAttachmentCount    = Layout->RTcount,
+        .colorAttachmentCount    = Layout->RTCount,
         .pColorAttachmentFormats = FORMAT,
     };
 
@@ -93,11 +93,11 @@ DynamicPipeline::DynamicPipeline(Device* Vk, VkExtent2D extent, const u32* src, 
 #define ATT3 ATT2, ATT2
 #define ATT  ATT3, ATT3
 
-    VkPipelineColorBlendAttachmentState attachments[] = {ATT, ATT};
+    constexpr static VkPipelineColorBlendAttachmentState attachments[] = {ATT, ATT};
 
     VkPipelineColorBlendStateCreateInfo colorBlendState = {
         .sType           = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
-        .attachmentCount = Layout->RTcount,
+        .attachmentCount = Layout->RTCount,
         .pAttachments    = attachments,
     };
 

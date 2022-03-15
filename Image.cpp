@@ -122,12 +122,6 @@ Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo)
         .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
     };
 
-    if (createInfo.Ext.memory)
-    {
-        info.initialLayout = VK_IMAGE_LAYOUT_PREINITIALIZED;
-        Layout             = VK_IMAGE_LAYOUT_PREINITIALIZED;
-    }
-
     MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateImage(&info, 0, &Handle));
 
     Allocation = Allocator->AllocateResourceMemory(Handle, false, createInfo.Ext);

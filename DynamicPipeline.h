@@ -77,9 +77,9 @@ struct DynamicPipeline : SharedFactory<DynamicPipeline>
     }
 
     template <TypeClassImage... RT>
-    void Bind(std::shared_ptr<CommandBuffer> Cmd, RT... Images)
+    void BeginWithRTs(std::shared_ptr<CommandBuffer> Cmd, RT... Images)
     {
-        assert(sizeof...(Images) == Layout->RTcount);
+        assert(sizeof...(Images) == Layout->RTCount);
 
         (Images->Transition(VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT), ...);
 
@@ -109,8 +109,19 @@ struct DynamicPipeline : SharedFactory<DynamicPipeline>
         Cmd->PushConstants(Layout->Handle, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(T), &data);
     }
 
-    void BindResources()
+    template <TypeClassResource Resource>
+    bool BindResource(std::shared_ptr<CommandBuffer> Cmd, std::string name, Resource res)
     {
+        if (auto it = Layout->BindingsByName.find(name); it != Layout->BindingsByName.end())
+        {
+            glm::uvec2 idx = it->second.xy;
+
+            std::shared_ptr<DescriptorSet> set = Layout->AllocateSet(idx.x)->UpdateWith(Binding(res, idx.y))->Bind(Cmd);
+
+            Cmd->Callbacks.push_back([set]() {});
+            return true;
+        }
+        return false;
     }
 };
 } // namespace mz::vk
