@@ -335,7 +335,7 @@ void Image::Upload(u8* data, Allocator* Allocator, CommandPool* Pool)
         Allocator = Vk->ImmAllocator.get();
     }
 
-    u64                           Size          = Extent.width * Extent.height * 4;
+    u64                     Size          = Extent.width * Extent.height * 4;
     std::shared_ptr<Buffer> StagingBuffer = Buffer::New(Allocator, Size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
     memcpy(StagingBuffer->Map(), data, Size);
     StagingBuffer->Flush();
@@ -345,6 +345,8 @@ void Image::Upload(u8* data, Allocator* Allocator, CommandPool* Pool)
 
 void Image::Upload(std::shared_ptr<Buffer> StagingBuffer, CommandPool* Pool)
 {
+    assert(Usage & VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+
     if (0 == Pool)
     {
         Pool = Vk->ImmCmdPool.get();

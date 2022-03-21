@@ -113,7 +113,7 @@ struct CommandBuffer : SharedFactory<CommandBuffer>,
         const VkSemaphore*          pSignalSemaphores);
 
     void Submit(struct Image*, VkPipelineStageFlags);
-    void Submit(std::vector<struct Image*>, VkPipelineStageFlags);
+    void Submit(std::vector<Image*> images, VkPipelineStageFlags);
 };
 
 struct CommandPool : SharedFactory<CommandPool>

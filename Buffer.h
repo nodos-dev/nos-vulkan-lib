@@ -69,6 +69,9 @@ struct Buffer : SharedFactory<Buffer>
         Vk->DestroyBuffer(Handle, 0);
         Allocation.Free();
     }
+
+    void Upload(u8* data, Allocator* = 0, CommandPool* = 0);
+    void Upload(std::shared_ptr<Buffer>, CommandPool* = 0);
 };
 
 template <class T>

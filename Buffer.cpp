@@ -1,4 +1,5 @@
 #include "Buffer.h"
+#include "Command.h"
 
 namespace mz::vk
 {
@@ -49,4 +50,57 @@ void Buffer::Bind(VkDescriptorType type, u32 bind, VkDescriptorSet set)
 
     Vk->UpdateDescriptorSets(1, &write, 0, 0);
 }
+
+void Buffer::Upload(u8* data, Allocator* Allocator, CommandPool* Pool)
+{
+    // if this buffer has already been mapped you could simply use the mapped pointer instead of creating a temporary buffer
+    assert(!Map());
+    assert(Usage & VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+
+    if (0 == Allocator)
+    {
+        Allocator = Vk->ImmAllocator.get();
+    }
+
+    u64 Size = Allocation.Size;
+
+    std::shared_ptr<Buffer> StagingBuffer = Buffer::New(Allocator, Size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+
+    memcpy(StagingBuffer->Map(), data, Size);
+    StagingBuffer->Flush();
+    Upload(StagingBuffer, Pool);
+}
+
+void Buffer::Upload(std::shared_ptr<Buffer> buffer, CommandPool* Pool)
+{
+    // if this buffer has already been mapped you could simply use the mapped pointer instead of creating a temporary buffer
+    assert(!Map());
+    assert(Usage & VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+
+    if (0 == Pool)
+    {
+        Pool = Vk->ImmCmdPool.get();
+    }
+
+    std::shared_ptr<CommandBuffer> Cmd = Pool->BeginCmd();
+
+    VkBufferMemoryBarrier bufferMemoryBarrier = {
+        .sType  = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+        .buffer = this->Handle,
+        .size   = 1024,
+    };
+
+    Cmd->PipelineBarrier(VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, 0, 1, &bufferMemoryBarrier, 0, 0);
+
+    VkBufferCopy region = {
+        .srcOffset = 0,
+        .dstOffset = 0,
+        .size      = buffer->Allocation.Size,
+    };
+
+    Cmd->CopyBuffer(buffer->Handle, this->Handle, 1, &region);
+    Cmd->Submit(0, 0, 0, 0, 0);
+    Cmd->Wait();
+}
+
 } // namespace mz::vk

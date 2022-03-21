@@ -5,7 +5,7 @@
 namespace mz::vk
 {
 struct Device : SharedFactory<Device>,
-                      VklDeviceFunctions
+                VklDeviceFunctions
 {
     struct Global
     {
@@ -27,8 +27,8 @@ struct Device : SharedFactory<Device>,
     VkInstance       Instance;
     VkPhysicalDevice PhysicalDevice;
 
-    std::shared_ptr<struct Allocator> ImmAllocator;
-    std::shared_ptr<struct CommandPool>     ImmCmdPool;
+    std::shared_ptr<struct Allocator>   ImmAllocator;
+    std::shared_ptr<struct CommandPool> ImmCmdPool;
 
     u32 QueueFamily;
 
@@ -61,10 +61,10 @@ struct Device : SharedFactory<Device>,
         return data;
     }
 
-    Device(VkInstance                      Instance,
-                 VkPhysicalDevice                PhysicalDevice,
-                 std::vector<const char*> const& layers,
-                 std::vector<const char*> const& extensions);
+    Device(VkInstance        Instance,
+           VkPhysicalDevice  PhysicalDevice,
+           View<const char*> layers,
+           View<const char*> extensions);
     ~Device();
 
     u64 GetLuid()

@@ -71,7 +71,7 @@ void CommandBuffer::Submit(std::vector<Image*> images, VkPipelineStageFlags stag
         semaphores.push_back(img->Sema);
         stages.push_back(stage);
     }
-
+    
     Submit(semaphores.size(), semaphores.data(), stages.data(), semaphores.size(), semaphores.data());
 }
 

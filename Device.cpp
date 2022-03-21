@@ -7,10 +7,10 @@
 
 namespace mz::vk
 {
-Device::Device(VkInstance                      Instance,
-                           VkPhysicalDevice                PhysicalDevice,
-                           std::vector<const char*> const& layers,
-                           std::vector<const char*> const& extensions)
+Device::Device(VkInstance        Instance,
+               VkPhysicalDevice  PhysicalDevice,
+               View<const char*> layers,
+               View<const char*> extensions)
     : Instance(Instance), PhysicalDevice(PhysicalDevice), QueueFamily(0)
 {
     u32 count;
