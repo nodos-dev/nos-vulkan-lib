@@ -1,10 +1,108 @@
 
 #include "DynamicPipeline.h"
+#include "mzVkCommon.h"
+#include "spirv.hpp"
+#include "vulkan/vulkan_core.h"
 
+#include <memory>
 #include <spirv_cross.hpp>
 
 namespace mz::vk
 {
+
+static VkFormat MapSpvFormat(spv::ImageFormat format)
+{
+    using namespace spv;
+
+    switch (format)
+    {
+    case ImageFormatRgba32f:
+        return VK_FORMAT_R32G32B32A32_SFLOAT;
+    case ImageFormatRgba16f:
+        return VK_FORMAT_R16G16B16A16_SFLOAT;
+    case ImageFormatR32f:
+        return VK_FORMAT_R32_SFLOAT;
+    case ImageFormatRgba8:
+        return VK_FORMAT_R8G8B8A8_UNORM;
+    case ImageFormatRgba8Snorm:
+        return VK_FORMAT_R8G8B8A8_SNORM;
+    case ImageFormatRg32f:
+        return VK_FORMAT_R32G32_SFLOAT;
+    case ImageFormatRg16f:
+        return VK_FORMAT_R16G16_SFLOAT;
+    case ImageFormatR11fG11fB10f:
+        return VK_FORMAT_B10G11R11_UFLOAT_PACK32;
+    case ImageFormatR16f:
+        return VK_FORMAT_R16_SFLOAT;
+    case ImageFormatRgba16:
+        return VK_FORMAT_R16G16B16A16_UNORM;
+    case ImageFormatRgb10A2:
+        return VK_FORMAT_A2R10G10B10_UNORM_PACK32;
+    case ImageFormatRg16:
+        return VK_FORMAT_R16G16_UNORM;
+    case ImageFormatRg8:
+        return VK_FORMAT_R8G8_UNORM;
+    case ImageFormatR16:
+        return VK_FORMAT_R16_UNORM;
+    case ImageFormatR8:
+        return VK_FORMAT_R8_UNORM;
+    case ImageFormatRgba16Snorm:
+        return VK_FORMAT_R16G16B16A16_SNORM;
+    case ImageFormatRg16Snorm:
+        return VK_FORMAT_R16G16_SNORM;
+    case ImageFormatRg8Snorm:
+        return VK_FORMAT_R8G8_SNORM;
+    case ImageFormatR16Snorm:
+        return VK_FORMAT_R16_SNORM;
+    case ImageFormatR8Snorm:
+        return VK_FORMAT_R8_SNORM;
+    case ImageFormatRgba32i:
+        return VK_FORMAT_R32G32B32A32_SINT;
+    case ImageFormatRgba16i:
+        return VK_FORMAT_R16G16B16A16_SINT;
+    case ImageFormatRgba8i:
+        return VK_FORMAT_R8G8B8A8_SINT;
+    case ImageFormatR32i:
+        return VK_FORMAT_R32_SINT;
+    case ImageFormatRg32i:
+        return VK_FORMAT_R32G32_SINT;
+    case ImageFormatRg16i:
+        return VK_FORMAT_R16G16_SINT;
+    case ImageFormatRg8i:
+        return VK_FORMAT_R8G8_SINT;
+    case ImageFormatR16i:
+        return VK_FORMAT_R16_SINT;
+    case ImageFormatR8i:
+        return VK_FORMAT_R8_SINT;
+    case ImageFormatRgba32ui:
+        return VK_FORMAT_R32G32B32A32_UINT;
+    case ImageFormatRgba16ui:
+        return VK_FORMAT_R16G16B16A16_UINT;
+    case ImageFormatRgba8ui:
+        return VK_FORMAT_R8G8B8A8_UINT;
+    case ImageFormatR32ui:
+        return VK_FORMAT_R32_UINT;
+    case ImageFormatRgb10a2ui:
+        return VK_FORMAT_A2R10G10B10_UINT_PACK32;
+    case ImageFormatRg32ui:
+        return VK_FORMAT_R32G32_UINT;
+    case ImageFormatRg16ui:
+        return VK_FORMAT_R16G16_UINT;
+    case ImageFormatRg8ui:
+        return VK_FORMAT_R8G8_UINT;
+    case ImageFormatR16ui:
+        return VK_FORMAT_R16_UINT;
+    case ImageFormatR8ui:
+        return VK_FORMAT_R8_UINT;
+    case ImageFormatR64ui:
+        return VK_FORMAT_R64_UINT;
+    case ImageFormatR64i:
+        return VK_FORMAT_R64_SINT;
+    case ImageFormatUnknown:
+    default:
+        return VK_FORMAT_UNDEFINED;
+    }
+}
 
 static std::pair<VkFormat, u32> TypeAttributes(spirv_cross::SPIRType ty)
 {
@@ -94,6 +192,105 @@ void ReadInputLayout(const u32* src, u64 sz, VkVertexInputBindingDescription& bi
     }
 }
 
+std::shared_ptr<SVType> GetType(spirv_cross::Compiler const& cc, u32 typeId, std::map<u32, std::shared_ptr<SVType>>& cache)
+{
+    using namespace spirv_cross;
+
+    if (auto it = cache.find(typeId); it != cache.end())
+    {
+        return it->second;
+    }
+
+    SPIRType const& type = cc.get_type(typeId);
+
+    std::shared_ptr<SVType> ty = std::make_shared<SVType>();
+
+    cache[typeId] = ty;
+
+    ty->x = type.width;
+    ty->y = type.vecsize;
+    ty->z = type.columns;
+
+    ty->size = ty->x / 8 * ty->y * ty->z;
+
+    switch (type.basetype)
+    {
+
+    case SPIRType::Struct:
+        ty->tag = SVType::Struct;
+
+        // ty->members.resize(type.member_types.size());
+        ty->size = cc.get_declared_struct_size(type);
+
+        for (u32 i = 0; i < type.member_types.size(); ++i)
+        {
+            u32 idx = i;
+
+            if (idx < type.member_type_index_redirection.size())
+            {
+                idx = type.member_type_index_redirection[idx];
+            }
+
+            ty->members[cc.get_member_name(typeId, idx)] = {
+                .type   = GetType(cc, type.member_types[idx], cache),
+                .idx    = idx,
+                .size   = (u32)cc.get_declared_struct_member_size(type, idx),
+                .offset = cc.type_struct_member_offset(type, idx),
+            };
+        }
+
+        break;
+    case SPIRType::Image:
+    case SPIRType::SampledImage:
+        ty->tag  = SVType::Image;
+        ty->size = 0;
+
+        ty->image = {
+            .depth   = type.image.depth,
+            .arrayed = type.image.arrayed,
+            .ms      = type.image.ms,
+            .sampled = type.image.sampled,
+            .format  = MapSpvFormat(type.image.format),
+            .access  = SVType::ImageType::READ | SVType::ImageType::WRITE,
+        };
+
+        switch (type.image.access)
+        {
+        case spv::AccessQualifierWriteOnly:
+            ty->image.access ^= SVType::ImageType::READ;
+            break;
+        case spv::AccessQualifierReadOnly:
+            ty->image.access ^= SVType::ImageType::WRITE;
+            break;
+        default:
+            break;
+        }
+
+        break;
+    case SPIRType::UInt64:
+    case SPIRType::UInt:
+    case SPIRType::UShort:
+    case SPIRType::UByte:
+        ty->tag = SVType::Uint;
+        break;
+    case SPIRType::Int64:
+    case SPIRType::Int:
+    case SPIRType::Short:
+    case SPIRType::SByte:
+        ty->tag = SVType::Sint;
+        break;
+    case SPIRType::Double:
+    case SPIRType::Float:
+    case SPIRType::Half:
+        ty->tag = SVType::Float;
+        break;
+    default:
+        break;
+    }
+
+    return ty;
+} // namespace mz::vk
+
 ShaderLayout GetShaderLayouts(const u32* src, u64 sz)
 {
     ShaderLayout layout = {};
@@ -122,20 +319,26 @@ ShaderLayout GetShaderLayouts(const u32* src, u64 sz)
         std::pair{VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, &resources.subpass_inputs},
     };
 
+    std::map<u32, std::shared_ptr<SVType>> typeCache;
+
     for (auto& [ty, desc] : res)
     {
         for (auto& res : *desc)
         {
-            SmallVector<u32> array   = cc.get_type(res.type_id).array;
-            u32              set     = cc.get_decoration(res.id, spv::DecorationDescriptorSet);
-            u32              binding = cc.get_decoration(res.id, spv::DecorationBinding);
+
+            SPIRType const& type = cc.get_type(res.type_id);
+
+            u32 set     = cc.get_decoration(res.id, spv::DecorationDescriptorSet);
+            u32 binding = cc.get_decoration(res.id, spv::DecorationBinding);
 
             layout.DescriptorSets[set][binding] = {
                 .binding         = binding,
                 .descriptorType  = ty,
-                .descriptorCount = std::accumulate(array.begin(), array.end(), 1u, [](u32 a, u32 b) { return a * b; }),
+                .descriptorCount = std::accumulate(type.array.begin(), type.array.end(), 1u, [](u32 a, u32 b) { return a * b; }),
                 .name            = res.name,
+                .type            = GetType(cc, res.base_type_id, typeCache),
             };
+
             layout.BindingsByName[res.name] = {set, binding};
         }
     };

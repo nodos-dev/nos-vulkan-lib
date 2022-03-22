@@ -131,6 +131,21 @@ struct DescriptorLayout : SharedFactory<DescriptorLayout>
 
     std::map<u32, NamedDSLBinding> Bindings;
 
+    NamedDSLBinding const& operator[](u32 binding) const
+    {
+        return Bindings.at(binding);
+    }
+
+    auto begin() const
+    {
+        return Bindings.begin();
+    }
+
+    auto end() const
+    {
+        return Bindings.end();
+    }
+
     DescriptorLayout(Device* Vk, std::map<u32, NamedDSLBinding> NamedBindings)
         : Vk(Vk), Bindings(std::move(NamedBindings))
     {
@@ -217,6 +232,21 @@ struct PipelineLayout : SharedFactory<PipelineLayout>
 
     std::map<u32, std::shared_ptr<DescriptorLayout>> DescriptorSets;
     std::unordered_map<std::string, glm::uvec2>      BindingsByName;
+
+    std::shared_ptr<DescriptorLayout> operator[](u32 set)
+    {
+        return DescriptorSets[set];
+    }
+
+    auto begin() const
+    {
+        return DescriptorSets.begin();
+    }
+
+    auto end() const
+    {
+        return DescriptorSets.end();
+    }
 
     ~PipelineLayout()
     {

@@ -70,6 +70,16 @@ struct MemoryBlock : SharedFactory<MemoryBlock>
                 Block->Free(*this);
             }
         }
+
+        void BindResource(VkImage image)
+        {
+            MZ_VULKAN_ASSERT_SUCCESS(Block->Vk->BindImageMemory(image, Block->Memory, Offset + Block->Offset));
+        }
+
+        void BindResource(VkBuffer buffer)
+        {
+            MZ_VULKAN_ASSERT_SUCCESS(Block->Vk->BindBufferMemory(buffer, Block->Memory, Offset + Block->Offset));
+        }
     };
 
     Device* Vk;
@@ -144,6 +154,6 @@ struct Allocator : SharedFactory<Allocator>
         return Vk;
     }
 
-    Allocation AllocateResourceMemory(std::variant<VkBuffer, VkImage> resource, bool map = false, ImageExportInfo = {});
+    Allocation AllocateResourceMemory(std::variant<VkBuffer, VkImage> resource, bool map = false, const ImageExportInfo* exported = 0);
 };
 } // namespace mz::vk

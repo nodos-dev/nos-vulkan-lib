@@ -60,9 +60,15 @@ struct Buffer : SharedFactory<Buffer>
             }};
     }
 
-    Buffer(Device* Vk, u64 size, VkBufferUsageFlags usage);
+    enum Heap
+    {
+        GPU,
+        CPU,
+    };
 
-    Buffer(Allocator* Allocator, u64 size, VkBufferUsageFlags usage);
+    Buffer(Device* Vk, u64 size, VkBufferUsageFlags usage, Heap heap);
+
+    Buffer(Allocator* Allocator, u64 size, VkBufferUsageFlags usage, Heap heap);
 
     ~Buffer()
     {

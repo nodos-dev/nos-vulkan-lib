@@ -46,8 +46,8 @@ Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo)
       Layout(VK_IMAGE_LAYOUT_UNDEFINED),
       Format(createInfo.Format),
       Usage(createInfo.Usage),
-      Sync(createInfo.Ext.sync),
-      AccessMask(createInfo.Ext.accessMask)
+      Sync(0),
+      AccessMask(0)
 {
 
     Vk->DeviceWaitIdle();
@@ -78,16 +78,18 @@ Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo)
 
     MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateSemaphore(&semaphoreCreateInfo, 0, &Sema));
 
-    if (createInfo.Ext.sync)
+    if (createInfo.Exported)
     {
         VkImportSemaphoreWin32HandleInfoKHR importInfo = {
             .sType      = VK_STRUCTURE_TYPE_IMPORT_SEMAPHORE_WIN32_HANDLE_INFO_KHR,
             .semaphore  = Sema,
             .handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT,
-            .handle     = createInfo.Ext.sync,
+            .handle     = createInfo.Exported->sync,
         };
 
         MZ_VULKAN_ASSERT_SUCCESS(Vk->ImportSemaphoreWin32HandleKHR(&importInfo));
+
+        AccessMask = createInfo.Exported->accessMask;
     }
 
     VkSemaphoreGetWin32HandleInfoKHR getHandleInfo = {
@@ -124,9 +126,9 @@ Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo)
 
     MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateImage(&info, 0, &Handle));
 
-    Allocation = Allocator->AllocateResourceMemory(Handle, false, createInfo.Ext);
+    Allocation = Allocator->AllocateResourceMemory(Handle, false, createInfo.Exported);
 
-    MZ_VULKAN_ASSERT_SUCCESS(Vk->BindImageMemory(Handle, Allocation.Block->Memory, Allocation.Offset + createInfo.Ext.offset));
+    Allocation.BindResource(Handle);
 
     VkImageViewCreateInfo viewInfo = {
         .sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
@@ -336,7 +338,7 @@ void Image::Upload(u8* data, Allocator* Allocator, CommandPool* Pool)
     }
 
     u64                     Size          = Extent.width * Extent.height * 4;
-    std::shared_ptr<Buffer> StagingBuffer = Buffer::New(Allocator, Size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+    std::shared_ptr<Buffer> StagingBuffer = Buffer::New(Allocator, Size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, Buffer::Heap::CPU);
     memcpy(StagingBuffer->Map(), data, Size);
     StagingBuffer->Flush();
     Upload(StagingBuffer, Pool);
@@ -439,7 +441,7 @@ std::shared_ptr<Buffer> Image::Download(Allocator* Allocator, CommandPool* Pool)
         Pool = Vk->ImmCmdPool.get();
     }
 
-    std::shared_ptr<Buffer> StagingBuffer = Buffer::New(Allocator, Allocation.Size, VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+    std::shared_ptr<Buffer> StagingBuffer = Buffer::New(Allocator, Allocation.Size, VK_BUFFER_USAGE_TRANSFER_DST_BIT, Buffer::Heap::CPU);
 
     std::shared_ptr<CommandBuffer> Cmd = Pool->BeginCmd();
 

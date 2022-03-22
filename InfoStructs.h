@@ -18,10 +18,10 @@ struct ImageExportInfo
 
 struct ImageCreateInfo
 {
-    VkExtent2D        Extent;
-    VkFormat          Format;
-    VkImageUsageFlags Usage;
-    ImageExportInfo   Ext;
+    VkExtent2D             Extent;
+    VkFormat               Format;
+    VkImageUsageFlags      Usage;
+    const ImageExportInfo* Exported;
 };
 
 }; // namespace mz::vk

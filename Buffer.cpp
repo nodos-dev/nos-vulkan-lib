@@ -3,7 +3,7 @@
 
 namespace mz::vk
 {
-Buffer::Buffer(Allocator* Allocator, u64 size, VkBufferUsageFlags usage)
+Buffer::Buffer(Allocator* Allocator, u64 size, VkBufferUsageFlags usage, Heap heap)
     : Vk(Allocator->GetDevice()), Usage(usage)
 {
 
@@ -21,13 +21,13 @@ Buffer::Buffer(Allocator* Allocator, u64 size, VkBufferUsageFlags usage)
 
     MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateBuffer(&info, 0, &Handle));
 
-    Allocation = Allocator->AllocateResourceMemory(Handle, usage & (VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT));
+    Allocation = Allocator->AllocateResourceMemory(Handle, heap == CPU);
 
-    Vk->BindBufferMemory(Handle, Allocation.Block->Memory, Allocation.Offset + Allocation.Block->Offset);
+    Allocation.BindResource(Handle);
 }
 
-Buffer::Buffer(Device* Vk, u64 size, VkBufferUsageFlags usage)
-    : Buffer(Vk->ImmAllocator.get(), size, usage)
+Buffer::Buffer(Device* Vk, u64 size, VkBufferUsageFlags usage, Heap heap)
+    : Buffer(Vk->ImmAllocator.get(), size, usage, heap)
 {
 }
 
@@ -64,7 +64,7 @@ void Buffer::Upload(u8* data, Allocator* Allocator, CommandPool* Pool)
 
     u64 Size = Allocation.Size;
 
-    std::shared_ptr<Buffer> StagingBuffer = Buffer::New(Allocator, Size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+    std::shared_ptr<Buffer> StagingBuffer = Buffer::New(Allocator, Size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, CPU);
 
     memcpy(StagingBuffer->Map(), data, Size);
     StagingBuffer->Flush();

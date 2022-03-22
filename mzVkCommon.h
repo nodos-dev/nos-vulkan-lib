@@ -17,12 +17,57 @@
 namespace mz::vk
 {
 
+struct SVType
+{
+    enum
+    {
+        Uint,
+        Sint,
+        Float,
+        Image,
+        Struct,
+    } tag;
+
+    u32 x = 1; // width
+    u32 y = 1; // vecsize
+    u32 z = 1; // matsize
+
+    struct ImageType
+    {
+        bool     depth;
+        bool     arrayed;
+        bool     ms;
+        u32      sampled;
+        VkFormat format;
+        enum
+        {
+            READ  = 1,
+            WRITE = 2,
+        };
+        u8 access;
+    } image;
+
+    struct Member
+    {
+        std::shared_ptr<SVType> type;
+
+        u32 idx;
+        u32 size;
+        u32 offset;
+    };
+
+    std::unordered_map<std::string, Member> members;
+
+    u32 size;
+};
+
 struct NamedDSLBinding
 {
-    uint32_t         binding;
-    VkDescriptorType descriptorType;
-    uint32_t         descriptorCount;
-    std::string      name;
+    uint32_t                binding;
+    VkDescriptorType        descriptorType;
+    uint32_t                descriptorCount;
+    std::string             name;
+    std::shared_ptr<SVType> type;
 };
 
 struct ShaderLayout

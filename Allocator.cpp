@@ -165,7 +165,7 @@ Allocator::Allocator(Device* Vk)
 {
 }
 
-Allocation Allocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> resource, bool map, ImageExportInfo ext)
+Allocation Allocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> resource, bool map, const ImageExportInfo* exported)
 {
     VkMemoryRequirements             req;
     VkPhysicalDeviceMemoryProperties props;
@@ -189,7 +189,7 @@ Allocation Allocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> res
 
     Allocation allocation = {};
 
-    if (ext.memory)
+    if (exported)
     {
 
         // VkMemoryWin32HandlePropertiesKHR handleProps = {
@@ -203,19 +203,19 @@ Allocation Allocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> res
         VkImportMemoryWin32HandleInfoKHR importInfo = {
             .sType      = VK_STRUCTURE_TYPE_IMPORT_MEMORY_WIN32_HANDLE_INFO_KHR,
             .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT,
-            .handle     = ext.memory,
+            .handle     = exported->memory,
         };
 
         VkMemoryAllocateInfo info = {
             .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
             .pNext           = &importInfo,
-            .allocationSize  = ext.size,
+            .allocationSize  = exported->size,
             .memoryTypeIndex = typeIndex,
         };
 
         VkDeviceMemory mem;
         MZ_VULKAN_ASSERT_SUCCESS(Vk->AllocateMemory(&info, 0, &mem));
-        auto Block = MemoryBlock::New(Vk, mem, actualProps, ext.offset, info.allocationSize, ext.memory);
+        auto Block = MemoryBlock::New(Vk, mem, actualProps, exported->offset, info.allocationSize, exported->memory);
 
         return Block->Allocate(req.size, req.alignment);
     }
@@ -238,8 +238,6 @@ Allocation Allocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> res
 
     if (!allocation.IsValid())
     {
-        assert(!ext.memory);
-
         VkDeviceMemory mem;
 
         u64 size = std::max(req.size, DefaultChunkSize);
@@ -264,7 +262,7 @@ Allocation Allocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> res
 
         MZ_VULKAN_ASSERT_SUCCESS(Vk->AllocateMemory(&info, 0, &mem));
 
-        auto block = MemoryBlock::New(Vk, mem, actualProps, 0, size, ext.memory);
+        auto block = MemoryBlock::New(Vk, mem, actualProps, 0, size, nullptr);
 
         allocation = block->Allocate(req.size, req.alignment);
         Allocations[typeIndex].emplace_back(block);
