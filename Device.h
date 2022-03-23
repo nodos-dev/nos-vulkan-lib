@@ -1,6 +1,7 @@
 #pragma once
 
 #include "mzVkCommon.h"
+#include <type_traits>
 
 namespace mz::vk
 {
@@ -45,7 +46,8 @@ struct Device : SharedFactory<Device>,
     }
 
     template <class T, class... Args>
-    T* RegisterGlobal(std::string id, Args&&... args)
+    requires(std::is_constructible_v<T, Args...>)
+        T* RegisterGlobal(std::string id, Args&&... args)
     {
         T* data = new T(std::forward<Args>(args)...);
 

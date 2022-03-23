@@ -6,17 +6,17 @@
 
 namespace mz::vk
 {
-DynamicPipeline::DynamicPipeline(Device* Vk, VkExtent2D extent, const u32* src, u64 sz)
-    : Vk(Vk), Shader(MZShader::New(Vk, VK_SHADER_STAGE_FRAGMENT_BIT, src, sz)), Layout(PipelineLayout::New(Vk, src, sz)), Extent(extent)
+DynamicPipeline::DynamicPipeline(Device* Vk, VkExtent2D extent, vkView<u8> src)
+    : Vk(Vk), Shader(MZShader::New(Vk, VK_SHADER_STAGE_FRAGMENT_BIT, src)), Layout(PipelineLayout::New(Vk, src)), Extent(extent)
 {
 
     VertexShader* VS = Vk->GetGlobal<VertexShader>("GlobVS");
 
     if (0 == VS)
     {
-        std::string GlobalVSSPV = ReadToString(MZ_SHADER_PATH "/GlobVS.vert.spv", true);
+        std::vector<u8> GlobalVSSPV = ReadSpirv(MZ_SHADER_PATH "/GlobVS.vert.spv");
 
-        VS = Vk->RegisterGlobal<VertexShader>("GlobVS", Vk, (const u32*)GlobalVSSPV.data(), GlobalVSSPV.size());
+        VS = Vk->RegisterGlobal<VertexShader>("GlobVS", Vk, GlobalVSSPV);
     }
 
 #define FMT0 VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_R8G8B8A8_UNORM

@@ -32,19 +32,15 @@ struct SVType
     u32 y = 1; // vecsize
     u32 z = 1; // matsize
 
-    struct ImageType
+    struct Image
     {
         bool     depth;
         bool     arrayed;
         bool     ms;
+        bool     read;
+        bool     write;
         u32      sampled;
         VkFormat format;
-        enum
-        {
-            READ  = 1,
-            WRITE = 2,
-        };
-        u8 access;
     } image;
 
     struct Member
@@ -59,6 +55,7 @@ struct SVType
     std::unordered_map<std::string, Member> members;
 
     u32 size;
+    u32 align;
 };
 
 struct NamedDSLBinding
@@ -79,9 +76,12 @@ struct ShaderLayout
     std::unordered_map<std::string, glm::uvec2>   BindingsByName;
 };
 
-void ReadInputLayout(const u32* src, u64 sz, VkVertexInputBindingDescription& binding, std::vector<VkVertexInputAttributeDescription>& attributes);
+template <class T>
+using vkView = std::vector<T>;
 
-ShaderLayout GetShaderLayouts(const u32* src, u64 sz);
+void ReadInputLayout(vkView<u8> bin, VkVertexInputBindingDescription& binding, std::vector<VkVertexInputAttributeDescription>& attributes);
+
+ShaderLayout GetShaderLayouts(vkView<u8> bin);
 
 inline const char* vk_result_string(VkResult re)
 {

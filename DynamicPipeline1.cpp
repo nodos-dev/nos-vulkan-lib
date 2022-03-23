@@ -104,7 +104,7 @@ static VkFormat MapSpvFormat(spv::ImageFormat format)
     }
 }
 
-static std::pair<VkFormat, u32> TypeAttributes(spirv_cross::SPIRType ty)
+static std::pair<VkFormat, u32> TypeAttributes(spirv_cross::SPIRType const& ty)
 {
 
 #define MKFORMATWT(w, t)                           \
@@ -162,10 +162,10 @@ static std::pair<VkFormat, u32> TypeAttributes(spirv_cross::SPIRType ty)
     return std::make_pair(fmt, ty.vecsize * ty.width / 8);
 }
 
-void ReadInputLayout(const u32* src, u64 sz, VkVertexInputBindingDescription& binding, std::vector<VkVertexInputAttributeDescription>& attributes)
+void ReadInputLayout(vkView<u8> bin, VkVertexInputBindingDescription& binding, std::vector<VkVertexInputAttributeDescription>& attributes)
 {
     using namespace spirv_cross;
-    Compiler        cc(src, sz / 4);
+    Compiler        cc((u32*)bin.data(), bin.size() / 4);
     ShaderResources resources = cc.get_shader_resources();
 
     binding = {.inputRate = VK_VERTEX_INPUT_RATE_VERTEX};
@@ -211,7 +211,10 @@ std::shared_ptr<SVType> GetType(spirv_cross::Compiler const& cc, u32 typeId, std
     ty->y = type.vecsize;
     ty->z = type.columns;
 
-    ty->size = ty->x / 8 * ty->y * ty->z;
+    u32 v = (ty->y == 3 ? 4 : ty->y);
+
+    ty->align = v * ty->x / 8;
+    ty->size  = ty->align * ty->z;
 
     switch (type.basetype)
     {
@@ -249,22 +252,11 @@ std::shared_ptr<SVType> GetType(spirv_cross::Compiler const& cc, u32 typeId, std
             .depth   = type.image.depth,
             .arrayed = type.image.arrayed,
             .ms      = type.image.ms,
+            .read    = (spv::AccessQualifierReadOnly == type.image.access) || (spv::AccessQualifierReadWrite == type.image.access),
+            .write   = (spv::AccessQualifierWriteOnly == type.image.access) || (spv::AccessQualifierReadWrite == type.image.access),
             .sampled = type.image.sampled,
             .format  = MapSpvFormat(type.image.format),
-            .access  = SVType::ImageType::READ | SVType::ImageType::WRITE,
         };
-
-        switch (type.image.access)
-        {
-        case spv::AccessQualifierWriteOnly:
-            ty->image.access ^= SVType::ImageType::READ;
-            break;
-        case spv::AccessQualifierReadOnly:
-            ty->image.access ^= SVType::ImageType::WRITE;
-            break;
-        default:
-            break;
-        }
 
         break;
     case SPIRType::UInt64:
@@ -291,12 +283,13 @@ std::shared_ptr<SVType> GetType(spirv_cross::Compiler const& cc, u32 typeId, std
     return ty;
 } // namespace mz::vk
 
-ShaderLayout GetShaderLayouts(const u32* src, u64 sz)
+ShaderLayout GetShaderLayouts(vkView<u8> src)
 {
     ShaderLayout layout = {};
 
     using namespace spirv_cross;
-    Compiler        cc(src, sz / 4);
+
+    Compiler        cc((u32*)src.data(), src.size() / 4);
     ShaderResources resources = cc.get_shader_resources();
     EntryPoint      entry     = cc.get_entry_points_and_stages()[0];
 

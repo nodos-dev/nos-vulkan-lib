@@ -233,9 +233,9 @@ struct PipelineLayout : SharedFactory<PipelineLayout>
     std::map<u32, std::shared_ptr<DescriptorLayout>> DescriptorSets;
     std::unordered_map<std::string, glm::uvec2>      BindingsByName;
 
-    std::shared_ptr<DescriptorLayout> operator[](u32 set)
+    DescriptorLayout const& operator[](u32 set) const
     {
-        return DescriptorSets[set];
+        return *DescriptorSets.at(set);
     }
 
     auto begin() const
@@ -260,7 +260,7 @@ struct PipelineLayout : SharedFactory<PipelineLayout>
 
     void Dump();
 
-    PipelineLayout(Device* Vk, const u32* src, u64 sz);
+    PipelineLayout(Device* Vk, vkView<u8> src);
 
   private:
     PipelineLayout(Device* Vk, ShaderLayout layout);

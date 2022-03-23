@@ -11,15 +11,14 @@ struct MZShader : SharedFactory<MZShader>
     VkShaderModule     Module;
     VkShaderStageFlags Stage;
 
-    MZShader(Device* Vk, VkShaderStageFlags stage, const u32* src, u64 sz)
+    MZShader(Device* Vk, VkShaderStageFlags stage, vkView<u8> src)
         : Vk(Vk), Stage(stage)
     {
         VkShaderModuleCreateInfo info = {
             .sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-            .codeSize = sz,
-            .pCode    = src,
+            .codeSize = src.size(),
+            .pCode    = (u32*)src.data(),
         };
-
         MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateShaderModule(&info, 0, &Module));
     }
 
@@ -34,10 +33,10 @@ struct VertexShader : MZShader
     VkVertexInputBindingDescription                Binding;
     std::vector<VkVertexInputAttributeDescription> Attributes;
 
-    VertexShader(Device* Vk, const u32* src, u64 sz)
-        : MZShader(Vk, VK_SHADER_STAGE_VERTEX_BIT, src, sz)
+    VertexShader(Device* Vk, vkView<u8> src)
+        : MZShader(Vk, VK_SHADER_STAGE_VERTEX_BIT, src)
     {
-        ReadInputLayout(src, sz, Binding, Attributes);
+        ReadInputLayout(src, Binding, Attributes);
     }
 
     VkPipelineVertexInputStateCreateInfo GetInputLayout()
@@ -69,7 +68,7 @@ struct DynamicPipeline : SharedFactory<DynamicPipeline>
 
     VkExtent2D Extent;
 
-    DynamicPipeline(Device* Vk, VkExtent2D extent, const u32* src, u64 sz);
+    DynamicPipeline(Device* Vk, VkExtent2D extent, vkView<u8> src);
 
     ~DynamicPipeline()
     {

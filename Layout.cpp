@@ -18,7 +18,7 @@ std::shared_ptr<DescriptorSet> DescriptorSet::Bind(std::shared_ptr<CommandBuffer
         }
     }
     Cmd->BindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, Pool->Layout->Handle, Index, 1, &Handle, 0, 0);
-    
+
     return shared_from_this();
 }
 
@@ -96,8 +96,8 @@ DescriptorPool::~DescriptorPool()
     }
 }
 
-PipelineLayout::PipelineLayout(Device* Vk, const u32* src, u64 sz)
-    : PipelineLayout(Vk, GetShaderLayouts(src, sz))
+PipelineLayout::PipelineLayout(Device* Vk, vkView<u8> src)
+    : PipelineLayout(Vk, GetShaderLayouts(src))
 {
 }
 
