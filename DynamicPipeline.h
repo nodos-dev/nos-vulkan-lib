@@ -11,7 +11,7 @@ struct MZShader : SharedFactory<MZShader>
     VkShaderModule     Module;
     VkShaderStageFlags Stage;
 
-    MZShader(Device* Vk, VkShaderStageFlags stage, vkView<u8> src)
+    MZShader(Device* Vk, VkShaderStageFlags stage, View<u8> src)
         : Vk(Vk), Stage(stage)
     {
         VkShaderModuleCreateInfo info = {
@@ -33,7 +33,7 @@ struct VertexShader : MZShader
     VkVertexInputBindingDescription                Binding;
     std::vector<VkVertexInputAttributeDescription> Attributes;
 
-    VertexShader(Device* Vk, vkView<u8> src)
+    VertexShader(Device* Vk, View<u8> src)
         : MZShader(Vk, VK_SHADER_STAGE_VERTEX_BIT, src)
     {
         ReadInputLayout(src, Binding, Attributes);
@@ -68,7 +68,7 @@ struct DynamicPipeline : SharedFactory<DynamicPipeline>
 
     VkExtent2D Extent;
 
-    DynamicPipeline(Device* Vk, VkExtent2D extent, vkView<u8> src);
+    DynamicPipeline(Device* Vk, VkExtent2D extent, View<u8> src);
 
     ~DynamicPipeline()
     {

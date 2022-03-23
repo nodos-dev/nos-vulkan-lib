@@ -162,7 +162,7 @@ static std::pair<VkFormat, u32> TypeAttributes(spirv_cross::SPIRType const& ty)
     return std::make_pair(fmt, ty.vecsize * ty.width / 8);
 }
 
-void ReadInputLayout(vkView<u8> bin, VkVertexInputBindingDescription& binding, std::vector<VkVertexInputAttributeDescription>& attributes)
+void ReadInputLayout(View<u8> bin, VkVertexInputBindingDescription& binding, std::vector<VkVertexInputAttributeDescription>& attributes)
 {
     using namespace spirv_cross;
     Compiler        cc((u32*)bin.data(), bin.size() / 4);
@@ -283,7 +283,7 @@ std::shared_ptr<SVType> GetType(spirv_cross::Compiler const& cc, u32 typeId, std
     return ty;
 } // namespace mz::vk
 
-ShaderLayout GetShaderLayouts(vkView<u8> src)
+ShaderLayout GetShaderLayouts(View<u8> src)
 {
     ShaderLayout layout = {};
 

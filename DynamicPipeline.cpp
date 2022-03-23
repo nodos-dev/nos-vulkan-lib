@@ -6,7 +6,7 @@
 
 namespace mz::vk
 {
-DynamicPipeline::DynamicPipeline(Device* Vk, VkExtent2D extent, vkView<u8> src)
+DynamicPipeline::DynamicPipeline(Device* Vk, VkExtent2D extent, View<u8> src)
     : Vk(Vk), Shader(MZShader::New(Vk, VK_SHADER_STAGE_FRAGMENT_BIT, src)), Layout(PipelineLayout::New(Vk, src)), Extent(extent)
 {
 

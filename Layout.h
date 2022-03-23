@@ -260,7 +260,7 @@ struct PipelineLayout : SharedFactory<PipelineLayout>
 
     void Dump();
 
-    PipelineLayout(Device* Vk, vkView<u8> src);
+    PipelineLayout(Device* Vk, View<u8> src);
 
   private:
     PipelineLayout(Device* Vk, ShaderLayout layout);

@@ -96,7 +96,7 @@ DescriptorPool::~DescriptorPool()
     }
 }
 
-PipelineLayout::PipelineLayout(Device* Vk, vkView<u8> src)
+PipelineLayout::PipelineLayout(Device* Vk, View<u8> src)
     : PipelineLayout(Vk, GetShaderLayouts(src))
 {
 }

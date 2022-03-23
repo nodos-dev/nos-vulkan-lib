@@ -76,12 +76,10 @@ struct ShaderLayout
     std::unordered_map<std::string, glm::uvec2>   BindingsByName;
 };
 
-template <class T>
-using vkView = std::vector<T>;
 
-void ReadInputLayout(vkView<u8> bin, VkVertexInputBindingDescription& binding, std::vector<VkVertexInputAttributeDescription>& attributes);
+void ReadInputLayout(View<u8> bin, VkVertexInputBindingDescription& binding, std::vector<VkVertexInputAttributeDescription>& attributes);
 
-ShaderLayout GetShaderLayouts(vkView<u8> bin);
+ShaderLayout GetShaderLayouts(View<u8> bin);
 
 inline const char* vk_result_string(VkResult re)
 {
