@@ -10,8 +10,8 @@
 
 #include <system_error>
 
-extern "C" const VkFormat    DXGI_FORMAT_TO_VK_FORMAT[];
-extern "C" const DXGI_FORMAT VK_FORMAT_TO_DXGI_FORMAT[];
+extern "C" MZVULKAN_API const VkFormat DXGI_FORMAT_TO_VK_FORMAT[];
+extern "C" MZVULKAN_API const DXGI_FORMAT VK_FORMAT_TO_DXGI_FORMAT[];
 
 #define MZ_D3D12_ASSERT_SUCCESS(expr)                                                                              \
     {                                                                                                              \
@@ -22,7 +22,6 @@ extern "C" const DXGI_FORMAT VK_FORMAT_TO_DXGI_FORMAT[];
             abort();                                                                                               \
         }                                                                                                          \
     }
-
 
 #define WIN32_ASSERT(expr)                                                         \
     if (!(expr))                                                                   \
@@ -61,11 +60,10 @@ inline std::string GetLastErrorAsString()
     return message;
 }
 
-
 namespace mz::vk
 {
 
-struct NativeAPID3D12 : NativeAPI
+struct MZVULKAN_API NativeAPID3D12 : NativeAPI
 {
     ID3D12Device* dx12;
 

@@ -7,9 +7,9 @@
 namespace mz::vk
 {
 
-struct MemoryBlock : SharedFactory<MemoryBlock>
+struct MZVULKAN_API MemoryBlock : SharedFactory<MemoryBlock>
 {
-    struct Allocation
+    struct MZVULKAN_API Allocation
     {
         std::shared_ptr<MemoryBlock> Block;
         VkDeviceSize                 Offset;
@@ -139,7 +139,7 @@ using Allocation = MemoryBlock::Allocation;
 
 std::pair<u32, VkMemoryPropertyFlags> MemoryTypeIndex(VkPhysicalDevice physicalDevice, u32 memoryTypeBits, VkMemoryPropertyFlags requestedProps);
 
-struct Allocator : SharedFactory<Allocator>
+struct MZVULKAN_API Allocator : SharedFactory<Allocator>
 {
     static constexpr u64 DefaultChunkSize = 256 * 1024 * 1024;
 

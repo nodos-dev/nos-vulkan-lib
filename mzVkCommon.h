@@ -4,6 +4,13 @@
 
 #include <mzCommon.h>
 
+#ifdef BUILDING_MZVULKAN
+#define MZVULKAN_API __declspec(dllexport)
+#else
+#define MZVULKAN_API __declspec(dllimport)
+#endif
+
+
 #define MZ_VULKAN_ASSERT_SUCCESS(expr)                                                                \
     {                                                                                                 \
         VkResult re = (expr);                                                                         \
@@ -77,9 +84,9 @@ struct ShaderLayout
 };
 
 
-void ReadInputLayout(View<u8> bin, VkVertexInputBindingDescription& binding, std::vector<VkVertexInputAttributeDescription>& attributes);
+MZVULKAN_API void ReadInputLayout(View<u8> bin, VkVertexInputBindingDescription& binding, std::vector<VkVertexInputAttributeDescription>& attributes);
 
-ShaderLayout GetShaderLayouts(View<u8> bin);
+MZVULKAN_API ShaderLayout GetShaderLayouts(View<u8> bin);
 
 inline const char* vk_result_string(VkResult re)
 {
