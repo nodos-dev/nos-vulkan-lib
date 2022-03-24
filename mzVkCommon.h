@@ -4,12 +4,9 @@
 
 #include <mzCommon.h>
 
-#ifdef BUILDING_MZVULKAN
-#define MZVULKAN_API __declspec(dllexport)
-#else
-#define MZVULKAN_API __declspec(dllimport)
+#ifndef mzVulkan_API
+#define mzVulkan_API __declspec(dllimport)
 #endif
-
 
 #define MZ_VULKAN_ASSERT_SUCCESS(expr)                                                                \
     {                                                                                                 \
@@ -83,10 +80,9 @@ struct ShaderLayout
     std::unordered_map<std::string, glm::uvec2>   BindingsByName;
 };
 
+mzVulkan_API void ReadInputLayout(View<u8> bin, VkVertexInputBindingDescription& binding, std::vector<VkVertexInputAttributeDescription>& attributes);
 
-MZVULKAN_API void ReadInputLayout(View<u8> bin, VkVertexInputBindingDescription& binding, std::vector<VkVertexInputAttributeDescription>& attributes);
-
-MZVULKAN_API ShaderLayout GetShaderLayouts(View<u8> bin);
+mzVulkan_API ShaderLayout GetShaderLayouts(View<u8> bin);
 
 inline const char* vk_result_string(VkResult re)
 {

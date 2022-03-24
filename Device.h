@@ -5,10 +5,10 @@
 
 namespace mz::vk
 {
-struct MZVULKAN_API Device : SharedFactory<Device>,
+struct mzVulkan_API Device : SharedFactory<Device>,
                 VklDeviceFunctions
 {
-    struct MZVULKAN_API Global
+    struct mzVulkan_API Global
     {
         u64 handle;
         void (*dtor)(u64);
@@ -89,7 +89,7 @@ struct MZVULKAN_API Device : SharedFactory<Device>,
 
 }; // namespace mz::vk
 
-struct MZVULKAN_API Context : SharedFactory<Context>
+struct mzVulkan_API Context : SharedFactory<Context>
 {
     void* lib;
 

@@ -11,7 +11,7 @@
 namespace mz::vk
 {
 
-MZVULKAN_API void ImageLayoutTransition(VkImage                        Image,
+mzVulkan_API void ImageLayoutTransition(VkImage                        Image,
                                         std::shared_ptr<CommandBuffer> Cmd,
                                         VkImageLayout                  CurrentLayout,
                                         VkImageLayout                  TargetLayout,
@@ -20,7 +20,7 @@ MZVULKAN_API void ImageLayoutTransition(VkImage                        Image,
                                         u32                            srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
                                         u32                            dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED);
 
-struct MZVULKAN_API Image : SharedFactory<Image>
+struct mzVulkan_API Image : SharedFactory<Image>
 {
     Device* Vk;
 

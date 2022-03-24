@@ -215,7 +215,8 @@ std::shared_ptr<SVType> GetType(spirv_cross::Compiler const& cc, u32 typeId, std
 
     ty->align = v * ty->x / 8;
     ty->size  = ty->align * ty->z;
-
+    ty->align = std::max(1u, ty->align);
+    
     switch (type.basetype)
     {
 

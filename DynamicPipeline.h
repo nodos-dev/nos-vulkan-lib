@@ -5,7 +5,7 @@
 
 namespace mz::vk
 {
-struct MZVULKAN_API MZShader : SharedFactory<MZShader>
+struct mzVulkan_API MZShader : SharedFactory<MZShader>
 {
     Device*            Vk;
     VkShaderModule     Module;
@@ -28,7 +28,7 @@ struct MZVULKAN_API MZShader : SharedFactory<MZShader>
     }
 };
 
-struct MZVULKAN_API VertexShader : MZShader
+struct mzVulkan_API VertexShader : MZShader
 {
     VkVertexInputBindingDescription                Binding;
     std::vector<VkVertexInputAttributeDescription> Attributes;
@@ -57,7 +57,7 @@ struct MZVULKAN_API VertexShader : MZShader
     }
 };
 
-struct MZVULKAN_API DynamicPipeline : SharedFactory<DynamicPipeline>
+struct mzVulkan_API DynamicPipeline : SharedFactory<DynamicPipeline>
 {
     Device* Vk;
 

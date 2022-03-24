@@ -12,7 +12,7 @@ namespace mz::vk
 template <class T>
 concept TypeClassResource = TypeClassImage<T> || TypeClassBuffer<T>;
 
-struct MZVULKAN_API Binding
+struct mzVulkan_API Binding
 {
     using Type = std::variant<Buffer*, Image*>;
 
@@ -123,7 +123,7 @@ struct MZVULKAN_API Binding
     }
 };
 
-struct MZVULKAN_API DescriptorLayout : SharedFactory<DescriptorLayout>
+struct mzVulkan_API DescriptorLayout : SharedFactory<DescriptorLayout>
 {
     Device* Vk;
 
@@ -177,7 +177,7 @@ struct MZVULKAN_API DescriptorLayout : SharedFactory<DescriptorLayout>
     }
 };
 
-struct MZVULKAN_API DescriptorPool : SharedFactory<DescriptorPool>
+struct mzVulkan_API DescriptorPool : SharedFactory<DescriptorPool>
 {
     struct PipelineLayout* Layout;
 
@@ -191,7 +191,7 @@ struct MZVULKAN_API DescriptorPool : SharedFactory<DescriptorPool>
     ~DescriptorPool();
 };
 
-struct MZVULKAN_API DescriptorSet : SharedFactory<DescriptorSet>
+struct mzVulkan_API DescriptorSet : SharedFactory<DescriptorSet>
 {
     DescriptorPool*   Pool;
     DescriptorLayout* Layout;
@@ -219,7 +219,7 @@ struct MZVULKAN_API DescriptorSet : SharedFactory<DescriptorSet>
     std::shared_ptr<DescriptorSet> Bind(std::shared_ptr<CommandBuffer> Cmd);
 };
 
-struct MZVULKAN_API PipelineLayout : SharedFactory<PipelineLayout>
+struct mzVulkan_API PipelineLayout : SharedFactory<PipelineLayout>
 {
     Device* Vk;
 

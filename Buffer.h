@@ -10,7 +10,7 @@ union DescriptorResourceInfo {
     VkDescriptorBufferInfo buffer;
 };
 
-struct MZVULKAN_API Buffer : SharedFactory<Buffer>
+struct mzVulkan_API Buffer : SharedFactory<Buffer>
 {
     Device* Vk;
 

@@ -6,7 +6,7 @@
 namespace mz::vk
 {
 
-struct MZVULKAN_API CircularIndex
+struct mzVulkan_API CircularIndex
 {
     u64 val;
     u64 max;
@@ -53,7 +53,7 @@ struct MZVULKAN_API CircularIndex
     }
 };
 
-struct MZVULKAN_API Queue : VklQueueFunctions
+struct mzVulkan_API Queue : VklQueueFunctions
 {
     u32 Family;
     u32 Index;
@@ -70,7 +70,7 @@ struct MZVULKAN_API Queue : VklQueueFunctions
     }
 };
 
-struct MZVULKAN_API CommandBuffer : SharedFactory<CommandBuffer>,
+struct mzVulkan_API CommandBuffer : SharedFactory<CommandBuffer>,
                        VklCommandFunctions
 {
     struct CommandPool* Pool;
@@ -116,7 +116,7 @@ struct MZVULKAN_API CommandBuffer : SharedFactory<CommandBuffer>,
     void Submit(std::vector<Image*> images, VkPipelineStageFlags);
 };
 
-struct MZVULKAN_API CommandPool : SharedFactory<CommandPool>
+struct mzVulkan_API CommandPool : SharedFactory<CommandPool>
 {
     static constexpr u64 DefaultPoolSize = 1024;
 
