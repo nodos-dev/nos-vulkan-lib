@@ -164,14 +164,14 @@ Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo)
 
 } // namespace mz::vk
 
-void ImageLayoutTransition(VkImage                        Image,
+void ImageLayoutTransition(VkImage Image,
                            std::shared_ptr<CommandBuffer> Cmd,
-                           VkImageLayout                  CurrentLayout,
-                           VkImageLayout                  TargetLayout,
-                           VkAccessFlags                  srcAccessMask,
-                           VkAccessFlags                  dstAccessMask,
-                           u32                            srcQueueFamilyIndex,
-                           u32                            dstQueueFamilyIndex)
+                           VkImageLayout CurrentLayout,
+                           VkImageLayout TargetLayout,
+                           VkAccessFlags srcAccessMask,
+                           VkAccessFlags dstAccessMask,
+                           u32 srcQueueFamilyIndex,
+                           u32 dstQueueFamilyIndex)
 {
     // Create an image barrier object
     VkImageMemoryBarrier imageMemoryBarrier = {
@@ -310,7 +310,7 @@ void Image::Transition(VkImageLayout TargetLayout, VkAccessFlags TargetAccessMas
 
     ImageLayoutTransition(Handle, Cmd, Layout, TargetLayout, AccessMask, TargetAccessMask);
 
-    Cmd->Submit(this, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
+    Cmd->Submit(shared_from_this(), VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
 
     Layout     = TargetLayout;
     AccessMask = TargetAccessMask;
@@ -318,8 +318,8 @@ void Image::Transition(VkImageLayout TargetLayout, VkAccessFlags TargetAccessMas
 
 void Image::Transition(
     std::shared_ptr<CommandBuffer> Cmd,
-    VkImageLayout                  TargetLayout,
-    VkAccessFlags                  TargetAccessMask)
+    VkImageLayout TargetLayout,
+    VkAccessFlags TargetAccessMask)
 {
 
     ImageLayoutTransition(Handle, Cmd, Layout, TargetLayout, AccessMask, TargetAccessMask);
@@ -337,7 +337,7 @@ void Image::Upload(u8* data, Allocator* Allocator, CommandPool* Pool)
         Allocator = Vk->ImmAllocator.get();
     }
 
-    u64                     Size          = Extent.width * Extent.height * 4;
+    u64 Size                              = Extent.width * Extent.height * 4;
     std::shared_ptr<Buffer> StagingBuffer = Buffer::New(Allocator, Size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, Buffer::Heap::CPU);
     memcpy(StagingBuffer->Map(), data, Size);
     StagingBuffer->Flush();
@@ -374,7 +374,7 @@ void Image::Upload(std::shared_ptr<Buffer> StagingBuffer, CommandPool* Pool)
         Cmd->CopyBufferToImage(StagingBuffer->Handle, Handle, Layout, 1, &region);
     }
 
-    Cmd->Submit(this, VK_PIPELINE_STAGE_TRANSFER_BIT);
+    Cmd->Submit(shared_from_this(), VK_PIPELINE_STAGE_TRANSFER_BIT);
 
     Cmd->Wait();
 }
@@ -393,7 +393,7 @@ std::shared_ptr<Image> Image::Copy(Allocator* Allocator, CommandPool* Pool)
         Pool = Vk->ImmCmdPool.get();
     }
 
-    std::shared_ptr<Image> Image = Image::New(
+    std::shared_ptr<Image> Img = Image::New(
         Allocator, ImageCreateInfo{
                        .Extent = Extent,
                        .Format = Format,
@@ -403,7 +403,7 @@ std::shared_ptr<Image> Image::Copy(Allocator* Allocator, CommandPool* Pool)
     std::shared_ptr<CommandBuffer> Cmd = Pool->BeginCmd();
 
     {
-        Image->Transition(Cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_ACCESS_TRANSFER_WRITE_BIT);
+        Img->Transition(Cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_ACCESS_TRANSFER_WRITE_BIT);
         Transition(Cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_ACCESS_TRANSFER_READ_BIT);
 
         VkImageCopy region = {
@@ -418,13 +418,14 @@ std::shared_ptr<Image> Image::Copy(Allocator* Allocator, CommandPool* Pool)
             .extent = {Extent.width, Extent.height, 1},
         };
 
-        Cmd->CopyImage(Handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, Image->Handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+        Cmd->CopyImage(Handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, Img->Handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
     }
 
-    Cmd->Submit({Image.get(), this}, VK_PIPELINE_STAGE_TRANSFER_BIT);
+    std::shared_ptr<Image> Res[2] = {Img, shared_from_this()};
+    Cmd->Submit(Res, VK_PIPELINE_STAGE_TRANSFER_BIT);
     Cmd->Wait();
 
-    return Image;
+    return Img;
 }
 
 std::shared_ptr<Buffer> Image::Download(Allocator* Allocator, CommandPool* Pool)
@@ -463,7 +464,7 @@ std::shared_ptr<Buffer> Image::Download(Allocator* Allocator, CommandPool* Pool)
         Cmd->CopyImageToBuffer(Handle, Layout, StagingBuffer->Handle, 1, &region);
     }
 
-    Cmd->Submit(this, VK_PIPELINE_STAGE_TRANSFER_BIT);
+    Cmd->Submit(shared_from_this(), VK_PIPELINE_STAGE_TRANSFER_BIT);
     Cmd->Wait();
 
     return StagingBuffer;

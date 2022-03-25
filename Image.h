@@ -11,14 +11,14 @@
 namespace mz::vk
 {
 
-mzVulkan_API void ImageLayoutTransition(VkImage                        Image,
+mzVulkan_API void ImageLayoutTransition(VkImage Image,
                                         std::shared_ptr<CommandBuffer> Cmd,
-                                        VkImageLayout                  CurrentLayout,
-                                        VkImageLayout                  TargetLayout,
-                                        VkAccessFlags                  srcAccessMask,
-                                        VkAccessFlags                  dstAccessMask,
-                                        u32                            srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                                        u32                            dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED);
+                                        VkImageLayout CurrentLayout,
+                                        VkImageLayout TargetLayout,
+                                        VkAccessFlags srcAccessMask,
+                                        VkAccessFlags dstAccessMask,
+                                        u32 srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                                        u32 dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED);
 
 struct mzVulkan_API Image : SharedFactory<Image>
 {
@@ -26,18 +26,18 @@ struct mzVulkan_API Image : SharedFactory<Image>
 
     Allocation Allocation;
 
-    VkImage           Handle;
-    VkExtent2D        Extent;
-    VkFormat          Format;
+    VkImage Handle;
+    VkExtent2D Extent;
+    VkFormat Format;
     VkImageUsageFlags Usage;
 
     VkImageLayout Layout;
     VkAccessFlags AccessMask;
 
-    HANDLE      Sync;
+    HANDLE Sync;
     VkSemaphore Sema;
 
-    VkSampler   Sampler;
+    VkSampler Sampler;
     VkImageView View;
 
     ImageExportInfo GetExportInfo()
@@ -91,8 +91,5 @@ struct mzVulkan_API Image : SharedFactory<Image>
         Allocation.Free();
     };
 };
-
-template <class T>
-concept TypeClassImage = (std::is_same_v<T, Image*> || std::is_same_v<T, std::shared_ptr<Image>>);
 
 }; // namespace mz::vk

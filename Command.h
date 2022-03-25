@@ -71,7 +71,7 @@ struct mzVulkan_API Queue : VklQueueFunctions
 };
 
 struct mzVulkan_API CommandBuffer : SharedFactory<CommandBuffer>,
-                       VklCommandFunctions
+                                    VklCommandFunctions
 {
     struct CommandPool* Pool;
 
@@ -105,15 +105,18 @@ struct mzVulkan_API CommandBuffer : SharedFactory<CommandBuffer>,
         return static_cast<Device*>(fnptrs);
     }
 
-    void Submit(
-        uint32_t                    waitSemaphoreCount,
-        const VkSemaphore*          pWaitSemaphores,
-        const VkPipelineStageFlags* pWaitDstStageMask,
-        uint32_t                    signalSemaphoreCount,
-        const VkSemaphore*          pSignalSemaphores);
+    void Submit(View<VkSemaphore> Wait, View<VkPipelineStageFlags> Stages, View<VkSemaphore> Signal);
 
     void Submit(struct Image*, VkPipelineStageFlags);
-    void Submit(std::vector<Image*> images, VkPipelineStageFlags);
+    void Submit(View<Image*> images, VkPipelineStageFlags);
+
+    void Submit()
+    {
+        return Submit({}, {}, {});
+    }
+    
+    void Submit(std::shared_ptr<Image>, VkPipelineStageFlags);
+    void Submit(View<std::shared_ptr<Image>> images, VkPipelineStageFlags);
 };
 
 struct mzVulkan_API CommandPool : SharedFactory<CommandPool>
@@ -125,7 +128,7 @@ struct mzVulkan_API CommandPool : SharedFactory<CommandPool>
     Queue Queue;
 
     std::vector<std::shared_ptr<CommandBuffer>> Buffers;
-    CircularIndex                               NextBuffer;
+    CircularIndex NextBuffer;
 
     CommandPool(Device* Vk, u32 family)
         : Queue(Vk, family, 0), NextBuffer(DefaultPoolSize)

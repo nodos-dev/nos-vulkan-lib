@@ -1,4 +1,3 @@
-
 #include "DynamicPipeline.h"
 #include "mzVkCommon.h"
 #include "spirv.hpp"

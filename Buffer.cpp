@@ -99,7 +99,7 @@ void Buffer::Upload(std::shared_ptr<Buffer> buffer, CommandPool* Pool)
     };
 
     Cmd->CopyBuffer(buffer->Handle, this->Handle, 1, &region);
-    Cmd->Submit(0, 0, 0, 0, 0);
+    Cmd->Submit({}, {}, {});
     Cmd->Wait();
 }
 

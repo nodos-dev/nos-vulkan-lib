@@ -80,7 +80,4 @@ struct mzVulkan_API Buffer : SharedFactory<Buffer>
     void Upload(std::shared_ptr<Buffer>, CommandPool* = 0);
 };
 
-template <class T>
-concept TypeClassBuffer = (std::is_same_v<T, Buffer*> || std::is_same_v<T, std::shared_ptr<Buffer>>);
-
 } // namespace mz::vk

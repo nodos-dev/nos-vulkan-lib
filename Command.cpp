@@ -2,6 +2,7 @@
 #include "Command.h"
 
 #include "Image.h"
+#include "vulkan/vulkan_core.h"
 
 namespace mz::vk
 {
@@ -28,23 +29,19 @@ CommandBuffer::~CommandBuffer()
     MZ_VULKAN_ASSERT_SUCCESS(Reset(VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT));
 }
 
-void CommandBuffer::Submit(
-    uint32_t                    waitSemaphoreCount,
-    const VkSemaphore*          pWaitSemaphores,
-    const VkPipelineStageFlags* pWaitDstStageMask,
-    uint32_t                    signalSemaphoreCount,
-    const VkSemaphore*          pSignalSemaphores)
+void CommandBuffer::Submit(View<VkSemaphore> Wait, View<VkPipelineStageFlags> Stages, View<VkSemaphore> Signal)
 {
+    assert(Wait.size() == Stages.size());
 
     VkSubmitInfo submitInfo = {
         .sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-        .waitSemaphoreCount   = waitSemaphoreCount,
-        .pWaitSemaphores      = pWaitSemaphores,
-        .pWaitDstStageMask    = pWaitDstStageMask,
+        .waitSemaphoreCount   = (u32)Wait.size(),
+        .pWaitSemaphores      = Wait.data(),
+        .pWaitDstStageMask    = Stages.data(),
         .commandBufferCount   = 1,
         .pCommandBuffers      = &handle,
-        .signalSemaphoreCount = signalSemaphoreCount,
-        .pSignalSemaphores    = pSignalSemaphores,
+        .signalSemaphoreCount = (u32)Signal.size(),
+        .pSignalSemaphores    = Signal.data(),
     };
 
     MZ_VULKAN_ASSERT_SUCCESS(End());
@@ -53,26 +50,22 @@ void CommandBuffer::Submit(
     MZ_VULKAN_ASSERT_SUCCESS(Pool->Queue.Submit(1, &submitInfo, Fence));
 }
 
-void CommandBuffer::Submit(Image* image, VkPipelineStageFlags stage)
+void CommandBuffer::Submit(std::shared_ptr<Image> image, VkPipelineStageFlags stage)
 {
-    Submit(1, &image->Sema, &stage, 1, &image->Sema);
+    Submit(image.get(), stage);
 }
 
-void CommandBuffer::Submit(std::vector<Image*> images, VkPipelineStageFlags stage)
+void CommandBuffer::Submit(Image* image, VkPipelineStageFlags stage)
 {
-    std::vector<VkSemaphore>          semaphores;
-    std::vector<VkPipelineStageFlags> stages;
+    VkSemaphore sem[1]             = {image->Sema};
+    VkPipelineStageFlags stages[1] = {stage};
+    Submit(sem, stages, sem);
+}
 
-    semaphores.reserve(images.size());
-    stages.reserve(images.size());
-
-    for (auto img : images)
-    {
-        semaphores.push_back(img->Sema);
-        stages.push_back(stage);
-    }
-    
-    Submit(semaphores.size(), semaphores.data(), stages.data(), semaphores.size(), semaphores.data());
+void CommandBuffer::Submit(View<std::shared_ptr<Image>> images, VkPipelineStageFlags stage)
+{
+    std::vector<VkSemaphore> semaphores = TransformView<VkSemaphore, std::shared_ptr<Image>>(images, [](auto img) { return img->Sema; }).collect();
+    Submit(semaphores, std::vector<VkPipelineStageFlags>(images.size(), stage), semaphores);
 }
 
 } // namespace mz::vk

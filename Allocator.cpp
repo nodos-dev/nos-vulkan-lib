@@ -165,9 +165,9 @@ Allocator::Allocator(Device* Vk)
 {
 }
 
-Allocation Allocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> resource, bool map, const ImageExportInfo* exported)
+Allocation Allocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> resource, bool map, const ImageExportInfo* imported)
 {
-    VkMemoryRequirements             req;
+    VkMemoryRequirements req;
     VkPhysicalDeviceMemoryProperties props;
 
     VkMemoryPropertyFlags memProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
@@ -189,33 +189,24 @@ Allocation Allocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> res
 
     Allocation allocation = {};
 
-    if (exported)
+    if (imported)
     {
-
-        // VkMemoryWin32HandlePropertiesKHR handleProps = {
-        //     .sType = VK_STRUCTURE_TYPE_MEMORY_WIN32_HANDLE_PROPERTIES_KHR,
-        // };
-
-        // MZ_VULKAN_ASSERT_SUCCESS(Vk->GetMemoryWin32HandlePropertiesKHR(VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_HEAP_BIT, externalHandle, &handleProps));
-
-        // assert(actualProps == handleProps.memoryTypeBits);
-
         VkImportMemoryWin32HandleInfoKHR importInfo = {
             .sType      = VK_STRUCTURE_TYPE_IMPORT_MEMORY_WIN32_HANDLE_INFO_KHR,
             .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT,
-            .handle     = exported->memory,
+            .handle     = imported->memory,
         };
 
         VkMemoryAllocateInfo info = {
             .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
             .pNext           = &importInfo,
-            .allocationSize  = exported->size,
+            .allocationSize  = imported->size,
             .memoryTypeIndex = typeIndex,
         };
 
         VkDeviceMemory mem;
         MZ_VULKAN_ASSERT_SUCCESS(Vk->AllocateMemory(&info, 0, &mem));
-        auto Block = MemoryBlock::New(Vk, mem, actualProps, exported->offset, info.allocationSize, exported->memory);
+        auto Block = MemoryBlock::New(Vk, mem, actualProps, imported->offset, info.allocationSize, imported->memory);
 
         return Block->Allocate(req.size, req.alignment);
     }

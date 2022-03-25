@@ -1,16 +1,16 @@
 #pragma once
 
 #include "Image.h"
-#include "mzVkCommon.h"
-#include "vulkan/vulkan_core.h"
-#include <type_traits>
 #include <variant>
 
 namespace mz::vk
 {
 
 template <class T>
-concept TypeClassResource = TypeClassImage<T> || TypeClassBuffer<T>;
+concept TypeClassResource = std::same_as<T, std::shared_ptr<Image>> || std::same_as<T, std::shared_ptr<Buffer>>;
+
+template <class T>
+concept TypeClassString = std::same_as<T, std::string> || std::same_as<T, const char*>;
 
 struct mzVulkan_API Binding
 {
@@ -20,7 +20,7 @@ struct mzVulkan_API Binding
 
     u32 binding;
 
-    DescriptorResourceInfo info;
+    std::shared_ptr<DescriptorResourceInfo> info;
 
     VkAccessFlags access;
 
@@ -29,23 +29,15 @@ struct mzVulkan_API Binding
         return binding <=> other.binding;
     }
 
-    Binding(std::shared_ptr<Buffer> res, u32 binding)
-        : Binding(res.get(), binding)
-    {
-    }
+    Binding() = default;
 
-    Binding(Buffer* res, u32 binding)
-        : resource(res), binding(binding), info(res->GetDescriptorInfo())
+    Binding(std::shared_ptr<Buffer> res, u32 binding)
+        : resource(res.get()), binding(binding), info(new DescriptorResourceInfo(res->GetDescriptorInfo())), access(0)
     {
     }
 
     Binding(std::shared_ptr<Image> res, u32 binding)
-        : Binding(res.get(), binding)
-    {
-    }
-
-    Binding(Image* res, u32 binding)
-        : resource(res), binding(binding), info(res->GetDescriptorInfo())
+        : resource(res.get()), binding(binding), info(new DescriptorResourceInfo(res->GetDescriptorInfo())), access(0)
     {
     }
 
@@ -73,18 +65,18 @@ struct mzVulkan_API Binding
         case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
         case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
             assert(Usage & VK_IMAGE_USAGE_SAMPLED_BIT);
-            info.image.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            access                 = VK_ACCESS_SHADER_READ_BIT;
+            info->image.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            access                  = VK_ACCESS_SHADER_READ_BIT;
             break;
         case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
             assert(Usage & VK_IMAGE_USAGE_STORAGE_BIT);
-            info.image.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-            access                 = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+            info->image.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+            access                  = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
             break;
         case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
             assert(Usage & VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT);
-            info.image.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            access                 = VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
+            info->image.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            access                  = VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
             break;
         case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
             assert(Usage & VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT);
@@ -117,8 +109,8 @@ struct mzVulkan_API Binding
             .dstBinding      = binding,
             .descriptorCount = 1,
             .descriptorType  = type,
-            .pImageInfo      = (std::holds_alternative<Image*>(resource) ? (&info.image) : 0),
-            .pBufferInfo     = (std::holds_alternative<Buffer*>(resource) ? (&info.buffer) : 0),
+            .pImageInfo      = (std::holds_alternative<Image*>(resource) ? (&info->image) : 0),
+            .pBufferInfo     = (std::holds_alternative<Buffer*>(resource) ? (&info->buffer) : 0),
         };
     }
 };
@@ -193,9 +185,9 @@ struct mzVulkan_API DescriptorPool : SharedFactory<DescriptorPool>
 
 struct mzVulkan_API DescriptorSet : SharedFactory<DescriptorSet>
 {
-    DescriptorPool*   Pool;
+    DescriptorPool* Pool;
     DescriptorLayout* Layout;
-    u32               Index;
+    u32 Index;
 
     VkDescriptorSet Handle;
 
@@ -216,6 +208,14 @@ struct mzVulkan_API DescriptorSet : SharedFactory<DescriptorSet>
         return shared_from_this();
     }
 
+    std::shared_ptr<DescriptorSet> UpdateWith(View<Binding> res)
+    {
+        std::vector<VkWriteDescriptorSet> writes = TransformView<VkWriteDescriptorSet, Binding>(res, [this](auto res) { return res.GetDescriptorInfo(Handle, GetType(res.binding)); }).collect();
+        Layout->Vk->UpdateDescriptorSets(writes.size(), writes.data(), 0, 0);
+        Bound.insert(res.begin(), res.end());
+        return shared_from_this();
+    }
+
     std::shared_ptr<DescriptorSet> Bind(std::shared_ptr<CommandBuffer> Cmd);
 };
 
@@ -231,7 +231,7 @@ struct mzVulkan_API PipelineLayout : SharedFactory<PipelineLayout>
     u32 RTCount;
 
     std::map<u32, std::shared_ptr<DescriptorLayout>> DescriptorSets;
-    std::unordered_map<std::string, glm::uvec2>      BindingsByName;
+    std::unordered_map<std::string, glm::uvec2> BindingsByName;
 
     DescriptorLayout const& operator[](u32 set) const
     {
