@@ -165,7 +165,7 @@ static std::pair<VkFormat, u32> TypeAttributes(spirv_cross::SPIRType const& ty)
 void ReadInputLayout(View<u8> bin, VkVertexInputBindingDescription& binding, std::vector<VkVertexInputAttributeDescription>& attributes)
 {
     using namespace spirv_cross;
-    Compiler        cc((u32*)bin.data(), bin.size() / 4);
+    Compiler cc((u32*)bin.data(), bin.size() / 4);
     ShaderResources resources = cc.get_shader_resources();
 
     binding = {.inputRate = VK_VERTEX_INPUT_RATE_VERTEX};
@@ -216,7 +216,7 @@ std::shared_ptr<SVType> GetType(spirv_cross::Compiler const& cc, u32 typeId, std
     ty->align = v * ty->x / 8;
     ty->size  = ty->align * ty->z;
     ty->align = std::max(1u, ty->align);
-    
+
     switch (type.basetype)
     {
 
@@ -290,9 +290,9 @@ ShaderLayout GetShaderLayouts(View<u8> src)
 
     using namespace spirv_cross;
 
-    Compiler        cc((u32*)src.data(), src.size() / 4);
+    Compiler cc((u32*)src.data(), src.size() / 4);
     ShaderResources resources = cc.get_shader_resources();
-    EntryPoint      entry     = cc.get_entry_points_and_stages()[0];
+    EntryPoint entry          = cc.get_entry_points_and_stages()[0];
 
     VkShaderStageFlags stage = VkShaderStageFlagBits(1 << (u32)entry.execution_model);
 
@@ -329,11 +329,11 @@ ShaderLayout GetShaderLayouts(View<u8> src)
                 .binding         = binding,
                 .descriptorType  = ty,
                 .descriptorCount = std::accumulate(type.array.begin(), type.array.end(), 1u, [](u32 a, u32 b) { return a * b; }),
-                .name            = res.name,
+                .name            = cc.get_name(res.id),
                 .type            = GetType(cc, res.base_type_id, typeCache),
             };
 
-            layout.BindingsByName[res.name] = {set, binding};
+            layout.BindingsByName[cc.get_name(res.id)] = {set, binding};
         }
     };
 
