@@ -1,5 +1,7 @@
-#include "Buffer.h"
-#include "Command.h"
+
+#include <Buffer.h>
+
+#include <Command.h>
 
 namespace mz::vk
 {
@@ -101,6 +103,43 @@ void Buffer::Upload(std::shared_ptr<Buffer> buffer, CommandPool* Pool)
     Cmd->CopyBuffer(buffer->Handle, this->Handle, 1, &region);
     Cmd->Submit({}, {}, {});
     Cmd->Wait();
+}
+
+void Buffer::Copy(size_t len, void* pp, size_t offset)
+{
+    assert(offset + len < Allocation.Size);
+    memcpy(Allocation.Map() + offset, pp, len);
+}
+
+u8* Buffer::Map()
+{
+    return Allocation.Map();
+}
+
+void Buffer::Flush()
+{
+    Allocation.Flush();
+}
+
+HANDLE Buffer::GetOSHandle()
+{
+    return Allocation.GetOSHandle();
+}
+
+DescriptorResourceInfo Buffer::GetDescriptorInfo() const
+{
+    return DescriptorResourceInfo{
+        .buffer = {
+            .buffer = Handle,
+            .offset = 0,
+            .range  = VK_WHOLE_SIZE,
+        }};
+}
+
+Buffer::~Buffer()
+{
+    Vk->DestroyBuffer(Handle, 0);
+    Allocation.Free();
 }
 
 } // namespace mz::vk

@@ -1,9 +1,9 @@
 
-#include "Allocator.h"
+#include <Allocator.h>
 
-#include "Command.h"
+#include <Command.h>
 
-#include "dynalo/dynalo.hpp"
+#include <dynalo/dynalo.hpp>
 
 namespace mz::vk
 {
@@ -159,4 +159,23 @@ Context::~Context()
 
     dynalo::close((dynalo::native::handle)lib);
 }
+
+    u64 Device::GetLuid() const
+    {
+        VkPhysicalDeviceIDProperties IDProps = {
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES,
+        };
+
+        VkPhysicalDeviceProperties2 props = {
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
+            .pNext = &IDProps,
+        };
+
+        vkGetPhysicalDeviceProperties2(PhysicalDevice, &props);
+
+        assert(IDProps.deviceLUIDValid);
+
+        return std::bit_cast<u64, u8[VK_LUID_SIZE]>(IDProps.deviceLUID);
+    }
+    
 } // namespace mz::vk

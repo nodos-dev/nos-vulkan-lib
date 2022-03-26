@@ -21,7 +21,32 @@
 namespace mz::vk
 {
 
-struct SVType
+union DescriptorResourceInfo {
+    VkDescriptorImageInfo  image;
+    VkDescriptorBufferInfo buffer;
+};
+
+struct ImageExportInfo
+{
+    HANDLE memory = 0;
+    HANDLE sync   = 0;
+
+    VkDeviceSize offset = 0;
+    VkDeviceSize size   = 0;
+
+    VkAccessFlags accessMask = 0;
+};
+
+struct ImageCreateInfo
+{
+    VkExtent2D             Extent;
+    VkFormat               Format;
+    VkImageUsageFlags      Usage;
+    const ImageExportInfo* Exported;
+};
+
+
+struct mzVulkan_API SVType
 {
     enum
     {
@@ -38,12 +63,12 @@ struct SVType
 
     struct Image
     {
-        bool     depth;
-        bool     arrayed;
-        bool     ms;
-        bool     read;
-        bool     write;
-        u32      sampled;
+        bool depth;
+        bool arrayed;
+        bool ms;
+        bool read;
+        bool write;
+        u32 sampled;
         VkFormat format;
     } image;
 
@@ -62,153 +87,43 @@ struct SVType
     u32 align;
 };
 
-struct NamedDSLBinding
+struct mzVulkan_API NamedDSLBinding
 {
-    uint32_t                binding;
-    VkDescriptorType        descriptorType;
-    uint32_t                descriptorCount;
-    std::string             name;
+    uint32_t binding;
+    VkDescriptorType descriptorType;
+    uint32_t descriptorCount;
+    std::string name;
     std::shared_ptr<SVType> type;
 };
 
-struct ShaderLayout
+struct mzVulkan_API ShaderLayout
 {
     u32 RTCount;
     u32 PushConstantSize;
-
     std::map<u32, std::map<u32, NamedDSLBinding>> DescriptorSets;
-    std::unordered_map<std::string, glm::uvec2>   BindingsByName;
+    std::unordered_map<std::string, glm::uvec2> BindingsByName;
 };
 
 mzVulkan_API void ReadInputLayout(View<u8> bin, VkVertexInputBindingDescription& binding, std::vector<VkVertexInputAttributeDescription>& attributes);
 
 mzVulkan_API ShaderLayout GetShaderLayouts(View<u8> bin);
+mzVulkan_API bool IsImportable(VkPhysicalDevice PhysicalDevice, VkFormat Format, VkImageUsageFlags Usage);
 
 mzVulkan_API bool PlatformClosehandle(HANDLE);
 mzVulkan_API u64 PlatformGetCurrentProcessId();
 
-inline const char* vk_result_string(VkResult re)
-{
-    switch (re)
-    {
-    case VK_SUCCESS:
-        return "SUCCESS";
-    case VK_NOT_READY:
-        return "NOT_READY";
-    case VK_TIMEOUT:
-        return "TIMEOUT";
-    case VK_EVENT_SET:
-        return "EVENT_SET";
-    case VK_EVENT_RESET:
-        return "EVENT_RESET";
-    case VK_INCOMPLETE:
-        return "INCOMPLETE";
-    case VK_ERROR_OUT_OF_HOST_MEMORY:
-        return "ERROR_OUT_OF_HOST_MEMORY";
-    case VK_ERROR_OUT_OF_DEVICE_MEMORY:
-        return "ERROR_OUT_OF_DEVICE_MEMORY";
-    case VK_ERROR_INITIALIZATION_FAILED:
-        return "ERROR_INITIALIZATION_FAILED";
-    case VK_ERROR_DEVICE_LOST:
-        return "ERROR_DEVICE_LOST";
-    case VK_ERROR_MEMORY_MAP_FAILED:
-        return "ERROR_MEMORY_MAP_FAILED";
-    case VK_ERROR_LAYER_NOT_PRESENT:
-        return "ERROR_LAYER_NOT_PRESENT";
-    case VK_ERROR_EXTENSION_NOT_PRESENT:
-        return "ERROR_EXTENSION_NOT_PRESENT";
-    case VK_ERROR_FEATURE_NOT_PRESENT:
-        return "ERROR_FEATURE_NOT_PRESENT";
-    case VK_ERROR_INCOMPATIBLE_DRIVER:
-        return "ERROR_INCOMPATIBLE_DRIVER";
-    case VK_ERROR_TOO_MANY_OBJECTS:
-        return "ERROR_TOO_MANY_OBJECTS";
-    case VK_ERROR_FORMAT_NOT_SUPPORTED:
-        return "ERROR_FORMAT_NOT_SUPPORTED";
-    case VK_ERROR_FRAGMENTED_POOL:
-        return "ERROR_FRAGMENTED_POOL";
-    case VK_ERROR_UNKNOWN:
-        return "ERROR_UNKNOWN";
-    case VK_ERROR_OUT_OF_POOL_MEMORY:
-        return "ERROR_OUT_OF_POOL_MEMORY";
-    case VK_ERROR_INVALID_EXTERNAL_HANDLE:
-        return "ERROR_INVALID_EXTERNAL_HANDLE";
-    case VK_ERROR_FRAGMENTATION:
-        return "ERROR_FRAGMENTATION";
-    case VK_ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS:
-        return "ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS";
-    case VK_ERROR_SURFACE_LOST_KHR:
-        return "ERROR_SURFACE_LOST_KHR";
-    case VK_ERROR_NATIVE_WINDOW_IN_USE_KHR:
-        return "ERROR_NATIVE_WINDOW_IN_USE_KHR";
-    case VK_SUBOPTIMAL_KHR:
-        return "SUBOPTIMAL_KHR";
-    case VK_ERROR_OUT_OF_DATE_KHR:
-        return "ERROR_OUT_OF_DATE_KHR";
-    case VK_ERROR_INCOMPATIBLE_DISPLAY_KHR:
-        return "ERROR_INCOMPATIBLE_DISPLAY_KHR";
-    case VK_ERROR_VALIDATION_FAILED_EXT:
-        return "ERROR_VALIDATION_FAILED_EXT";
-    case VK_ERROR_INVALID_SHADER_NV:
-        return "ERROR_INVALID_SHADER_NV";
-    case VK_ERROR_INVALID_DRM_FORMAT_MODIFIER_PLANE_LAYOUT_EXT:
-        return "ERROR_INVALID_DRM_FORMAT_MODIFIER_PLANE_LAYOUT_EXT";
-    case VK_ERROR_NOT_PERMITTED_EXT:
-        return "ERROR_NOT_PERMITTED_EXT";
-    case VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT:
-        return "ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT";
-    case VK_THREAD_IDLE_KHR:
-        return "THREAD_IDLE_KHR";
-    case VK_THREAD_DONE_KHR:
-        return "THREAD_DONE_KHR";
-    case VK_OPERATION_DEFERRED_KHR:
-        return "OPERATION_DEFERRED_KHR";
-    case VK_OPERATION_NOT_DEFERRED_KHR:
-        return "OPERATION_NOT_DEFERRED_KHR";
-    case VK_PIPELINE_COMPILE_REQUIRED_EXT:
-        return "PIPELINE_COMPILE_REQUIRED_EXT";
-    case VK_RESULT_MAX_ENUM:
-        return "RESULT_MAX_ENUM";
-    }
-    return "";
-}
+mzVulkan_API std::string GetLastErrorAsString();
 
-inline const char* descriptor_type_to_string(VkDescriptorType ty)
-{
-    switch (ty)
-    {
-    case VK_DESCRIPTOR_TYPE_SAMPLER:
-        return "SAMPLER";
-    case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
-        return "COMBINED_IMAGE_SAMPLER";
-    case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
-        return "SAMPLED_IMAGE";
-    case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
-        return "STORAGE_IMAGE";
-    case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
-        return "UNIFORM_TEXEL_BUFFER";
-    case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
-        return "STORAGE_TEXEL_BUFFER";
-    case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
-        return "UNIFORM_BUFFER";
-    case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
-        return "STORAGE_BUFFER";
-    case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC:
-        return "UNIFORM_BUFFER_DYNAMIC";
-    case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
-        return "STORAGE_BUFFER_DYNAMIC";
-    case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
-        return "INPUT_ATTACHMENT";
-    case VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK_EXT:
-        return "INLINE_UNIFORM_BLOCK_EXT";
-    case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
-        return "ACCELERATION_STRUCTURE_KHR";
-    case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV:
-        return "ACCELERATION_STRUCTURE_NV";
-    case VK_DESCRIPTOR_TYPE_MUTABLE_VALVE:
-        return "MUTABLE_VALVE";
-    default:
-        return "";
-    }
-}
+mzVulkan_API std::pair<u32, VkMemoryPropertyFlags> MemoryTypeIndex(VkPhysicalDevice physicalDevice, u32 memoryTypeBits, VkMemoryPropertyFlags requestedProps);
+mzVulkan_API void ImageLayoutTransition(VkImage Image,
+                                        std::shared_ptr<struct CommandBuffer> Cmd,
+                                        VkImageLayout CurrentLayout,
+                                        VkImageLayout TargetLayout,
+                                        VkAccessFlags srcAccessMask,
+                                        VkAccessFlags dstAccessMask,
+                                        u32 srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                                        u32 dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED);
+
+mzVulkan_API const char* vk_result_string(VkResult re);
+mzVulkan_API const char* descriptor_type_to_string(VkDescriptorType ty);
 } // namespace mz::vk

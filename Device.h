@@ -1,6 +1,6 @@
 #pragma once
 
-#include "mzVkCommon.h"
+#include <mzVkCommon.h>
 
 namespace mz::vk
 {
@@ -68,23 +68,7 @@ struct mzVulkan_API Device : SharedFactory<Device>,
            View<const char*> extensions);
     ~Device();
 
-    u64 GetLuid()
-    {
-        VkPhysicalDeviceIDProperties IDProps = {
-            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES,
-        };
-
-        VkPhysicalDeviceProperties2 props = {
-            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
-            .pNext = &IDProps,
-        };
-
-        vkGetPhysicalDeviceProperties2(PhysicalDevice, &props);
-
-        assert(IDProps.deviceLUIDValid);
-
-        return std::bit_cast<u64, u8[VK_LUID_SIZE]>(IDProps.deviceLUID);
-    }
+    u64 GetLuid() const;
 
 }; // namespace mz::vk
 

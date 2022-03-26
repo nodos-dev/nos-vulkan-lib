@@ -1,4 +1,4 @@
-#include "DynamicPipeline.h"
+#include <DynamicPipeline.h>
 
 #include <spirv_cross.hpp>
 
@@ -187,7 +187,7 @@ void ReadInputLayout(View<u8> bin, VkVertexInputBindingDescription& binding, std
     }
 }
 
-std::shared_ptr<SVType> GetType(spirv_cross::Compiler const& cc, u32 typeId, std::map<u32, std::shared_ptr<SVType>>& cache)
+static std::shared_ptr<SVType> GetType(spirv_cross::Compiler const& cc, u32 typeId, std::map<u32, std::shared_ptr<SVType>>& cache)
 {
     using namespace spirv_cross;
 

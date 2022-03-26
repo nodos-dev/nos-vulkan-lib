@@ -1,6 +1,9 @@
-#include "Allocator.h"
+#include <Allocator.h>
 
-#include <Windows.h>
+#define GENERIC_READ    (0x80000000L)
+#define GENERIC_WRITE   (0x40000000L)
+#define GENERIC_EXECUTE (0x20000000L)
+#define GENERIC_ALL     (0x10000000L)
 
 static VkDeviceSize AlignUp(VkDeviceSize offset, VkDeviceSize alignment)
 {
@@ -129,41 +132,14 @@ void MemoryBlock::Free(Allocation c)
     }
 }
 
-std::pair<u32, VkMemoryPropertyFlags> MemoryTypeIndex(VkPhysicalDevice physicalDevice, u32 memoryTypeBits, VkMemoryPropertyFlags requestedProps)
-{
-
-    VkPhysicalDeviceMemoryProperties props;
-    vkGetPhysicalDeviceMemoryProperties(physicalDevice, &props);
-
-    u32 typeIndex = 0;
-
-    if (0 == requestedProps)
-    {
-        typeIndex = log2(memoryTypeBits - (memoryTypeBits & (memoryTypeBits - 1)));
-    }
-    else
-    {
-        std::vector<std::pair<u32, u32>> memoryTypes;
-
-        for (int i = 0; i < props.memoryTypeCount; i++)
-        {
-            if (memoryTypeBits & (1 << i))
-            {
-                memoryTypes.push_back(std::make_pair(i, std::popcount(props.memoryTypes[i].propertyFlags & requestedProps)));
-            }
-        }
-
-        std::sort(memoryTypes.begin(), memoryTypes.end(), [](const std::pair<u32, u32>& a, const std::pair<u32, u32>& b) { return a.second > b.second; });
-
-        typeIndex = memoryTypes.front().first;
-    }
-
-    return std::make_pair(typeIndex, props.memoryTypes[typeIndex].propertyFlags);
-}
-
 Allocator::Allocator(Device* Vk)
     : Vk(Vk)
 {
+}
+
+Device* Allocator::GetDevice() const
+{
+    return Vk;
 }
 
 Allocation Allocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> resource, bool map, const ImageExportInfo* imported)
@@ -262,4 +238,102 @@ Allocation Allocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> res
 
     return allocation;
 }
+
+MemoryBlock::MemoryBlock(Device* Vk, VkDeviceMemory mem, VkMemoryPropertyFlags props, u64 offset, u64 size, HANDLE externalHandle)
+    : Vk(Vk), Memory(mem), Props(props), Offset(offset), Size(size), InUse(0), Mapping(0), Imported(externalHandle != 0)
+{
+    FreeList[0] = size;
+
+    if (props & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
+    {
+        MZ_VULKAN_ASSERT_SUCCESS(Vk->MapMemory(Memory, Offset, Size, 0, (void**)&Mapping));
+    }
+
+    VkMemoryGetWin32HandleInfoKHR handleInfo = {
+        .sType      = VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR,
+        .memory     = Memory,
+        .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT,
+    };
+
+    MZ_VULKAN_ASSERT_SUCCESS(Vk->GetMemoryWin32HandleKHR(&handleInfo, &OSHandle));
+}
+
+MemoryBlock::~MemoryBlock()
+{
+
+    Vk->FreeMemory(Memory, 0);
+
+    // Imported blocks do not need to decrease the refcount
+    if (!Imported)
+    {
+        assert(PlatformClosehandle(OSHandle));
+    }
+}
+
+Allocation::Allocation()
+    : Block(0), Offset(0), Size(0)
+{
+}
+
+Allocation::Allocation(std::shared_ptr<MemoryBlock> Block, u64 Offset, u64 Size)
+    : Block(Block), Offset(Offset), Size(Size)
+{
+}
+
+bool Allocation::IsValid() const
+{
+    return Block.get() != nullptr;
+}
+
+bool Allocation::IsImported() const
+{
+    return Block->Imported;
+}
+
+u8* Allocation::Map()
+{
+    if (Block->Mapping)
+    {
+        return Block->Mapping + Offset + Block->Offset;
+    }
+    return 0;
+}
+
+void Allocation::Flush()
+{
+    VkMappedMemoryRange range = {
+        .sType  = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE,
+        .memory = Block->Memory,
+        .offset = Offset + Block->Offset,
+        .size   = Size,
+    };
+
+    MZ_VULKAN_ASSERT_SUCCESS(Block->Vk->FlushMappedMemoryRanges(1, &range));
+}
+
+HANDLE Allocation::GetOSHandle() const
+{
+    assert(Block->OSHandle);
+
+    return Block->OSHandle;
+}
+
+void Allocation::Free()
+{
+    if (IsValid())
+    {
+        Block->Free(*this);
+    }
+}
+
+void Allocation::BindResource(VkImage image)
+{
+    MZ_VULKAN_ASSERT_SUCCESS(Block->Vk->BindImageMemory(image, Block->Memory, Offset + Block->Offset));
+}
+
+void Allocation::BindResource(VkBuffer buffer)
+{
+    MZ_VULKAN_ASSERT_SUCCESS(Block->Vk->BindBufferMemory(buffer, Block->Memory, Offset + Block->Offset));
+}
+
 } // namespace mz::vk

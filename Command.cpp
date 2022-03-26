@@ -1,10 +1,22 @@
 
-#include "Command.h"
+#include <Command.h>
 
-#include "Image.h"
+#include <Image.h>
 
 namespace mz::vk
 {
+
+Queue::Queue(Device* Device, u32 Family, u32 Index)
+    : VklQueueFunctions{Device}, Family(Family), Index(Index)
+{
+    Device->GetDeviceQueue(Family, Index, &handle);
+}
+
+Device* Queue::GetDevice()
+{
+    return static_cast<Device*>(fnptrs);
+}
+
 CommandBuffer::CommandBuffer(CommandPool* Pool, VkCommandBuffer Handle)
     : VklCommandFunctions{Pool->GetDevice(), Handle}, Pool(Pool)
 {
@@ -51,11 +63,6 @@ void CommandBuffer::Submit(View<VkSemaphore> Wait, View<VkPipelineStageFlags> St
 
 void CommandBuffer::Submit(std::shared_ptr<Image> image, VkPipelineStageFlags stage)
 {
-    Submit(image.get(), stage);
-}
-
-void CommandBuffer::Submit(Image* image, VkPipelineStageFlags stage)
-{
     VkSemaphore sem[1]             = {image->Sema};
     VkPipelineStageFlags stages[1] = {stage};
     Submit(sem, stages, sem);
@@ -65,6 +72,97 @@ void CommandBuffer::Submit(View<std::shared_ptr<Image>> images, VkPipelineStageF
 {
     std::vector<VkSemaphore> semaphores = TransformView<VkSemaphore, std::shared_ptr<Image>>(images, [](auto img) { return img->Sema; }).collect();
     Submit(semaphores, std::vector<VkPipelineStageFlags>(images.size(), stage), semaphores);
+}
+
+bool CommandBuffer::Ready()
+{
+    return VK_SUCCESS == GetDevice()->GetFenceStatus(Fence);
+}
+
+void CommandBuffer::Wait()
+{
+    MZ_VULKAN_ASSERT_SUCCESS(GetDevice()->WaitForFences(1, &Fence, 0, -1));
+
+    for (auto& fn : Callbacks)
+    {
+        fn();
+    }
+
+    Callbacks.clear();
+}
+
+Device* CommandBuffer::GetDevice()
+{
+    return static_cast<Device*>(fnptrs);
+}
+
+CommandPool::CommandPool(Device* Vk, u32 family)
+    : Queue(Vk, family, 0), NextBuffer(DefaultPoolSize)
+{
+    VkCommandPoolCreateInfo info = {
+        .sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+        .flags            = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT | VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
+        .queueFamilyIndex = family,
+    };
+
+    MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateCommandPool(&info, 0, &Handle));
+
+    VkCommandBuffer buf[DefaultPoolSize];
+
+    VkCommandBufferAllocateInfo cmdInfo = {
+        .sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+        .commandPool        = Handle,
+        .level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+        .commandBufferCount = DefaultPoolSize,
+    };
+
+    MZ_VULKAN_ASSERT_SUCCESS(Vk->AllocateCommandBuffers(&cmdInfo, buf));
+
+    Buffers.reserve(DefaultPoolSize);
+
+    for (VkCommandBuffer cmd : buf)
+    {
+        Buffers.emplace_back(CommandBuffer::New(this, cmd));
+    }
+}
+
+Device* CommandPool::GetDevice()
+{
+    return Queue.GetDevice();
+}
+
+CommandPool::~CommandPool()
+{
+    Buffers.clear();
+    GetDevice()->DestroyCommandPool(Handle, 0);
+}
+
+std::shared_ptr<CommandBuffer> CommandPool::AllocCommandBuffer(VkCommandBufferLevel level)
+{
+    while (!Buffers[NextBuffer]->Ready())
+        NextBuffer++;
+    ;
+
+    auto cmd = Buffers[NextBuffer];
+
+    assert(cmd->Ready());
+
+    GetDevice()->ResetFences(1, &cmd->Fence);
+    return cmd;
+}
+
+std::shared_ptr<CommandBuffer> CommandPool::BeginCmd(VkCommandBufferLevel level)
+{
+    std::shared_ptr<CommandBuffer> Cmd = AllocCommandBuffer(level);
+
+    VkCommandBufferBeginInfo beginInfo = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+    };
+
+    MZ_VULKAN_ASSERT_SUCCESS(Cmd->Begin(&beginInfo));
+
+    return Cmd;
 }
 
 } // namespace mz::vk

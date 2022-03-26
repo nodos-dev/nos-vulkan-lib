@@ -1,10 +1,16 @@
 
-#include "DynamicPipeline.h"
+#include <DynamicPipeline.h>
 
 namespace mz::vk
 {
+
+DynamicPipeline::~DynamicPipeline()
+{
+    Vk->DestroyPipeline(Handle, 0);
+}
+
 DynamicPipeline::DynamicPipeline(Device* Vk, VkExtent2D extent, View<u8> src)
-    : Vk(Vk), Shader(MZShader::New(Vk, VK_SHADER_STAGE_FRAGMENT_BIT, src)), Layout(PipelineLayout::New(Vk, src)), Extent(extent)
+    : Vk(Vk), Shader(Shader::New(Vk, VK_SHADER_STAGE_FRAGMENT_BIT, src)), Layout(PipelineLayout::New(Vk, src)), Extent(extent)
 {
 
     VertexShader* VS = Vk->GetGlobal<VertexShader>("GlobVS");
@@ -114,4 +120,36 @@ DynamicPipeline::DynamicPipeline(Device* Vk, VkExtent2D extent, View<u8> src)
 
     MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateGraphicsPipelines(0, 1, &info, 0, &Handle));
 }
+
+void DynamicPipeline::BeginWithRTs(std::shared_ptr<CommandBuffer> Cmd, View<std::shared_ptr<Image>> Images)
+{
+    assert(Images.size() == Layout->RTCount);
+
+    std::vector<VkRenderingAttachmentInfo> Attachments;
+    Attachments.reserve(Images.size());
+
+    for (auto img : Images)
+    {
+        img->Transition(VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT);
+        Attachments.push_back(VkRenderingAttachmentInfo{
+            .sType       = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+            .imageView   = img->View,
+            .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+            .loadOp      = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+            .storeOp     = VK_ATTACHMENT_STORE_OP_STORE,
+        });
+    }
+
+    VkRenderingInfo renderInfo = {
+        .sType                = VK_STRUCTURE_TYPE_RENDERING_INFO,
+        .renderArea           = {.extent = Extent},
+        .layerCount           = 1,
+        .colorAttachmentCount = (u32)Attachments.size(),
+        .pColorAttachments    = Attachments.data(),
+    };
+
+    Cmd->BeginRendering(&renderInfo);
+    Cmd->BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, Handle);
+}
+
 } // namespace mz::vk

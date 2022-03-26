@@ -1,9 +1,44 @@
-#include "Layout.h"
+#include <Layout.h>
 
 #include <spirv_cross.hpp>
 
 namespace mz::vk
 {
+
+NamedDSLBinding const& DescriptorLayout::operator[](u32 binding) const
+{
+    return Bindings.at(binding);
+}
+
+DescriptorLayout::DescriptorLayout(Device* Vk, std::map<u32, NamedDSLBinding> NamedBindings)
+    : Vk(Vk), Bindings(std::move(NamedBindings))
+{
+    std::vector<VkDescriptorSetLayoutBinding> bindings;
+    bindings.reserve(Bindings.size());
+
+    for (auto& [i, b] : Bindings)
+    {
+        bindings.emplace_back(VkDescriptorSetLayoutBinding{
+            .binding         = i,
+            .descriptorType  = b.descriptorType,
+            .descriptorCount = b.descriptorCount,
+            .stageFlags      = VK_SHADER_STAGE_FRAGMENT_BIT,
+        });
+    }
+
+    VkDescriptorSetLayoutCreateInfo info = {
+        .sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+        .bindingCount = (u32)bindings.size(),
+        .pBindings    = bindings.data(),
+    };
+
+    MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateDescriptorSetLayout(&info, 0, &Handle));
+}
+
+DescriptorLayout::~DescriptorLayout()
+{
+    Vk->DestroyDescriptorSetLayout(Handle, 0);
+}
 
 std::shared_ptr<DescriptorSet> DescriptorSet::Bind(std::shared_ptr<CommandBuffer> Cmd)
 {
@@ -63,6 +98,14 @@ std::vector<VkDescriptorPoolSize> GetPoolSizes(PipelineLayout* Layout)
         Sizes.push_back(VkDescriptorPoolSize{.type = type, .descriptorCount = count * 1024});
     }
     return Sizes;
+}
+
+std::shared_ptr<DescriptorSet> DescriptorSet::UpdateWith(View<Binding> res)
+{
+    std::vector<VkWriteDescriptorSet> writes = TransformView<VkWriteDescriptorSet, Binding>(res, [this](auto res) { return res.GetDescriptorInfo(Handle, GetType(res.binding)); }).collect();
+    Layout->Vk->UpdateDescriptorSets(writes.size(), writes.data(), 0, 0);
+    Bound.insert(res.begin(), res.end());
+    return shared_from_this();
 }
 
 DescriptorPool::DescriptorPool(PipelineLayout* Layout)
@@ -143,4 +186,20 @@ void PipelineLayout::Dump()
         }
     }
 }
+
+DescriptorLayout const& PipelineLayout::operator[](u32 set) const
+{
+    return *DescriptorSets.at(set);
+}
+
+PipelineLayout::~PipelineLayout()
+{
+    Vk->DestroyPipelineLayout(Handle, 0);
+}
+
+std::shared_ptr<DescriptorSet> PipelineLayout::AllocateSet(u32 set)
+{
+    return DescriptorSet::New(Pool.get(), set);
+}
+
 } // namespace mz::vk

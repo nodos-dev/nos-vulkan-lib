@@ -1,14 +1,9 @@
 #pragma once
 
-#include "Allocator.h"
+#include <Allocator.h>
 
 namespace mz::vk
 {
-
-union DescriptorResourceInfo {
-    VkDescriptorImageInfo  image;
-    VkDescriptorBufferInfo buffer;
-};
 
 struct mzVulkan_API Buffer : SharedFactory<Buffer>
 {
@@ -20,45 +15,23 @@ struct mzVulkan_API Buffer : SharedFactory<Buffer>
 
     VkBufferUsageFlags Usage;
 
-    void Copy(size_t len, void* pp, size_t offset = 0)
-    {
-        assert(offset + len < Allocation.Size);
-        memcpy(Allocation.Map() + offset, pp, len);
-    }
+    void Copy(size_t len, void* pp, size_t offset = 0);
 
     template <class T>
     void Copy(T const& obj, size_t offset = 0)
     {
-        assert(offset + sizeof(T) < Allocation.Size);
-        memcpy(Allocation.Map() + offset, &obj, sizeof(T));
+        Copy(sizeof(T), &obj, offset);
     }
 
-    u8* Map()
-    {
-        return Allocation.Map();
-    }
+    u8* Map();
 
-    void Flush()
-    {
-        Allocation.Flush();
-    }
+    void Flush();
 
-    HANDLE GetOSHandle()
-    {
-        return Allocation.GetOSHandle();
-    }
+    HANDLE GetOSHandle();
 
     void Bind(VkDescriptorType type, u32 bind, VkDescriptorSet set);
 
-    DescriptorResourceInfo GetDescriptorInfo() const
-    {
-        return DescriptorResourceInfo{
-            .buffer = {
-                .buffer = Handle,
-                .offset = 0,
-                .range  = VK_WHOLE_SIZE,
-            }};
-    }
+    DescriptorResourceInfo GetDescriptorInfo() const;
 
     enum Heap
     {
@@ -70,11 +43,7 @@ struct mzVulkan_API Buffer : SharedFactory<Buffer>
 
     Buffer(Allocator* Allocator, u64 size, VkBufferUsageFlags usage, Heap heap);
 
-    ~Buffer()
-    {
-        Vk->DestroyBuffer(Handle, 0);
-        Allocation.Free();
-    }
+    ~Buffer();
 
     void Upload(u8* data, Allocator* = 0, CommandPool* = 0);
     void Upload(std::shared_ptr<Buffer>, CommandPool* = 0);

@@ -1,118 +1,14 @@
 #pragma once
 
-#include "Image.h"
+#include <Binding.h>
+
+#include <Image.h>
 
 namespace mz::vk
 {
 
 template <class T>
-concept TypeClassResource = std::same_as<T, std::shared_ptr<Image>> || std::same_as<T, std::shared_ptr<Buffer>>;
-
-template <class T>
 concept TypeClassString = std::same_as<T, std::string> || std::same_as<T, const char*>;
-
-struct mzVulkan_API Binding
-{
-    using Type = std::variant<Buffer*, Image*>;
-
-    Type resource;
-
-    u32 binding;
-
-    std::shared_ptr<DescriptorResourceInfo> info;
-
-    VkAccessFlags access;
-
-    auto operator<=>(const Binding& other) const
-    {
-        return binding <=> other.binding;
-    }
-
-    Binding() = default;
-
-    Binding(std::shared_ptr<Buffer> res, u32 binding)
-        : resource(res.get()), binding(binding), info(new DescriptorResourceInfo(res->GetDescriptorInfo())), access(0)
-    {
-    }
-
-    Binding(std::shared_ptr<Image> res, u32 binding)
-        : resource(res.get()), binding(binding), info(new DescriptorResourceInfo(res->GetDescriptorInfo())), access(0)
-    {
-    }
-
-    void SanityCheck(VkDescriptorType type)
-    {
-        VkFlags Usage = 0;
-
-        switch (type)
-        {
-        case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
-        case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
-        case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
-        case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
-            assert(std::holds_alternative<Image*>(resource));
-            Usage = std::get<Image*>(resource)->Usage;
-            break;
-        default:
-            assert(std::holds_alternative<Buffer*>(resource));
-            Usage = std::get<Buffer*>(resource)->Usage;
-            break;
-        }
-
-        switch (type)
-        {
-        case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
-        case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
-            assert(Usage & VK_IMAGE_USAGE_SAMPLED_BIT);
-            info->image.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            access                  = VK_ACCESS_SHADER_READ_BIT;
-            break;
-        case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
-            assert(Usage & VK_IMAGE_USAGE_STORAGE_BIT);
-            info->image.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-            access                  = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-            break;
-        case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
-            assert(Usage & VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT);
-            info->image.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            access                  = VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
-            break;
-        case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
-            assert(Usage & VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT);
-            break;
-        case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
-            assert(Usage & VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT);
-            break;
-        case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
-        case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC:
-        case VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK:
-            assert(Usage & VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
-            break;
-        case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
-        case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
-            assert(Usage & VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
-            break;
-        default:
-            assert(0);
-            break;
-        }
-    }
-
-    VkWriteDescriptorSet GetDescriptorInfo(VkDescriptorSet set, VkDescriptorType type)
-    {
-        SanityCheck(type);
-
-        return VkWriteDescriptorSet{
-            .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-            .dstSet          = set,
-            .dstBinding      = binding,
-            .descriptorCount = 1,
-            .descriptorType  = type,
-            .pImageInfo      = (std::holds_alternative<Image*>(resource) ? (&info->image) : 0),
-            .pBufferInfo     = (std::holds_alternative<Buffer*>(resource) ? (&info->buffer) : 0),
-        };
-    }
-};
 
 struct mzVulkan_API DescriptorLayout : SharedFactory<DescriptorLayout>
 {
@@ -122,10 +18,7 @@ struct mzVulkan_API DescriptorLayout : SharedFactory<DescriptorLayout>
 
     std::map<u32, NamedDSLBinding> Bindings;
 
-    NamedDSLBinding const& operator[](u32 binding) const
-    {
-        return Bindings.at(binding);
-    }
+    NamedDSLBinding const& operator[](u32 binding) const;
 
     auto begin() const
     {
@@ -137,35 +30,8 @@ struct mzVulkan_API DescriptorLayout : SharedFactory<DescriptorLayout>
         return Bindings.end();
     }
 
-    DescriptorLayout(Device* Vk, std::map<u32, NamedDSLBinding> NamedBindings)
-        : Vk(Vk), Bindings(std::move(NamedBindings))
-    {
-        std::vector<VkDescriptorSetLayoutBinding> bindings;
-        bindings.reserve(Bindings.size());
-
-        for (auto& [i, b] : Bindings)
-        {
-            bindings.emplace_back(VkDescriptorSetLayoutBinding{
-                .binding         = i,
-                .descriptorType  = b.descriptorType,
-                .descriptorCount = b.descriptorCount,
-                .stageFlags      = VK_SHADER_STAGE_FRAGMENT_BIT,
-            });
-        }
-
-        VkDescriptorSetLayoutCreateInfo info = {
-            .sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-            .bindingCount = (u32)bindings.size(),
-            .pBindings    = bindings.data(),
-        };
-
-        MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateDescriptorSetLayout(&info, 0, &Handle));
-    }
-
-    ~DescriptorLayout()
-    {
-        Vk->DestroyDescriptorSetLayout(Handle, 0);
-    }
+    DescriptorLayout(Device* Vk, std::map<u32, NamedDSLBinding> NamedBindings);
+    ~DescriptorLayout();
 };
 
 struct mzVulkan_API DescriptorPool : SharedFactory<DescriptorPool>
@@ -178,7 +44,6 @@ struct mzVulkan_API DescriptorPool : SharedFactory<DescriptorPool>
 
     DescriptorPool(PipelineLayout* Layout);
     DescriptorPool(PipelineLayout* Layout, std::vector<VkDescriptorPoolSize> Sizes);
-
     ~DescriptorPool();
 };
 
@@ -207,14 +72,7 @@ struct mzVulkan_API DescriptorSet : SharedFactory<DescriptorSet>
         return shared_from_this();
     }
 
-    std::shared_ptr<DescriptorSet> UpdateWith(View<Binding> res)
-    {
-        std::vector<VkWriteDescriptorSet> writes = TransformView<VkWriteDescriptorSet, Binding>(res, [this](auto res) { return res.GetDescriptorInfo(Handle, GetType(res.binding)); }).collect();
-        Layout->Vk->UpdateDescriptorSets(writes.size(), writes.data(), 0, 0);
-        Bound.insert(res.begin(), res.end());
-        return shared_from_this();
-    }
-
+    std::shared_ptr<DescriptorSet> UpdateWith(View<Binding> res);
     std::shared_ptr<DescriptorSet> Bind(std::shared_ptr<CommandBuffer> Cmd);
 };
 
@@ -232,10 +90,7 @@ struct mzVulkan_API PipelineLayout : SharedFactory<PipelineLayout>
     std::map<u32, std::shared_ptr<DescriptorLayout>> DescriptorSets;
     std::unordered_map<std::string, glm::uvec2> BindingsByName;
 
-    DescriptorLayout const& operator[](u32 set) const
-    {
-        return *DescriptorSets.at(set);
-    }
+    DescriptorLayout const& operator[](u32 set) const;
 
     auto begin() const
     {
@@ -247,16 +102,8 @@ struct mzVulkan_API PipelineLayout : SharedFactory<PipelineLayout>
         return DescriptorSets.end();
     }
 
-    ~PipelineLayout()
-    {
-        Vk->DestroyPipelineLayout(Handle, 0);
-    }
-
-    std::shared_ptr<DescriptorSet> AllocateSet(u32 set)
-    {
-        return DescriptorSet::New(Pool.get(), set);
-    }
-
+    ~PipelineLayout();
+    std::shared_ptr<DescriptorSet> AllocateSet(u32 set);
     void Dump();
 
     PipelineLayout(Device* Vk, View<u8> src);
@@ -264,4 +111,5 @@ struct mzVulkan_API PipelineLayout : SharedFactory<PipelineLayout>
   private:
     PipelineLayout(Device* Vk, ShaderLayout layout);
 };
+
 } // namespace mz::vk
