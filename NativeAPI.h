@@ -1,8 +1,6 @@
 #pragma once
 
-#include <mzCommon.h>
-
-#include "InfoStructs.h"
+#include "Device.h"
 
 namespace mz::vk
 {
@@ -17,7 +15,7 @@ struct mzVulkan_API NativeAPI
     }
 
     virtual void* CreateSharedMemory(u64) = 0;
-    virtual void* CreateSharedSync() = 0;
+    virtual void* CreateSharedSync()      = 0;
 };
 
 } // namespace mz::vk

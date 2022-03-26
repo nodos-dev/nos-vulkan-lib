@@ -1,9 +1,5 @@
 #include "DynamicPipeline.h"
-#include "mzVkCommon.h"
-#include "spirv.hpp"
-#include "vulkan/vulkan_core.h"
 
-#include <memory>
 #include <spirv_cross.hpp>
 
 namespace mz::vk

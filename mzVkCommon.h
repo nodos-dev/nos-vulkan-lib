@@ -84,6 +84,9 @@ mzVulkan_API void ReadInputLayout(View<u8> bin, VkVertexInputBindingDescription&
 
 mzVulkan_API ShaderLayout GetShaderLayouts(View<u8> bin);
 
+mzVulkan_API bool PlatformClosehandle(HANDLE);
+mzVulkan_API u64 PlatformGetCurrentProcessId();
+
 inline const char* vk_result_string(VkResult re)
 {
     switch (re)

@@ -1,12 +1,8 @@
 #pragma once
 
-#include "Allocator.h"
-#include "InfoStructs.h"
-
 #include "Buffer.h"
 
 #include "Command.h"
-#include "vulkan/vulkan_core.h"
 
 namespace mz::vk
 {
@@ -82,7 +78,7 @@ struct mzVulkan_API Image : SharedFactory<Image>
     {
         if (!Allocation.IsImported())
         {
-            assert(SUCCEEDED(CloseHandle(Sync)));
+            assert(PlatformClosehandle(Sync));
         }
         Vk->DestroySemaphore(Sema, 0);
         Vk->DestroyImage(Handle, 0);

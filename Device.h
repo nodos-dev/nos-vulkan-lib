@@ -1,12 +1,11 @@
 #pragma once
 
 #include "mzVkCommon.h"
-#include <type_traits>
 
 namespace mz::vk
 {
 struct mzVulkan_API Device : SharedFactory<Device>,
-                VklDeviceFunctions
+                             VklDeviceFunctions
 {
     struct mzVulkan_API Global
     {
@@ -25,10 +24,10 @@ struct mzVulkan_API Device : SharedFactory<Device>,
         }
     };
 
-    VkInstance       Instance;
+    VkInstance Instance;
     VkPhysicalDevice PhysicalDevice;
 
-    std::shared_ptr<struct Allocator>   ImmAllocator;
+    std::shared_ptr<struct Allocator> ImmAllocator;
     std::shared_ptr<struct CommandPool> ImmCmdPool;
 
     u32 QueueFamily;
@@ -63,8 +62,8 @@ struct mzVulkan_API Device : SharedFactory<Device>,
         return data;
     }
 
-    Device(VkInstance        Instance,
-           VkPhysicalDevice  PhysicalDevice,
+    Device(VkInstance Instance,
+           VkPhysicalDevice PhysicalDevice,
            View<const char*> layers,
            View<const char*> extensions);
     ~Device();

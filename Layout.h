@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Image.h"
-#include <variant>
 
 namespace mz::vk
 {

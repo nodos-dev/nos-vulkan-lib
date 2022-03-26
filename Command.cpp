@@ -2,7 +2,6 @@
 #include "Command.h"
 
 #include "Image.h"
-#include "vulkan/vulkan_core.h"
 
 namespace mz::vk
 {

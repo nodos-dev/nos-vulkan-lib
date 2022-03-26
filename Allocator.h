@@ -12,8 +12,8 @@ struct mzVulkan_API MemoryBlock : SharedFactory<MemoryBlock>
     struct mzVulkan_API Allocation
     {
         std::shared_ptr<MemoryBlock> Block;
-        VkDeviceSize                 Offset;
-        VkDeviceSize                 Size;
+        VkDeviceSize Offset;
+        VkDeviceSize Size;
 
         Allocation()
             : Block(0), Offset(0), Size(0)
@@ -84,11 +84,11 @@ struct mzVulkan_API MemoryBlock : SharedFactory<MemoryBlock>
 
     Device* Vk;
 
-    VkDeviceMemory        Memory;
+    VkDeviceMemory Memory;
     VkMemoryPropertyFlags Props;
 
     HANDLE OSHandle;
-    u8*    Mapping;
+    u8* Mapping;
 
     const bool Imported;
 
@@ -126,7 +126,7 @@ struct mzVulkan_API MemoryBlock : SharedFactory<MemoryBlock>
         // Imported blocks do not need to decrease the refcount
         if (!Imported)
         {
-            assert(SUCCEEDED(CloseHandle(OSHandle)));
+            assert(PlatformClosehandle(OSHandle));
         }
     }
 

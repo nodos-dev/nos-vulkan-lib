@@ -1,10 +1,7 @@
 
 #pragma once
 
-#include "Command.h"
 #include "Layout.h"
-#include "mzCommon.h"
-#include <iterator>
 
 namespace mz::vk
 {

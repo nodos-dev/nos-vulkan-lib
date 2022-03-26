@@ -1,12 +1,24 @@
 
-#include "Image.h"
-#include "InfoStructs.h"
-
 #include "NativeAPID3D12.h"
-#include "vulkan/vulkan_core.h"
+
+#include "Image.h"
+#include <winerror.h>
+
+#undef CreateSemaphore
 
 namespace mz::vk
 {
+
+bool PlatformClosehandle(HANDLE handle)
+{
+    return SUCCEEDED(CloseHandle(handle));
+}
+
+u64 PlatformGetCurrentProcessId()
+{
+    return GetCurrentProcessId();
+}
+
 static bool IsImportable(VkPhysicalDevice PhysicalDevice, VkFormat Format, VkImageUsageFlags Usage)
 {
     VkPhysicalDeviceExternalImageFormatInfo externalimageFormatInfo = {

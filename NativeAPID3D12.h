@@ -3,8 +3,6 @@
 
 #include "NativeAPI.h"
 
-#include "Image.h"
-
 #include <d3d12.h>
 #include <dxgi.h>
 
@@ -113,7 +111,7 @@ struct mzVulkan_API NativeAPID3D12 : NativeAPI
         };
 
         ID3D12Heap* heap;
-        HANDLE      handle;
+        HANDLE handle;
 
         assert(S_FALSE == dx12->CreateHeap(&heapDesc, __uuidof(ID3D12Heap), 0));
 
@@ -128,7 +126,7 @@ struct mzVulkan_API NativeAPID3D12 : NativeAPI
 
     virtual void* CreateSharedSync() override
     {
-        HANDLE       handle;
+        HANDLE handle;
         ID3D12Fence* fence;
 
         MZ_D3D12_ASSERT_SUCCESS(dx12->CreateFence(0, D3D12_FENCE_FLAG_SHARED, __uuidof(ID3D12Fence), (void**)(&fence)));

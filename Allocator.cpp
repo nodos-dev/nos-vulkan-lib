@@ -1,5 +1,6 @@
 #include "Allocator.h"
-#include "Device.h"
+
+#include <Windows.h>
 
 static VkDeviceSize AlignUp(VkDeviceSize offset, VkDeviceSize alignment)
 {

@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Device.h"
-#include "mzVkCommon.h"
 
 namespace mz::vk
 {

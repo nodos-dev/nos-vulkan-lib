@@ -1,9 +1,6 @@
 
 #include "DynamicPipeline.h"
 
-#include "Layout.h"
-#include "vulkan/vulkan_core.h"
-
 namespace mz::vk
 {
 DynamicPipeline::DynamicPipeline(Device* Vk, VkExtent2D extent, View<u8> src)

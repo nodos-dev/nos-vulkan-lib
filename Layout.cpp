@@ -1,8 +1,5 @@
 #include "Layout.h"
-#include "Command.h"
 
-#include <algorithm>
-#include <memory>
 #include <spirv_cross.hpp>
 
 namespace mz::vk
