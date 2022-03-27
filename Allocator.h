@@ -16,10 +16,8 @@ struct mzVulkan_API MemoryBlock : SharedFactory<MemoryBlock>
         Allocation();
         Allocation(rc<MemoryBlock> Block, u64 Offset, u64 Size);
         bool IsValid() const;
-        bool IsImported() const;
         u8* Map();
         void Flush();
-        HANDLE GetOSHandle() const;
         void Free();
         void BindResource(VkImage image);
         void BindResource(VkBuffer buffer);
@@ -33,8 +31,6 @@ struct mzVulkan_API MemoryBlock : SharedFactory<MemoryBlock>
     HANDLE OSHandle;
     u8* Mapping;
 
-    const bool Imported;
-
     u64 Offset;
     u64 Size;
     u64 InUse;
@@ -42,7 +38,7 @@ struct mzVulkan_API MemoryBlock : SharedFactory<MemoryBlock>
     std::map<VkDeviceSize, VkDeviceSize> Chunks;
     std::map<VkDeviceSize, VkDeviceSize> FreeList;
 
-    MemoryBlock(Device* Vk, VkDeviceMemory mem, VkMemoryPropertyFlags props, u64 offset, u64 size, HANDLE externalHandle);
+    MemoryBlock(Device* Vk, VkDeviceMemory mem, VkMemoryPropertyFlags props, u64 offset, u64 size, HANDLE OSHandle);
 
     ~MemoryBlock();
 
@@ -52,7 +48,6 @@ struct mzVulkan_API MemoryBlock : SharedFactory<MemoryBlock>
 };
 
 using Allocation = MemoryBlock::Allocation;
-
 
 struct mzVulkan_API Allocator : SharedFactory<Allocator>
 {
@@ -66,6 +61,6 @@ struct mzVulkan_API Allocator : SharedFactory<Allocator>
 
     Allocator(Device* Vk);
 
-    Allocation AllocateResourceMemory(std::variant<VkBuffer, VkImage> resource, bool map = false, const ImageExportInfo* exported = 0);
+    Allocation AllocateResourceMemory(std::variant<VkBuffer, VkImage> resource, bool map = false, const MemoryExportInfo* exported = 0);
 };
 } // namespace mz::vk

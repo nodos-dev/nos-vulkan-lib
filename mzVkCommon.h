@@ -22,29 +22,27 @@ namespace mz::vk
 {
 
 union DescriptorResourceInfo {
-    VkDescriptorImageInfo  image;
+    VkDescriptorImageInfo image;
     VkDescriptorBufferInfo buffer;
 };
 
-struct ImageExportInfo
+struct MemoryExportInfo
 {
-    HANDLE memory = 0;
-    HANDLE sync   = 0;
-
-    VkDeviceSize offset = 0;
-    VkDeviceSize size   = 0;
-
-    VkAccessFlags accessMask = 0;
+    u64 PID;
+    HANDLE memory;
+    HANDLE sync;
+    VkDeviceSize offset;
+    VkDeviceSize size;
+    VkAccessFlags accessMask;
 };
 
 struct ImageCreateInfo
 {
-    VkExtent2D             Extent;
-    VkFormat               Format;
-    VkImageUsageFlags      Usage;
-    const ImageExportInfo* Exported;
+    VkExtent2D Extent;
+    VkFormat Format;
+    VkImageUsageFlags Usage;
+    const MemoryExportInfo* Imported = 0;
 };
-
 
 struct mzVulkan_API SVType
 {
@@ -109,7 +107,8 @@ mzVulkan_API void ReadInputLayout(View<u8> bin, VkVertexInputBindingDescription&
 mzVulkan_API ShaderLayout GetShaderLayouts(View<u8> bin);
 mzVulkan_API bool IsImportable(VkPhysicalDevice PhysicalDevice, VkFormat Format, VkImageUsageFlags Usage);
 
-mzVulkan_API bool PlatformClosehandle(HANDLE);
+mzVulkan_API bool PlatformCloseHandle(HANDLE);
+mzVulkan_API HANDLE PlatformDupeHandle(u64 pid, HANDLE);
 mzVulkan_API u64 PlatformGetCurrentProcessId();
 
 mzVulkan_API std::string GetLastErrorAsString();

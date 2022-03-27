@@ -24,7 +24,7 @@ extern "C" mzVulkan_API const DXGI_FORMAT VK_FORMAT_TO_DXGI_FORMAT[];
 #define WIN32_ASSERT(expr)                                                                   \
     if (!(expr))                                                                             \
     {                                                                                        \
-        printf("%s(%s:%d)\n", ::mz::vk::GetLastErrorAsString().c_str(), __FILE__, __LINE__); \
+        printf("%s\t%s:%d\n", ::mz::vk::GetLastErrorAsString().c_str(), __FILE__, __LINE__); \
         abort();                                                                             \
     }
 

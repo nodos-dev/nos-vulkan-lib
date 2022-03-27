@@ -8,9 +8,26 @@
 namespace mz::vk
 {
 
-bool PlatformClosehandle(HANDLE handle)
+bool PlatformCloseHandle(HANDLE handle)
 {
-    return SUCCEEDED(CloseHandle(handle));
+    return CloseHandle(handle);
+}
+
+HANDLE PlatformDupeHandle(u64 pid, HANDLE handle)
+{
+    DWORD flags;
+    HANDLE re = 0;
+
+    HANDLE src = OpenProcess(GENERIC_ALL, false, pid);
+    HANDLE cur = GetCurrentProcess();
+
+    WIN32_ASSERT(GetHandleInformation(src, &flags));
+    WIN32_ASSERT(GetHandleInformation(cur, &flags));
+    WIN32_ASSERT(DuplicateHandle(src, handle, cur, &re, GENERIC_ALL, 0, DUPLICATE_SAME_ACCESS));
+    WIN32_ASSERT(GetHandleInformation(re, &flags));
+    WIN32_ASSERT(CloseHandle(src));
+
+    return re;
 }
 
 u64 PlatformGetCurrentProcessId()
@@ -252,7 +269,6 @@ std::pair<u32, VkMemoryPropertyFlags> MemoryTypeIndex(VkPhysicalDevice physicalD
 
     return std::make_pair(typeIndex, props.memoryTypes[typeIndex].propertyFlags);
 }
-
 
 const char* vk_result_string(VkResult re)
 {

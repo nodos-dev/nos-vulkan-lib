@@ -1,3 +1,4 @@
+#include "mzVkCommon.h"
 #include <Allocator.h>
 
 #define GENERIC_READ    (0x80000000L)
@@ -95,7 +96,7 @@ Allocation MemoryBlock::Allocate(VkDeviceSize reqSize, VkDeviceSize alignment)
 void MemoryBlock::Free(Allocation c)
 {
 
-    if ((c.Block.get() != this) || Imported)
+    if ((c.Block.get() != this))
     {
         return;
     }
@@ -142,20 +143,26 @@ Device* Allocator::GetDevice() const
     return Vk;
 }
 
-Allocation Allocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> resource, bool map, const ImageExportInfo* imported)
+MemoryBlock::~MemoryBlock()
+{
+    assert(PlatformCloseHandle(OSHandle));
+    Vk->FreeMemory(Memory, 0);
+}
+
+Allocation Allocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> resource, bool map, const MemoryExportInfo* imported)
 {
     VkMemoryRequirements req;
     VkPhysicalDeviceMemoryProperties props;
 
     VkMemoryPropertyFlags memProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
-    if (std::holds_alternative<VkBuffer>(resource))
+    if (auto buf = std::get_if<VkBuffer>(&resource); buf)
     {
         if (map)
         {
             memProps = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
         }
-        Vk->GetBufferMemoryRequirements(std::get<VkBuffer>(resource), &req);
+        Vk->GetBufferMemoryRequirements(*buf, &req);
     }
     else
     {
@@ -168,10 +175,12 @@ Allocation Allocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> res
 
     if (imported)
     {
+        HANDLE memory = PlatformDupeHandle(imported->PID, imported->memory);
+
         VkImportMemoryWin32HandleInfoKHR importInfo = {
             .sType      = VK_STRUCTURE_TYPE_IMPORT_MEMORY_WIN32_HANDLE_INFO_KHR,
             .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT,
-            .handle     = imported->memory,
+            .handle     = memory,
         };
 
         VkMemoryAllocateInfo info = {
@@ -183,7 +192,7 @@ Allocation Allocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> res
 
         VkDeviceMemory mem;
         MZ_VULKAN_ASSERT_SUCCESS(Vk->AllocateMemory(&info, 0, &mem));
-        auto Block = MemoryBlock::New(Vk, mem, actualProps, imported->offset, info.allocationSize, imported->memory);
+        auto Block = MemoryBlock::New(Vk, mem, actualProps, imported->offset, info.allocationSize, memory);
 
         return Block->Allocate(req.size, req.alignment);
     }
@@ -206,7 +215,6 @@ Allocation Allocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> res
 
     if (!allocation.IsValid())
     {
-        VkDeviceMemory mem;
 
         u64 size = std::max(req.size, DefaultChunkSize);
 
@@ -228,10 +236,20 @@ Allocation Allocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> res
             .memoryTypeIndex = typeIndex,
         };
 
+        VkDeviceMemory mem;
         MZ_VULKAN_ASSERT_SUCCESS(Vk->AllocateMemory(&info, 0, &mem));
 
-        auto block = MemoryBlock::New(Vk, mem, actualProps, 0, size, nullptr);
+        HANDLE OSHandle;
 
+        VkMemoryGetWin32HandleInfoKHR getHandleInfo = {
+            .sType      = VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR,
+            .memory     = mem,
+            .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT,
+        };
+
+        MZ_VULKAN_ASSERT_SUCCESS(Vk->GetMemoryWin32HandleKHR(&getHandleInfo, &OSHandle));
+
+        auto block = MemoryBlock::New(Vk, mem, actualProps, 0, size, OSHandle);
         allocation = block->Allocate(req.size, req.alignment);
         Allocations[typeIndex].emplace_back(block);
     }
@@ -239,34 +257,14 @@ Allocation Allocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> res
     return allocation;
 }
 
-MemoryBlock::MemoryBlock(Device* Vk, VkDeviceMemory mem, VkMemoryPropertyFlags props, u64 offset, u64 size, HANDLE externalHandle)
-    : Vk(Vk), Memory(mem), Props(props), Offset(offset), Size(size), InUse(0), Mapping(0), Imported(externalHandle != 0)
+MemoryBlock::MemoryBlock(Device* Vk, VkDeviceMemory mem, VkMemoryPropertyFlags props, u64 offset, u64 size, HANDLE OSHandle)
+    : Vk(Vk), Memory(mem), Props(props), Offset(offset), Size(size), InUse(0), Mapping(0), OSHandle(OSHandle)
 {
     FreeList[0] = size;
 
     if (props & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
     {
         MZ_VULKAN_ASSERT_SUCCESS(Vk->MapMemory(Memory, Offset, Size, 0, (void**)&Mapping));
-    }
-
-    VkMemoryGetWin32HandleInfoKHR handleInfo = {
-        .sType      = VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR,
-        .memory     = Memory,
-        .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT,
-    };
-
-    MZ_VULKAN_ASSERT_SUCCESS(Vk->GetMemoryWin32HandleKHR(&handleInfo, &OSHandle));
-}
-
-MemoryBlock::~MemoryBlock()
-{
-
-    Vk->FreeMemory(Memory, 0);
-
-    // Imported blocks do not need to decrease the refcount
-    if (!Imported)
-    {
-        assert(PlatformClosehandle(OSHandle));
     }
 }
 
@@ -283,11 +281,6 @@ Allocation::Allocation(rc<MemoryBlock> Block, u64 Offset, u64 Size)
 bool Allocation::IsValid() const
 {
     return Block.get() != nullptr;
-}
-
-bool Allocation::IsImported() const
-{
-    return Block->Imported;
 }
 
 u8* Allocation::Map()
@@ -309,13 +302,6 @@ void Allocation::Flush()
     };
 
     MZ_VULKAN_ASSERT_SUCCESS(Block->Vk->FlushMappedMemoryRanges(1, &range));
-}
-
-HANDLE Allocation::GetOSHandle() const
-{
-    assert(Block->OSHandle);
-
-    return Block->OSHandle;
 }
 
 void Allocation::Free()

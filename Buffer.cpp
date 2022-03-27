@@ -121,10 +121,6 @@ void Buffer::Flush()
     Allocation.Flush();
 }
 
-HANDLE Buffer::GetOSHandle()
-{
-    return Allocation.GetOSHandle();
-}
 
 DescriptorResourceInfo Buffer::GetDescriptorInfo() const
 {

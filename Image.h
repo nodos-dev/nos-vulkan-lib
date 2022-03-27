@@ -22,16 +22,16 @@ struct mzVulkan_API Image : SharedFactory<Image>
     VkImageLayout Layout;
     VkAccessFlags AccessMask;
 
-    HANDLE Sync;
     VkSemaphore Sema;
 
     VkSampler Sampler;
     VkImageView View;
 
-    ImageExportInfo GetExportInfo() const;
+    MemoryExportInfo GetExportInfo() const;
 
     DescriptorResourceInfo GetDescriptorInfo() const;
 
+    HANDLE GetSyncOSHandle() const;
 
     void Transition(rc<CommandBuffer> cmd, VkImageLayout TargetLayout, VkAccessFlags TargetAccessMask);
     void Transition(VkImageLayout TargetLayout, VkAccessFlags TargetAccessMask);

@@ -27,8 +27,6 @@ struct mzVulkan_API Buffer : SharedFactory<Buffer>
 
     void Flush();
 
-    HANDLE GetOSHandle();
-
     void Bind(VkDescriptorType type, u32 bind, VkDescriptorSet set);
 
     DescriptorResourceInfo GetDescriptorInfo() const;
