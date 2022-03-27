@@ -145,7 +145,8 @@ Device* Allocator::GetDevice() const
 
 MemoryBlock::~MemoryBlock()
 {
-    assert(PlatformCloseHandle(OSHandle));
+    bool ok = PlatformCloseHandle(OSHandle);
+    assert(ok);
     Vk->FreeMemory(Memory, 0);
 }
 

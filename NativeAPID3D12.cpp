@@ -52,7 +52,9 @@ void* NativeAPID3D12::CreateSharedMemory(u64 size)
     ID3D12Heap* heap;
     HANDLE handle;
 
-    assert(S_FALSE == dx12->CreateHeap(&heapDesc, __uuidof(ID3D12Heap), 0));
+    HRESULT hr = dx12->CreateHeap(&heapDesc, __uuidof(ID3D12Heap), 0);
+
+    assert(S_FALSE == hr);
 
     MZ_D3D12_ASSERT_SUCCESS(dx12->CreateHeap(&heapDesc, __uuidof(ID3D12Heap), (void**)&heap));
 
