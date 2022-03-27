@@ -9,12 +9,12 @@ struct mzVulkan_API MemoryBlock : SharedFactory<MemoryBlock>
 {
     struct mzVulkan_API Allocation
     {
-        std::shared_ptr<MemoryBlock> Block;
+        rc<MemoryBlock> Block;
         VkDeviceSize Offset;
         VkDeviceSize Size;
 
         Allocation();
-        Allocation(std::shared_ptr<MemoryBlock> Block, u64 Offset, u64 Size);
+        Allocation(rc<MemoryBlock> Block, u64 Offset, u64 Size);
         bool IsValid() const;
         bool IsImported() const;
         u8* Map();
@@ -62,7 +62,7 @@ struct mzVulkan_API Allocator : SharedFactory<Allocator>
 
     Device* GetDevice() const;
 
-    std::map<u32, std::vector<std::shared_ptr<MemoryBlock>>> Allocations;
+    std::map<u32, std::vector<rc<MemoryBlock>>> Allocations;
 
     Allocator(Device* Vk);
 

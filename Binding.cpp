@@ -6,12 +6,12 @@
 namespace mz::vk
 {
 
-Binding::Binding(std::shared_ptr<Buffer> res, u32 binding)
+Binding::Binding(rc<Buffer> res, u32 binding)
     : resource(res.get()), binding(binding), info(new DescriptorResourceInfo(res->GetDescriptorInfo())), access(0)
 {
 }
 
-Binding::Binding(std::shared_ptr<Image> res, u32 binding)
+Binding::Binding(rc<Image> res, u32 binding)
     : resource(res.get()), binding(binding), info(new DescriptorResourceInfo(res->GetDescriptorInfo())), access(0)
 {
 }

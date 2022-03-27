@@ -64,7 +64,7 @@ struct mzVulkan_API DescriptorSet : SharedFactory<DescriptorSet>
     VkDescriptorType GetType(u32 Binding);
 
     template <std::same_as<Binding>... Bindings>
-    std::shared_ptr<DescriptorSet> UpdateWith(Bindings&&... res)
+    rc<DescriptorSet> UpdateWith(Bindings&&... res)
     {
         VkWriteDescriptorSet writes[sizeof...(Bindings)] = {res.GetDescriptorInfo(Handle, GetType(res.binding))...};
         Layout->Vk->UpdateDescriptorSets(sizeof...(Bindings), writes, 0, 0);
@@ -72,8 +72,8 @@ struct mzVulkan_API DescriptorSet : SharedFactory<DescriptorSet>
         return shared_from_this();
     }
 
-    std::shared_ptr<DescriptorSet> UpdateWith(View<Binding> res);
-    std::shared_ptr<DescriptorSet> Bind(std::shared_ptr<CommandBuffer> Cmd);
+    rc<DescriptorSet> UpdateWith(View<Binding> res);
+    rc<DescriptorSet> Bind(rc<CommandBuffer> Cmd);
 };
 
 struct mzVulkan_API PipelineLayout : SharedFactory<PipelineLayout>
@@ -82,12 +82,12 @@ struct mzVulkan_API PipelineLayout : SharedFactory<PipelineLayout>
 
     VkPipelineLayout Handle;
 
-    std::shared_ptr<DescriptorPool> Pool;
+    rc<DescriptorPool> Pool;
 
     u32 PushConstantSize;
     u32 RTCount;
 
-    std::map<u32, std::shared_ptr<DescriptorLayout>> DescriptorSets;
+    std::map<u32, rc<DescriptorLayout>> DescriptorSets;
     std::unordered_map<std::string, glm::uvec2> BindingsByName;
 
     DescriptorLayout const& operator[](u32 set) const;
@@ -103,7 +103,7 @@ struct mzVulkan_API PipelineLayout : SharedFactory<PipelineLayout>
     }
 
     ~PipelineLayout();
-    std::shared_ptr<DescriptorSet> AllocateSet(u32 set);
+    rc<DescriptorSet> AllocateSet(u32 set);
     void Dump();
 
     PipelineLayout(Device* Vk, View<u8> src);

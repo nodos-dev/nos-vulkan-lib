@@ -66,14 +66,14 @@ void Buffer::Upload(u8* data, Allocator* Allocator, CommandPool* Pool)
 
     u64 Size = Allocation.Size;
 
-    std::shared_ptr<Buffer> StagingBuffer = Buffer::New(Allocator, Size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, CPU);
+    rc<Buffer> StagingBuffer = Buffer::New(Allocator, Size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, CPU);
 
     memcpy(StagingBuffer->Map(), data, Size);
     StagingBuffer->Flush();
     Upload(StagingBuffer, Pool);
 }
 
-void Buffer::Upload(std::shared_ptr<Buffer> buffer, CommandPool* Pool)
+void Buffer::Upload(rc<Buffer> buffer, CommandPool* Pool)
 {
     // if this buffer has already been mapped you could simply use the mapped pointer instead of creating a temporary buffer
     assert(!Map());
@@ -84,7 +84,7 @@ void Buffer::Upload(std::shared_ptr<Buffer> buffer, CommandPool* Pool)
         Pool = Vk->ImmCmdPool.get();
     }
 
-    std::shared_ptr<CommandBuffer> Cmd = Pool->BeginCmd();
+    rc<CommandBuffer> Cmd = Pool->BeginCmd();
 
     VkBufferMemoryBarrier bufferMemoryBarrier = {
         .sType  = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,

@@ -74,7 +74,7 @@ struct mzVulkan_API SVType
 
     struct Member
     {
-        std::shared_ptr<SVType> type;
+        rc<SVType> type;
 
         u32 idx;
         u32 size;
@@ -93,7 +93,7 @@ struct mzVulkan_API NamedDSLBinding
     VkDescriptorType descriptorType;
     uint32_t descriptorCount;
     std::string name;
-    std::shared_ptr<SVType> type;
+    rc<SVType> type;
 };
 
 struct mzVulkan_API ShaderLayout
@@ -116,7 +116,7 @@ mzVulkan_API std::string GetLastErrorAsString();
 
 mzVulkan_API std::pair<u32, VkMemoryPropertyFlags> MemoryTypeIndex(VkPhysicalDevice physicalDevice, u32 memoryTypeBits, VkMemoryPropertyFlags requestedProps);
 mzVulkan_API void ImageLayoutTransition(VkImage Image,
-                                        std::shared_ptr<struct CommandBuffer> Cmd,
+                                        rc<struct CommandBuffer> Cmd,
                                         VkImageLayout CurrentLayout,
                                         VkImageLayout TargetLayout,
                                         VkAccessFlags srcAccessMask,

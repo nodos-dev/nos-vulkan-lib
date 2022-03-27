@@ -46,7 +46,7 @@ struct mzVulkan_API Buffer : SharedFactory<Buffer>
     ~Buffer();
 
     void Upload(u8* data, Allocator* = 0, CommandPool* = 0);
-    void Upload(std::shared_ptr<Buffer>, CommandPool* = 0);
+    void Upload(rc<Buffer>, CommandPool* = 0);
 };
 
 } // namespace mz::vk

@@ -33,15 +33,15 @@ struct mzVulkan_API Image : SharedFactory<Image>
     DescriptorResourceInfo GetDescriptorInfo() const;
 
 
-    void Transition(std::shared_ptr<CommandBuffer> cmd, VkImageLayout TargetLayout, VkAccessFlags TargetAccessMask);
+    void Transition(rc<CommandBuffer> cmd, VkImageLayout TargetLayout, VkAccessFlags TargetAccessMask);
     void Transition(VkImageLayout TargetLayout, VkAccessFlags TargetAccessMask);
 
     void Upload(u8* data, Allocator* = 0, CommandPool* = 0);
-    void Upload(std::shared_ptr<Buffer>, CommandPool* = 0);
+    void Upload(rc<Buffer>, CommandPool* = 0);
 
-    std::shared_ptr<Image> Copy(Allocator* = 0, CommandPool* = 0);
+    rc<Image> Copy(Allocator* = 0, CommandPool* = 0);
 
-    std::shared_ptr<Buffer> Download(Allocator* = 0, CommandPool* = 0);
+    rc<Buffer> Download(Allocator* = 0, CommandPool* = 0);
 
     Image(Allocator*, ImageCreateInfo const&);
 

@@ -82,7 +82,7 @@ bool IsImportable(VkPhysicalDevice PhysicalDevice, VkFormat Format, VkImageUsage
 }
 
 void ImageLayoutTransition(VkImage Image,
-                           std::shared_ptr<CommandBuffer> Cmd,
+                           rc<CommandBuffer> Cmd,
                            VkImageLayout CurrentLayout,
                            VkImageLayout TargetLayout,
                            VkAccessFlags srcAccessMask,

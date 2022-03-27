@@ -40,7 +40,7 @@ DescriptorLayout::~DescriptorLayout()
     Vk->DestroyDescriptorSetLayout(Handle, 0);
 }
 
-std::shared_ptr<DescriptorSet> DescriptorSet::Bind(std::shared_ptr<CommandBuffer> Cmd)
+rc<DescriptorSet> DescriptorSet::Bind(rc<CommandBuffer> Cmd)
 {
     for (auto& res : Bound)
     {
@@ -100,7 +100,7 @@ std::vector<VkDescriptorPoolSize> GetPoolSizes(PipelineLayout* Layout)
     return Sizes;
 }
 
-std::shared_ptr<DescriptorSet> DescriptorSet::UpdateWith(View<Binding> res)
+rc<DescriptorSet> DescriptorSet::UpdateWith(View<Binding> res)
 {
     std::vector<VkWriteDescriptorSet> writes = TransformView<VkWriteDescriptorSet, Binding>(res, [this](auto res) { return res.GetDescriptorInfo(Handle, GetType(res.binding)); }).collect();
     Layout->Vk->UpdateDescriptorSets(writes.size(), writes.data(), 0, 0);
@@ -197,7 +197,7 @@ PipelineLayout::~PipelineLayout()
     Vk->DestroyPipelineLayout(Handle, 0);
 }
 
-std::shared_ptr<DescriptorSet> PipelineLayout::AllocateSet(u32 set)
+rc<DescriptorSet> PipelineLayout::AllocateSet(u32 set)
 {
     return DescriptorSet::New(Pool.get(), set);
 }

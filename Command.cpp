@@ -61,16 +61,16 @@ void CommandBuffer::Submit(View<VkSemaphore> Wait, View<VkPipelineStageFlags> St
     MZ_VULKAN_ASSERT_SUCCESS(Pool->Queue.Submit(1, &submitInfo, Fence));
 }
 
-void CommandBuffer::Submit(std::shared_ptr<Image> image, VkPipelineStageFlags stage)
+void CommandBuffer::Submit(rc<Image> image, VkPipelineStageFlags stage)
 {
     VkSemaphore sem[1]             = {image->Sema};
     VkPipelineStageFlags stages[1] = {stage};
     Submit(sem, stages, sem);
 }
 
-void CommandBuffer::Submit(View<std::shared_ptr<Image>> images, VkPipelineStageFlags stage)
+void CommandBuffer::Submit(View<rc<Image>> images, VkPipelineStageFlags stage)
 {
-    std::vector<VkSemaphore> semaphores = TransformView<VkSemaphore, std::shared_ptr<Image>>(images, [](auto img) { return img->Sema; }).collect();
+    std::vector<VkSemaphore> semaphores = TransformView<VkSemaphore, rc<Image>>(images, [](auto img) { return img->Sema; }).collect();
     Submit(semaphores, std::vector<VkPipelineStageFlags>(images.size(), stage), semaphores);
 }
 
@@ -137,7 +137,7 @@ CommandPool::~CommandPool()
     GetDevice()->DestroyCommandPool(Handle, 0);
 }
 
-std::shared_ptr<CommandBuffer> CommandPool::AllocCommandBuffer(VkCommandBufferLevel level)
+rc<CommandBuffer> CommandPool::AllocCommandBuffer(VkCommandBufferLevel level)
 {
     while (!Buffers[NextBuffer]->Ready())
         NextBuffer++;
@@ -151,9 +151,9 @@ std::shared_ptr<CommandBuffer> CommandPool::AllocCommandBuffer(VkCommandBufferLe
     return cmd;
 }
 
-std::shared_ptr<CommandBuffer> CommandPool::BeginCmd(VkCommandBufferLevel level)
+rc<CommandBuffer> CommandPool::BeginCmd(VkCommandBufferLevel level)
 {
-    std::shared_ptr<CommandBuffer> Cmd = AllocCommandBuffer(level);
+    rc<CommandBuffer> Cmd = AllocCommandBuffer(level);
 
     VkCommandBufferBeginInfo beginInfo = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,

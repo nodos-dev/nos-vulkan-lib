@@ -275,7 +275,7 @@ Allocation::Allocation()
 {
 }
 
-Allocation::Allocation(std::shared_ptr<MemoryBlock> Block, u64 Offset, u64 Size)
+Allocation::Allocation(rc<MemoryBlock> Block, u64 Offset, u64 Size)
     : Block(Block), Offset(Offset), Size(Size)
 {
 }

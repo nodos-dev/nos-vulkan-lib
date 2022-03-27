@@ -27,8 +27,8 @@ struct mzVulkan_API Device : SharedFactory<Device>,
     VkInstance Instance;
     VkPhysicalDevice PhysicalDevice;
 
-    std::shared_ptr<struct Allocator> ImmAllocator;
-    std::shared_ptr<struct CommandPool> ImmCmdPool;
+    rc<struct Allocator> ImmAllocator;
+    rc<struct CommandPool> ImmCmdPool;
 
     u32 QueueFamily;
 
@@ -78,7 +78,7 @@ struct mzVulkan_API Context : SharedFactory<Context>
 
     VkInstance Instance;
 
-    std::vector<std::shared_ptr<Device>> Devices;
+    std::vector<rc<Device>> Devices;
 
     ~Context();
     Context();

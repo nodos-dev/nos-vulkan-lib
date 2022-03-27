@@ -9,7 +9,7 @@ struct Image;
 struct Buffer;
 
 template <class T>
-concept TypeClassResource = std::same_as<T, std::shared_ptr<Image>> || std::same_as<T, std::shared_ptr<Buffer>>;
+concept TypeClassResource = std::same_as<T, rc<Image>> || std::same_as<T, rc<Buffer>>;
 
 struct mzVulkan_API Binding
 {
@@ -19,7 +19,7 @@ struct mzVulkan_API Binding
 
     u32 binding;
 
-    std::shared_ptr<DescriptorResourceInfo> info;
+    rc<DescriptorResourceInfo> info;
 
     VkAccessFlags access;
 
@@ -30,9 +30,9 @@ struct mzVulkan_API Binding
 
     Binding() = default;
 
-    Binding(std::shared_ptr<Buffer> res, u32 binding);
+    Binding(rc<Buffer> res, u32 binding);
 
-    Binding(std::shared_ptr<Image> res, u32 binding);
+    Binding(rc<Image> res, u32 binding);
 
     void SanityCheck(VkDescriptorType type);
 

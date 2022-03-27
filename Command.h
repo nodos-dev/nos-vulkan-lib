@@ -33,8 +33,8 @@ struct mzVulkan_API CommandBuffer : SharedFactory<CommandBuffer>,
 
     Device* GetDevice();
     void Submit(View<VkSemaphore> Wait = {}, View<VkPipelineStageFlags> Stages = {}, View<VkSemaphore> Signal = {});
-    void Submit(std::shared_ptr<struct Image>, VkPipelineStageFlags);
-    void Submit(View<std::shared_ptr<struct Image>>, VkPipelineStageFlags);
+    void Submit(rc<struct Image>, VkPipelineStageFlags);
+    void Submit(View<rc<struct Image>>, VkPipelineStageFlags);
 };
 
 struct mzVulkan_API CommandPool : SharedFactory<CommandPool>
@@ -45,7 +45,7 @@ struct mzVulkan_API CommandPool : SharedFactory<CommandPool>
 
     Queue Queue;
 
-    std::vector<std::shared_ptr<CommandBuffer>> Buffers;
+    std::vector<rc<CommandBuffer>> Buffers;
     CircularIndex NextBuffer;
 
     CommandPool(Device* Vk, u32 family);
@@ -54,9 +54,9 @@ struct mzVulkan_API CommandPool : SharedFactory<CommandPool>
 
     ~CommandPool();
 
-    std::shared_ptr<CommandBuffer> AllocCommandBuffer(VkCommandBufferLevel level = VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+    rc<CommandBuffer> AllocCommandBuffer(VkCommandBufferLevel level = VK_COMMAND_BUFFER_LEVEL_PRIMARY);
 
-    std::shared_ptr<CommandBuffer> BeginCmd(VkCommandBufferLevel level = VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+    rc<CommandBuffer> BeginCmd(VkCommandBufferLevel level = VK_COMMAND_BUFFER_LEVEL_PRIMARY);
 };
 
 } // namespace mz::vk

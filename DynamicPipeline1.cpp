@@ -187,7 +187,7 @@ void ReadInputLayout(View<u8> bin, VkVertexInputBindingDescription& binding, std
     }
 }
 
-static std::shared_ptr<SVType> GetType(spirv_cross::Compiler const& cc, u32 typeId, std::map<u32, std::shared_ptr<SVType>>& cache)
+static rc<SVType> GetType(spirv_cross::Compiler const& cc, u32 typeId, std::map<u32, rc<SVType>>& cache)
 {
     using namespace spirv_cross;
 
@@ -198,7 +198,7 @@ static std::shared_ptr<SVType> GetType(spirv_cross::Compiler const& cc, u32 type
 
     SPIRType const& type = cc.get_type(typeId);
 
-    std::shared_ptr<SVType> ty = std::make_shared<SVType>();
+    rc<SVType> ty = std::make_shared<SVType>();
 
     cache[typeId] = ty;
 
@@ -308,7 +308,7 @@ ShaderLayout GetShaderLayouts(View<u8> src)
         std::pair{VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, &resources.subpass_inputs},
     };
 
-    std::map<u32, std::shared_ptr<SVType>> typeCache;
+    std::map<u32, rc<SVType>> typeCache;
 
     for (auto& [ty, desc] : res)
     {

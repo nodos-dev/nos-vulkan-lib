@@ -121,7 +121,7 @@ DynamicPipeline::DynamicPipeline(Device* Vk, VkExtent2D extent, View<u8> src)
     MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateGraphicsPipelines(0, 1, &info, 0, &Handle));
 }
 
-void DynamicPipeline::BeginWithRTs(std::shared_ptr<CommandBuffer> Cmd, View<std::shared_ptr<Image>> Images)
+void DynamicPipeline::BeginWithRTs(rc<CommandBuffer> Cmd, View<rc<Image>> Images)
 {
     assert(Images.size() == Layout->RTCount);
 

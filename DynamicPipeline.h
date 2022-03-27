@@ -11,8 +11,8 @@ struct mzVulkan_API DynamicPipeline : SharedFactory<DynamicPipeline>
 {
     Device* Vk;
 
-    std::shared_ptr<Shader> Shader;
-    std::shared_ptr<PipelineLayout> Layout;
+    rc<Shader> Shader;
+    rc<PipelineLayout> Layout;
 
     VkPipeline Handle;
 
@@ -22,10 +22,10 @@ struct mzVulkan_API DynamicPipeline : SharedFactory<DynamicPipeline>
 
     ~DynamicPipeline();
 
-    void BeginWithRTs(std::shared_ptr<CommandBuffer> Cmd, View<std::shared_ptr<Image>> Images);
+    void BeginWithRTs(rc<CommandBuffer> Cmd, View<rc<Image>> Images);
 
-    template <std::same_as<std::shared_ptr<vk::Image>>... RT>
-    void BeginWithRTs(std::shared_ptr<CommandBuffer> Cmd, RT... Images)
+    template <std::same_as<rc<vk::Image>>... RT>
+    void BeginWithRTs(rc<CommandBuffer> Cmd, RT... Images)
     {
         assert(sizeof...(Images) == Layout->RTCount);
 
@@ -52,19 +52,19 @@ struct mzVulkan_API DynamicPipeline : SharedFactory<DynamicPipeline>
     }
 
     template <class T>
-    void PushConstants(std::shared_ptr<CommandBuffer> Cmd, T const& data)
+    void PushConstants(rc<CommandBuffer> Cmd, T const& data)
     {
         Cmd->PushConstants(Layout->Handle, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(T), &data);
     }
 
     template <TypeClassResource Resource>
-    bool BindResource(std::shared_ptr<CommandBuffer> Cmd, std::string name, Resource res)
+    bool BindResource(rc<CommandBuffer> Cmd, std::string name, Resource res)
     {
         if (auto it = Layout->BindingsByName.find(name); it != Layout->BindingsByName.end())
         {
             glm::uvec2 idx = it->second.xy;
 
-            std::shared_ptr<DescriptorSet> set = Layout->AllocateSet(idx.x)->UpdateWith(Binding(res, idx.y))->Bind(Cmd);
+            rc<DescriptorSet> set = Layout->AllocateSet(idx.x)->UpdateWith(Binding(res, idx.y))->Bind(Cmd);
 
             Cmd->Callbacks.push_back([set]() {});
             return true;
@@ -73,7 +73,7 @@ struct mzVulkan_API DynamicPipeline : SharedFactory<DynamicPipeline>
     }
 
     template <TypeClassResource... Res, TypeClassString... Name>
-    bool BindResources(std::shared_ptr<CommandBuffer> Cmd, std::pair<Res, Name>... res)
+    bool BindResources(rc<CommandBuffer> Cmd, std::pair<Res, Name>... res)
     {
         std::map<u32, std::vector<Binding>> Bindings;
 
@@ -91,7 +91,7 @@ struct mzVulkan_API DynamicPipeline : SharedFactory<DynamicPipeline>
             return false;
         }
 
-        std::vector<std::shared_ptr<DescriptorSet>> sets;
+        std::vector<rc<DescriptorSet>> sets;
 
         for (auto& [idx, set] : Bindings)
         {
