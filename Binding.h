@@ -13,7 +13,7 @@ concept TypeClassResource = std::same_as<T, rc<Image>> || std::same_as<T, rc<Buf
 
 struct mzVulkan_API Binding
 {
-    using Type = std::variant<Buffer*, Image*>;
+    using Type = std::variant<rc<Image>, rc<Buffer>>;
 
     Type resource;
 
@@ -30,9 +30,7 @@ struct mzVulkan_API Binding
 
     Binding() = default;
 
-    Binding(rc<Buffer> res, u32 binding);
-
-    Binding(rc<Image> res, u32 binding);
+    Binding(Type res, u32 binding);
 
     void SanityCheck(VkDescriptorType type);
 

@@ -44,9 +44,9 @@ rc<DescriptorSet> DescriptorSet::Bind(rc<CommandBuffer> Cmd)
 {
     for (auto& res : Bound)
     {
-        if (Image* const* ppimage = std::get_if<Image*>(&res.resource))
+        if (rc<Image> const* ppimage = std::get_if<rc<Image>>(&res.resource))
         {
-            (**ppimage).Transition(Cmd, res.info->image.imageLayout, res.access);
+            (*ppimage)->Transition(Cmd, res.info->image.imageLayout, res.access);
         }
     }
     Cmd->BindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, Pool->Layout->Handle, Index, 1, &Handle, 0, 0);

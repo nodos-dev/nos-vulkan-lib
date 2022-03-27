@@ -27,28 +27,8 @@ struct mzVulkan_API DynamicPipeline : SharedFactory<DynamicPipeline>
     template <std::same_as<rc<vk::Image>>... RT>
     void BeginWithRTs(rc<CommandBuffer> Cmd, RT... Images)
     {
-        assert(sizeof...(Images) == Layout->RTCount);
-
-        (Images->Transition(VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT), ...);
-
-        VkRenderingAttachmentInfo colorAttachments[sizeof...(RT)] = {{
-            .sType       = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-            .imageView   = Images->View,
-            .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-            .loadOp      = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-            .storeOp     = VK_ATTACHMENT_STORE_OP_STORE,
-        }...};
-
-        VkRenderingInfo renderInfo = {
-            .sType                = VK_STRUCTURE_TYPE_RENDERING_INFO,
-            .renderArea           = {.extent = Extent},
-            .layerCount           = 1,
-            .colorAttachmentCount = sizeof...(RT),
-            .pColorAttachments    = colorAttachments,
-        };
-
-        Cmd->BeginRendering(&renderInfo);
-        Cmd->BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, Handle);
+        rc<vk::Image> RTs[] = {Images...};
+        BeginWithRTs(Cmd, RTs);
     }
 
     template <class T>
@@ -57,50 +37,47 @@ struct mzVulkan_API DynamicPipeline : SharedFactory<DynamicPipeline>
         Cmd->PushConstants(Layout->Handle, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(T), &data);
     }
 
-    template <TypeClassResource Resource>
-    bool BindResource(rc<CommandBuffer> Cmd, std::string name, Resource res)
+    // bool BindResources(rc<CommandBuffer> Cmd, std::unordered_map<std::string, Binding::Type> const& resources);
+
+    template <class...>
+    static constexpr bool str_res_pair = false;
+
+    template <std::convertible_to<std::string> A, TypeClassResource B, class... Tail>
+    static constexpr bool str_res_pair<A, B, Tail...> = str_res_pair<Tail...>;
+
+    template <>
+    static constexpr bool str_res_pair<> = true;
+
+    template <class... Args>
+    requires(str_res_pair<std::remove_cvref_t<Args>...>) bool BindResources(rc<CommandBuffer> Cmd, Args&&... args)
     {
-        if (auto it = Layout->BindingsByName.find(name); it != Layout->BindingsByName.end())
+        std::map<u32, std::vector<Binding>> bindings;
+        if (!Insert(bindings, std::forward<Args>(args)...))
         {
-            glm::uvec2 idx = it->second.xy;
-
-            rc<DescriptorSet> set = Layout->AllocateSet(idx.x)->UpdateWith(Binding(res, idx.y))->Bind(Cmd);
-
-            Cmd->Callbacks.push_back([set]() {});
-            return true;
+            return false;
         }
-        return false;
+        for (auto& [idx, set] : bindings)
+        {
+            auto dset = Layout->AllocateSet(idx)->UpdateWith(set)->Bind(Cmd);
+            Cmd->Callbacks.push_back([dset]() {});
+        }
+        return true;
     }
 
-    template <TypeClassResource... Res, TypeClassString... Name>
-    bool BindResources(rc<CommandBuffer> Cmd, std::pair<Res, Name>... res)
+  private:
+    template <class K, class V, class... Rest>
+    bool Insert(std::map<u32, std::vector<Binding>>& bindings, K&& k, V&& v, Rest&&... rest)
     {
-        std::map<u32, std::vector<Binding>> Bindings;
-
-        auto Inserter = [&Bindings, this](auto res, auto& name) {
-            if (auto it = Layout->BindingsByName.find(name); it != Layout->BindingsByName.end())
-            {
-                Bindings[it->second.x].push_back(Binding(res, it->second.y));
-                return true;
-            }
-            return false;
-        };
-
-        if (!(Inserter(res.first, res.second) && ...))
+        auto it = Layout->BindingsByName.find(k);
+        if (it == Layout->BindingsByName.end())
         {
             return false;
         }
-
-        std::vector<rc<DescriptorSet>> sets;
-
-        for (auto& [idx, set] : Bindings)
+        bindings[it->second.x].push_back(Binding(v, it->second.y));
+        if constexpr (sizeof...(rest) > 0)
         {
-            sets.push_back(Layout->AllocateSet(idx)->UpdateWith(set)->Bind(Cmd));
+            return Insert(bindings, std::forward<Rest>(rest)...);
         }
-
-        Cmd->Callbacks.push_back([sets]() {});
-
-        return true;
     }
 };
 } // namespace mz::vk

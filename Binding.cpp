@@ -6,13 +6,8 @@
 namespace mz::vk
 {
 
-Binding::Binding(rc<Buffer> res, u32 binding)
-    : resource(res.get()), binding(binding), info(new DescriptorResourceInfo(res->GetDescriptorInfo())), access(0)
-{
-}
-
-Binding::Binding(rc<Image> res, u32 binding)
-    : resource(res.get()), binding(binding), info(new DescriptorResourceInfo(res->GetDescriptorInfo())), access(0)
+Binding::Binding(std::variant<rc<Image>, rc<Buffer>> res, u32 binding)
+    : resource(res), binding(binding), info(new DescriptorResourceInfo(std::visit([](auto res) { return res->GetDescriptorInfo(); }, res))), access(0)
 {
 }
 
@@ -26,12 +21,10 @@ void Binding::SanityCheck(VkDescriptorType type)
     case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
     case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
     case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
-        assert(std::holds_alternative<Image*>(resource));
-        Usage = std::get<Image*>(resource)->Usage;
+        Usage = std::get<rc<Image>>(resource)->Usage;
         break;
     default:
-        assert(std::holds_alternative<Buffer*>(resource));
-        Usage = std::get<Buffer*>(resource)->Usage;
+        Usage = std::get<rc<Buffer>>(resource)->Usage;
         break;
     }
 
@@ -84,8 +77,8 @@ VkWriteDescriptorSet Binding::GetDescriptorInfo(VkDescriptorSet set, VkDescripto
         .dstBinding      = binding,
         .descriptorCount = 1,
         .descriptorType  = type,
-        .pImageInfo      = (std::holds_alternative<Image*>(resource) ? (&info->image) : 0),
-        .pBufferInfo     = (std::holds_alternative<Buffer*>(resource) ? (&info->buffer) : 0),
+        .pImageInfo      = &info->image,
+        .pBufferInfo     = &info->buffer,
     };
 }
 } // namespace mz::vk

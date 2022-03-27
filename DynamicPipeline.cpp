@@ -152,4 +152,27 @@ void DynamicPipeline::BeginWithRTs(rc<CommandBuffer> Cmd, View<rc<Image>> Images
     Cmd->BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, Handle);
 }
 
+// bool DynamicPipeline::BindResources(rc<CommandBuffer> Cmd, std::unordered_map<std::string, Binding::Type> const& resources)
+// {
+//     std::map<u32, std::vector<Binding>> Bindings;
+
+//     for (auto& [name, res] : resources)
+//     {
+//         auto it = Layout->BindingsByName.find(name);
+//         if (it == Layout->BindingsByName.end())
+//         {
+//             return false;
+//         }
+//         Bindings[it->second.x].push_back(Binding(res, it->second.y));
+//     }
+
+//     for (auto& [idx, set] : Bindings)
+//     {
+//         auto dset = Layout->AllocateSet(idx)->UpdateWith(set)->Bind(Cmd);
+//         Cmd->Callbacks.push_back([dset]() {});
+//     }
+
+//     return true;
+// }
+
 } // namespace mz::vk
