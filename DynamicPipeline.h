@@ -37,19 +37,10 @@ struct mzVulkan_API DynamicPipeline : SharedFactory<DynamicPipeline>
         Cmd->PushConstants(Layout->Handle, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(T), &data);
     }
 
-    // bool BindResources(rc<CommandBuffer> Cmd, std::unordered_map<std::string, Binding::Type> const& resources);
-
-    template <class...>
-    static constexpr bool str_res_pair = false;
-
-    template <std::convertible_to<std::string> A, TypeClassResource B, class... Tail>
-    static constexpr bool str_res_pair<A, B, Tail...> = str_res_pair<Tail...>;
-
-    template <>
-    static constexpr bool str_res_pair<> = true;
+    bool BindResources(rc<CommandBuffer> Cmd, std::unordered_map<std::string, Binding::Type> const& resources);
 
     template <class... Args>
-    requires(str_res_pair<std::remove_cvref_t<Args>...>) bool BindResources(rc<CommandBuffer> Cmd, Args&&... args)
+    requires(StringResourcePairPack<std::remove_cvref_t<Args>...>()) bool BindResources(rc<CommandBuffer> Cmd, Args&&... args)
     {
         std::map<u32, std::vector<Binding>> bindings;
         if (!Insert(bindings, std::forward<Args>(args)...))
@@ -65,6 +56,23 @@ struct mzVulkan_API DynamicPipeline : SharedFactory<DynamicPipeline>
     }
 
   private:
+    template <class A, class B, class... Tail>
+    inline static constexpr bool StringResourcePairPack()
+    {
+        if constexpr (sizeof...(Tail) % 2 == 0 && std::convertible_to<A, std::string> && TypeClassResource<B>)
+        {
+            if constexpr (sizeof...(Tail))
+            {
+                return StringResourcePairPack<Tail...>();
+            }
+            else
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     template <class K, class V, class... Rest>
     bool Insert(std::map<u32, std::vector<Binding>>& bindings, K&& k, V&& v, Rest&&... rest)
     {
@@ -78,6 +86,7 @@ struct mzVulkan_API DynamicPipeline : SharedFactory<DynamicPipeline>
         {
             return Insert(bindings, std::forward<Rest>(rest)...);
         }
+        return true;
     }
 };
 } // namespace mz::vk
