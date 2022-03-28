@@ -2,13 +2,19 @@
 #include <Binding.h>
 
 #include <Image.h>
+#include <variant>
 
 namespace mz::vk
 {
 
-Binding::Binding(std::variant<rc<Image>, rc<Buffer>> res, u32 binding)
+Binding::Binding(std::variant<rc<Image>, rc<Buffer>> res, u32 binding, u32 bufferOffset)
     : resource(res), binding(binding), info(new DescriptorResourceInfo(std::visit([](auto res) { return res->GetDescriptorInfo(); }, res))), access(0)
 {
+    if (bufferOffset)
+    {
+        assert(std::holds_alternative<rc<Buffer>>(res));
+        info->buffer.offset = bufferOffset;
+    }
 }
 
 void Binding::SanityCheck(VkDescriptorType type)

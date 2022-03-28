@@ -30,7 +30,7 @@ struct mzVulkan_API Binding
 
     Binding() = default;
 
-    Binding(Type res, u32 binding);
+    Binding(Type res, u32 binding, u32 bufferOffset =0);
 
     void SanityCheck(VkDescriptorType type);
 
