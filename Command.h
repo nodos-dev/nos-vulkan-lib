@@ -8,7 +8,7 @@ namespace mz::vk
 struct mzVulkan_API Queue : VklQueueFunctions
 {
     u32 Family;
-    u32 Index;
+    u32 Idx;
 
     Queue(Device* Device, u32 Family, u32 Index);
     Device* GetDevice();

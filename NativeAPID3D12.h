@@ -33,7 +33,7 @@ namespace mz::vk
 
 struct mzVulkan_API NativeAPID3D12 : NativeAPI
 {
-    ID3D12Device* dx12;
+    ID3D12Device* Dx12;
 
     NativeAPID3D12(Device* Vk);
 

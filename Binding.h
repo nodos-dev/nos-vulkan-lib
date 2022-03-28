@@ -15,22 +15,22 @@ struct mzVulkan_API Binding
 {
     using Type = std::variant<rc<Image>, rc<Buffer>>;
 
-    Type resource;
+    Type Resource;
 
-    u32 binding;
+    u32 Idx;
 
-    rc<DescriptorResourceInfo> info;
+    rc<DescriptorResourceInfo> Info;
 
-    VkAccessFlags access;
+    VkAccessFlags AccessFlags;
 
     auto operator<=>(const Binding& other) const
     {
-        return binding <=> other.binding;
+        return Idx <=> other.Idx;
     }
 
     Binding() = default;
 
-    Binding(Type res, u32 binding, u32 bufferOffset =0);
+    Binding(Type res, u32 binding, u32 bufferOffset = 0);
 
     void SanityCheck(VkDescriptorType type);
 

@@ -29,7 +29,7 @@ NativeAPID3D12::NativeAPID3D12(Device* Vk)
     }
 
     // Create D3D12 device
-    MZ_D3D12_ASSERT_SUCCESS(D3D12CreateDevice(pDXGIAdapter, D3D_FEATURE_LEVEL_11_0, __uuidof(ID3D12Device), reinterpret_cast<void**>(&dx12)));
+    MZ_D3D12_ASSERT_SUCCESS(D3D12CreateDevice(pDXGIAdapter, D3D_FEATURE_LEVEL_11_0, __uuidof(ID3D12Device), reinterpret_cast<void**>(&Dx12)));
 
     pDXGIFactory->Release();
     pDXGIAdapter->Release();
@@ -52,13 +52,13 @@ void* NativeAPID3D12::CreateSharedMemory(u64 size)
     ID3D12Heap* heap;
     HANDLE handle;
 
-    HRESULT hr = dx12->CreateHeap(&heapDesc, __uuidof(ID3D12Heap), 0);
+    HRESULT hr = Dx12->CreateHeap(&heapDesc, __uuidof(ID3D12Heap), 0);
 
     assert(S_FALSE == hr);
 
-    MZ_D3D12_ASSERT_SUCCESS(dx12->CreateHeap(&heapDesc, __uuidof(ID3D12Heap), (void**)&heap));
+    MZ_D3D12_ASSERT_SUCCESS(Dx12->CreateHeap(&heapDesc, __uuidof(ID3D12Heap), (void**)&heap));
 
-    MZ_D3D12_ASSERT_SUCCESS(dx12->CreateSharedHandle(heap, 0, GENERIC_ALL, 0, &handle));
+    MZ_D3D12_ASSERT_SUCCESS(Dx12->CreateSharedHandle(heap, 0, GENERIC_ALL, 0, &handle));
 
     heap->Release();
 
@@ -70,9 +70,9 @@ void* NativeAPID3D12::CreateSharedSync()
     HANDLE handle;
     ID3D12Fence* fence;
 
-    MZ_D3D12_ASSERT_SUCCESS(dx12->CreateFence(0, D3D12_FENCE_FLAG_SHARED, __uuidof(ID3D12Fence), (void**)(&fence)));
+    MZ_D3D12_ASSERT_SUCCESS(Dx12->CreateFence(0, D3D12_FENCE_FLAG_SHARED, __uuidof(ID3D12Fence), (void**)(&fence)));
 
-    MZ_D3D12_ASSERT_SUCCESS(dx12->CreateSharedHandle(fence, 0, GENERIC_ALL, 0, &handle));
+    MZ_D3D12_ASSERT_SUCCESS(Dx12->CreateSharedHandle(fence, 0, GENERIC_ALL, 0, &handle));
 
     fence->Release();
 

@@ -125,7 +125,7 @@ void Buffer::Flush()
 DescriptorResourceInfo Buffer::GetDescriptorInfo() const
 {
     return DescriptorResourceInfo{
-        .buffer = {
+        .Buffer = {
             .buffer = Handle,
             .offset = 0,
             .range  = VK_WHOLE_SIZE,

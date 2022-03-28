@@ -88,7 +88,7 @@ Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo)
     }
     else
     {
-        HANDLE sync = PlatformDupeHandle(createInfo.Imported->PID, createInfo.Imported->sync);
+        HANDLE sync = PlatformDupeHandle(createInfo.Imported->PID, createInfo.Imported->Sync);
 
         VkImportSemaphoreWin32HandleInfoKHR importInfo = {
             .sType      = VK_STRUCTURE_TYPE_IMPORT_SEMAPHORE_WIN32_HANDLE_INFO_KHR,
@@ -101,7 +101,7 @@ Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo)
 
         assert(sync == GetSyncOSHandle());
 
-        AccessMask = createInfo.Imported->accessMask;
+        AccessMask = createInfo.Imported->AccessMask;
     }
 
     VkExternalMemoryImageCreateInfo resourceCreateInfo = {
@@ -336,18 +336,18 @@ MemoryExportInfo Image::GetExportInfo() const
 {
     return MemoryExportInfo{
         .PID        = PlatformGetCurrentProcessId(),
-        .memory     = Allocation.Block->OSHandle,
-        .sync       = GetSyncOSHandle(),
-        .offset     = Allocation.Offset + Allocation.Block->Offset,
-        .size       = Allocation.Block->Size,
-        .accessMask = AccessMask,
+        .Memory     = Allocation.Block->OSHandle,
+        .Sync       = GetSyncOSHandle(),
+        .Offset     = Allocation.Offset + Allocation.Block->Offset,
+        .Size       = Allocation.Block->Size,
+        .AccessMask = AccessMask,
     };
 }
 
 DescriptorResourceInfo Image::GetDescriptorInfo() const
 {
     return DescriptorResourceInfo{
-        .image = {
+        .Image = {
             .sampler     = Sampler,
             .imageView   = View,
             .imageLayout = VK_IMAGE_LAYOUT_GENERAL,

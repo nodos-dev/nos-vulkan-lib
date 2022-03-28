@@ -7,7 +7,7 @@ namespace mz::vk
 {
 
 Queue::Queue(Device* Device, u32 Family, u32 Index)
-    : VklQueueFunctions{Device}, Family(Family), Index(Index)
+    : VklQueueFunctions{Device}, Family(Family), Idx(Index)
 {
     Device->GetDeviceQueue(Family, Index, &handle);
 }

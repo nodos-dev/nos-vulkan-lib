@@ -22,18 +22,18 @@ namespace mz::vk
 {
 
 union DescriptorResourceInfo {
-    VkDescriptorImageInfo image;
-    VkDescriptorBufferInfo buffer;
+    VkDescriptorImageInfo Image;
+    VkDescriptorBufferInfo Buffer;
 };
 
 struct MemoryExportInfo
 {
     u64 PID;
-    HANDLE memory;
-    HANDLE sync;
-    VkDeviceSize offset;
-    VkDeviceSize size;
-    VkAccessFlags accessMask;
+    HANDLE Memory;
+    HANDLE Sync;
+    VkDeviceSize Offset;
+    VkDeviceSize Size;
+    VkAccessFlags AccessMask;
 };
 
 struct ImageCreateInfo
@@ -53,7 +53,7 @@ struct mzVulkan_API SVType
         Float,
         Image,
         Struct,
-    } tag;
+    } Tag;
 
     u32 x = 1; // width
     u32 y = 1; // vecsize
@@ -61,37 +61,36 @@ struct mzVulkan_API SVType
 
     struct Image
     {
-        bool depth;
-        bool arrayed;
-        bool ms;
-        bool read;
-        bool write;
-        u32 sampled;
-        VkFormat format;
-    } image;
+        bool Depth;
+        bool Array;
+        bool MS;
+        bool Read;
+        bool Write;
+        u32 Sampled;
+        VkFormat Fmt;
+    } Img;
 
     struct Member
     {
-        rc<SVType> type;
-
-        u32 idx;
-        u32 size;
-        u32 offset;
+        rc<SVType> Type;
+        u32 Idx;
+        u32 Size;
+        u32 Offset;
     };
 
-    std::unordered_map<std::string, Member> members;
+    std::unordered_map<std::string, Member> Members;
 
-    u32 size;
-    u32 align;
+    u32 Size;
+    u32 Alignment;
 };
 
 struct mzVulkan_API NamedDSLBinding
 {
-    uint32_t binding;
-    VkDescriptorType descriptorType;
-    uint32_t descriptorCount;
-    std::string name;
-    rc<SVType> type;
+    uint32_t Binding;
+    VkDescriptorType DescriptorType;
+    uint32_t DescriptorCount;
+    std::string Name;
+    rc<SVType> Type;
 };
 
 struct mzVulkan_API ShaderLayout

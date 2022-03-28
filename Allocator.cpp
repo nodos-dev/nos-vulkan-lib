@@ -176,7 +176,7 @@ Allocation Allocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> res
 
     if (imported)
     {
-        HANDLE memory = PlatformDupeHandle(imported->PID, imported->memory);
+        HANDLE memory = PlatformDupeHandle(imported->PID, imported->Memory);
 
         VkImportMemoryWin32HandleInfoKHR importInfo = {
             .sType      = VK_STRUCTURE_TYPE_IMPORT_MEMORY_WIN32_HANDLE_INFO_KHR,
@@ -187,13 +187,13 @@ Allocation Allocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> res
         VkMemoryAllocateInfo info = {
             .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
             .pNext           = &importInfo,
-            .allocationSize  = imported->size,
+            .allocationSize  = imported->Size,
             .memoryTypeIndex = typeIndex,
         };
 
         VkDeviceMemory mem;
         MZ_VULKAN_ASSERT_SUCCESS(Vk->AllocateMemory(&info, 0, &mem));
-        auto Block = MemoryBlock::New(Vk, mem, actualProps, imported->offset, info.allocationSize, memory);
+        auto Block = MemoryBlock::New(Vk, mem, actualProps, imported->Offset, info.allocationSize, memory);
 
         return Block->Allocate(req.size, req.alignment);
     }

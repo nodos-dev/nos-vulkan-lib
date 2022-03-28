@@ -87,10 +87,10 @@ Device::~Device()
 }
 
 Context::Context()
-    : lib(dynalo::open("vulkan-1.dll"))
+    : Lib(dynalo::open("vulkan-1.dll"))
 {
 
-    MZ_VULKAN_ASSERT_SUCCESS(vkl_init(dynalo::get_function<decltype(vkGetInstanceProcAddr)>((dynalo::native::handle)lib, "vkGetInstanceProcAddr")));
+    MZ_VULKAN_ASSERT_SUCCESS(vkl_init(dynalo::get_function<decltype(vkGetInstanceProcAddr)>((dynalo::native::handle)Lib, "vkGetInstanceProcAddr")));
     u32 count;
 
     // MZ_VULKAN_ASSERT_SUCCESS(vkEnumerateInstanceLayerProperties(&count, 0));
@@ -157,7 +157,7 @@ Context::~Context()
 
     vkDestroyInstance(Instance, 0);
 
-    dynalo::close((dynalo::native::handle)lib);
+    dynalo::close((dynalo::native::handle)Lib);
 }
 
     u64 Device::GetLuid() const

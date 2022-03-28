@@ -208,18 +208,18 @@ static rc<SVType> GetType(spirv_cross::Compiler const& cc, u32 typeId, std::map<
 
     u32 v = (ty->y == 3 ? 4 : ty->y);
 
-    ty->align = v * ty->x / 8;
-    ty->size  = ty->align * ty->z;
-    ty->align = std::max(1u, ty->align);
+    ty->Alignment = v * ty->x / 8;
+    ty->Size  = ty->Alignment * ty->z;
+    ty->Alignment = std::max(1u, ty->Alignment);
 
     switch (type.basetype)
     {
 
     case SPIRType::Struct:
-        ty->tag = SVType::Struct;
+        ty->Tag = SVType::Struct;
 
         // ty->members.resize(type.member_types.size());
-        ty->size = cc.get_declared_struct_size(type);
+        ty->Size = cc.get_declared_struct_size(type);
 
         for (u32 i = 0; i < type.member_types.size(); ++i)
         {
@@ -230,28 +230,28 @@ static rc<SVType> GetType(spirv_cross::Compiler const& cc, u32 typeId, std::map<
                 idx = type.member_type_index_redirection[idx];
             }
 
-            ty->members[cc.get_member_name(typeId, idx)] = {
-                .type   = GetType(cc, type.member_types[idx], cache),
-                .idx    = idx,
-                .size   = (u32)cc.get_declared_struct_member_size(type, idx),
-                .offset = cc.type_struct_member_offset(type, idx),
+            ty->Members[cc.get_member_name(typeId, idx)] = {
+                .Type   = GetType(cc, type.member_types[idx], cache),
+                .Idx    = idx,
+                .Size   = (u32)cc.get_declared_struct_member_size(type, idx),
+                .Offset = cc.type_struct_member_offset(type, idx),
             };
         }
 
         break;
     case SPIRType::Image:
     case SPIRType::SampledImage:
-        ty->tag  = SVType::Image;
-        ty->size = 0;
+        ty->Tag  = SVType::Image;
+        ty->Size = 0;
 
-        ty->image = {
-            .depth   = type.image.depth,
-            .arrayed = type.image.arrayed,
-            .ms      = type.image.ms,
-            .read    = (spv::AccessQualifierReadOnly == type.image.access) || (spv::AccessQualifierReadWrite == type.image.access),
-            .write   = (spv::AccessQualifierWriteOnly == type.image.access) || (spv::AccessQualifierReadWrite == type.image.access),
-            .sampled = type.image.sampled,
-            .format  = MapSpvFormat(type.image.format),
+        ty->Img = {
+            .Depth   = type.image.depth,
+            .Array = type.image.arrayed,
+            .MS      = type.image.ms,
+            .Read    = (spv::AccessQualifierReadOnly == type.image.access) || (spv::AccessQualifierReadWrite == type.image.access),
+            .Write   = (spv::AccessQualifierWriteOnly == type.image.access) || (spv::AccessQualifierReadWrite == type.image.access),
+            .Sampled = type.image.sampled,
+            .Fmt  = MapSpvFormat(type.image.format),
         };
 
         break;
@@ -259,18 +259,18 @@ static rc<SVType> GetType(spirv_cross::Compiler const& cc, u32 typeId, std::map<
     case SPIRType::UInt:
     case SPIRType::UShort:
     case SPIRType::UByte:
-        ty->tag = SVType::Uint;
+        ty->Tag = SVType::Uint;
         break;
     case SPIRType::Int64:
     case SPIRType::Int:
     case SPIRType::Short:
     case SPIRType::SByte:
-        ty->tag = SVType::Sint;
+        ty->Tag = SVType::Sint;
         break;
     case SPIRType::Double:
     case SPIRType::Float:
     case SPIRType::Half:
-        ty->tag = SVType::Float;
+        ty->Tag = SVType::Float;
         break;
     default:
         break;
@@ -321,11 +321,11 @@ ShaderLayout GetShaderLayouts(View<u8> src)
             u32 binding = cc.get_decoration(res.id, spv::DecorationBinding);
 
             layout.DescriptorSets[set][binding] = {
-                .binding         = binding,
-                .descriptorType  = ty,
-                .descriptorCount = std::accumulate(type.array.begin(), type.array.end(), 1u, [](u32 a, u32 b) { return a * b; }),
-                .name            = cc.get_name(res.id),
-                .type            = GetType(cc, res.base_type_id, typeCache),
+                .Binding         = binding,
+                .DescriptorType  = ty,
+                .DescriptorCount = std::accumulate(type.array.begin(), type.array.end(), 1u, [](u32 a, u32 b) { return a * b; }),
+                .Name            = cc.get_name(res.id),
+                .Type            = GetType(cc, res.base_type_id, typeCache),
             };
 
             layout.BindingsByName[cc.get_name(res.id)] = {set, binding};

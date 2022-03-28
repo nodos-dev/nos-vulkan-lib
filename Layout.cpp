@@ -20,8 +20,8 @@ DescriptorLayout::DescriptorLayout(Device* Vk, std::map<u32, NamedDSLBinding> Na
     {
         bindings.emplace_back(VkDescriptorSetLayoutBinding{
             .binding         = i,
-            .descriptorType  = b.descriptorType,
-            .descriptorCount = b.descriptorCount,
+            .descriptorType  = b.DescriptorType,
+            .descriptorCount = b.DescriptorCount,
             .stageFlags      = VK_SHADER_STAGE_FRAGMENT_BIT,
         });
     }
@@ -44,9 +44,9 @@ rc<DescriptorSet> DescriptorSet::Bind(rc<CommandBuffer> Cmd)
 {
     for (auto& res : Bound)
     {
-        if (rc<Image> const* ppimage = std::get_if<rc<Image>>(&res.resource))
+        if (rc<Image> const* ppimage = std::get_if<rc<Image>>(&res.Resource))
         {
-            (*ppimage)->Transition(Cmd, res.info->image.imageLayout, res.access);
+            (*ppimage)->Transition(Cmd, res.Info->Image.imageLayout, res.AccessFlags);
         }
     }
     Cmd->BindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, Pool->Layout->Handle, Index, 1, &Handle, 0, 0);
@@ -74,7 +74,7 @@ DescriptorSet::~DescriptorSet()
 
 VkDescriptorType DescriptorSet::GetType(u32 Binding)
 {
-    return Layout->Bindings[Binding].descriptorType;
+    return Layout->Bindings[Binding].DescriptorType;
 }
 
 std::vector<VkDescriptorPoolSize> GetPoolSizes(PipelineLayout* Layout)
@@ -85,7 +85,7 @@ std::vector<VkDescriptorPoolSize> GetPoolSizes(PipelineLayout* Layout)
     {
         for (auto& [_, binding] : set->Bindings)
         {
-            counter[binding.descriptorType] += binding.descriptorCount;
+            counter[binding.DescriptorType] += binding.DescriptorCount;
         }
     }
 
@@ -102,7 +102,7 @@ std::vector<VkDescriptorPoolSize> GetPoolSizes(PipelineLayout* Layout)
 
 rc<DescriptorSet> DescriptorSet::UpdateWith(View<Binding> res)
 {
-    std::vector<VkWriteDescriptorSet> writes = TransformView<VkWriteDescriptorSet, Binding>(res, [this](auto res) { return res.GetDescriptorInfo(Handle, GetType(res.binding)); }).collect();
+    std::vector<VkWriteDescriptorSet> writes = TransformView<VkWriteDescriptorSet, Binding>(res, [this](auto res) { return res.GetDescriptorInfo(Handle, GetType(res.Idx)); }).collect();
     Layout->Vk->UpdateDescriptorSets(writes.size(), writes.data(), 0, 0);
     Bound.insert(res.begin(), res.end());
     return shared_from_this();
@@ -182,7 +182,7 @@ void PipelineLayout::Dump()
         printf("Set %u:\n", set);
         for (auto& [_, binding] : layout->Bindings)
         {
-            printf("\t Binding %s @%u:%s\n", binding.name.c_str(), binding.binding, descriptor_type_to_string(binding.descriptorType));
+            printf("\t Binding %s @%u:%s\n", binding.Name.c_str(), binding.Binding, descriptor_type_to_string(binding.DescriptorType));
         }
     }
 }
