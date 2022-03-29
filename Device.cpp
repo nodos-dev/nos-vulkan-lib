@@ -7,8 +7,8 @@
 
 namespace mz::vk
 {
-Device::Device(VkInstance        Instance,
-               VkPhysicalDevice  PhysicalDevice,
+Device::Device(VkInstance Instance,
+               VkPhysicalDevice PhysicalDevice,
                View<const char*> layers,
                View<const char*> extensions)
     : Instance(Instance), PhysicalDevice(PhysicalDevice), QueueFamily(0)
@@ -160,22 +160,22 @@ Context::~Context()
     dynalo::close((dynalo::native::handle)Lib);
 }
 
-    u64 Device::GetLuid() const
-    {
-        VkPhysicalDeviceIDProperties IDProps = {
-            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES,
-        };
+u64 Device::GetLuid() const
+{
+    VkPhysicalDeviceIDProperties IDProps = {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES,
+    };
 
-        VkPhysicalDeviceProperties2 props = {
-            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
-            .pNext = &IDProps,
-        };
+    VkPhysicalDeviceProperties2 props = {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
+        .pNext = &IDProps,
+    };
 
-        vkGetPhysicalDeviceProperties2(PhysicalDevice, &props);
+    vkGetPhysicalDeviceProperties2(PhysicalDevice, &props);
 
-        assert(IDProps.deviceLUIDValid);
+    assert(IDProps.deviceLUIDValid);
 
-        return std::bit_cast<u64, u8[VK_LUID_SIZE]>(IDProps.deviceLUID);
-    }
-    
+    return std::bit_cast<u64, u8[VK_LUID_SIZE]>(IDProps.deviceLUID);
+}
+
 } // namespace mz::vk

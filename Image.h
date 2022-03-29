@@ -1,5 +1,6 @@
 #pragma once
 
+#include "vulkan/vulkan_core.h"
 #include <Buffer.h>
 
 #include <Command.h>
@@ -7,6 +8,20 @@
 namespace mz::vk
 {
 
+struct mzVulkan_API Semaphore
+{
+    VkSemaphore Handle;
+    Device* Vk;
+
+    Semaphore(Device* Vk,   const MemoryExportInfo* Imported);
+    Semaphore(Device* Vk,   u64 pid, HANDLE ext);
+    HANDLE GetSyncOSHandle() const;
+
+    operator VkSemaphore() const
+    {
+        return Handle;
+    }
+};
 
 struct mzVulkan_API Image : SharedFactory<Image>
 {
@@ -22,7 +37,7 @@ struct mzVulkan_API Image : SharedFactory<Image>
     VkImageLayout Layout;
     VkAccessFlags AccessMask;
 
-    VkSemaphore Sema;
+    Semaphore Sema;
 
     VkSampler Sampler;
     VkImageView View;
@@ -30,8 +45,6 @@ struct mzVulkan_API Image : SharedFactory<Image>
     MemoryExportInfo GetExportInfo() const;
 
     DescriptorResourceInfo GetDescriptorInfo() const;
-
-    HANDLE GetSyncOSHandle() const;
 
     void Transition(rc<CommandBuffer> cmd, VkImageLayout TargetLayout, VkAccessFlags TargetAccessMask);
     void Transition(VkImageLayout TargetLayout, VkAccessFlags TargetAccessMask);
@@ -46,7 +59,7 @@ struct mzVulkan_API Image : SharedFactory<Image>
     Image(Allocator*, ImageCreateInfo const&);
 
     Image(Device* Vk, ImageCreateInfo const& createInfo);
-    
+
     ~Image();
 };
 

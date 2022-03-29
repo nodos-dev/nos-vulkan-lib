@@ -21,10 +21,12 @@ HANDLE PlatformDupeHandle(u64 pid, HANDLE handle)
     HANDLE src = OpenProcess(GENERIC_ALL, false, pid);
     HANDLE cur = GetCurrentProcess();
 
+    WIN32_ASSERT(DuplicateHandle(src, handle, cur, &re, GENERIC_ALL, 0, DUPLICATE_SAME_ACCESS));
+
     WIN32_ASSERT(GetHandleInformation(src, &flags));
     WIN32_ASSERT(GetHandleInformation(cur, &flags));
-    WIN32_ASSERT(DuplicateHandle(src, handle, cur, &re, GENERIC_ALL, 0, DUPLICATE_SAME_ACCESS));
     WIN32_ASSERT(GetHandleInformation(re, &flags));
+
     WIN32_ASSERT(CloseHandle(src));
 
     return re;

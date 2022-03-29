@@ -8,47 +8,9 @@
 
 namespace mz::vk
 {
-
-HANDLE Image::GetSyncOSHandle() const
+Semaphore::Semaphore(Device* Vk, u64 pid, HANDLE ext)
+    : Vk(Vk)
 {
-    HANDLE Sync = 0;
-
-    VkSemaphoreGetWin32HandleInfoKHR getHandleInfo = {
-        .sType      = VK_STRUCTURE_TYPE_SEMAPHORE_GET_WIN32_HANDLE_INFO_KHR,
-        .semaphore  = Sema,
-        .handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT,
-    };
-
-    MZ_VULKAN_ASSERT_SUCCESS(Vk->GetSemaphoreWin32HandleKHR(&getHandleInfo, &Sync));
-    assert(Sync);
-
-    DWORD flags;
-    WIN32_ASSERT(GetHandleInformation(Sync, &flags));
-
-    return Sync;
-}
-
-Image::~Image()
-{
-    PlatformCloseHandle(GetSyncOSHandle());
-    Allocation.Free();
-    Vk->DestroySemaphore(Sema, 0);
-    Vk->DestroyImage(Handle, 0);
-    Vk->DestroyImageView(View, 0);
-    Vk->DestroySampler(Sampler, 0);
-};
-
-Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo)
-    : Vk(Allocator->GetDevice()),
-      Extent(createInfo.Extent),
-      Layout(VK_IMAGE_LAYOUT_UNDEFINED),
-      Format(createInfo.Format),
-      Usage(createInfo.Usage),
-      AccessMask(0)
-{
-
-    assert(IsImportable(Vk->PhysicalDevice, Format, Usage));
-
     VkExportSemaphoreWin32HandleInfoKHR handleInfo = {
         .sType    = VK_STRUCTURE_TYPE_EXPORT_SEMAPHORE_WIN32_HANDLE_INFO_KHR,
         .dwAccess = GENERIC_ALL,
@@ -71,38 +33,82 @@ Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo)
         .pNext = &semaphoreTypeInfo,
     };
 
-    MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateSemaphore(&semaphoreCreateInfo, 0, &Sema));
+    MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateSemaphore(&semaphoreCreateInfo, 0, &Handle));
 
     // Atil:
     // We want semaphores to be signaled when the image is ready to be used, which it is when it's first created.
     // Semaphores are created in the unsignaled state, so we need to signal them.
     // below is the current way of doing this
-    if (!createInfo.Imported)
+    if (!ext)
     {
         VkSubmitInfo submitInfo = {
             .sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,
             .signalSemaphoreCount = 1,
-            .pSignalSemaphores    = &Sema,
+            .pSignalSemaphores    = &Handle,
         };
         MZ_VULKAN_ASSERT_SUCCESS(Vk->ImmCmdPool->Queue.Submit(1, &submitInfo, 0));
     }
     else
     {
-        HANDLE sync = PlatformDupeHandle(createInfo.Imported->PID, createInfo.Imported->Sync);
+        HANDLE sync = PlatformDupeHandle(pid, ext);
 
         VkImportSemaphoreWin32HandleInfoKHR importInfo = {
             .sType      = VK_STRUCTURE_TYPE_IMPORT_SEMAPHORE_WIN32_HANDLE_INFO_KHR,
-            .semaphore  = Sema,
+            .semaphore  = Handle,
             .handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT,
             .handle     = sync,
         };
 
         MZ_VULKAN_ASSERT_SUCCESS(Vk->ImportSemaphoreWin32HandleKHR(&importInfo));
-
         assert(sync == GetSyncOSHandle());
-
-        AccessMask = createInfo.Imported->AccessMask;
     }
+}
+
+Semaphore::Semaphore(Device* Vk, const MemoryExportInfo* Imported)
+    : Semaphore(Vk, Imported ? Imported->PID : 0, Imported ? Imported->Sync : 0)
+{
+}
+
+HANDLE Semaphore::GetSyncOSHandle() const
+{
+    HANDLE Sync = 0;
+
+    VkSemaphoreGetWin32HandleInfoKHR getHandleInfo = {
+        .sType      = VK_STRUCTURE_TYPE_SEMAPHORE_GET_WIN32_HANDLE_INFO_KHR,
+        .semaphore  = Handle,
+        .handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT,
+    };
+
+    MZ_VULKAN_ASSERT_SUCCESS(Vk->GetSemaphoreWin32HandleKHR(&getHandleInfo, &Sync));
+    assert(Sync);
+
+    DWORD flags;
+    WIN32_ASSERT(GetHandleInformation(Sync, &flags));
+
+    return Sync;
+}
+
+Image::~Image()
+{
+    PlatformCloseHandle(Sema.GetSyncOSHandle());
+    Allocation.Free();
+    Vk->DestroySemaphore(Sema, 0);
+    Vk->DestroyImage(Handle, 0);
+    Vk->DestroyImageView(View, 0);
+    Vk->DestroySampler(Sampler, 0);
+};
+
+Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo)
+    : Vk(Allocator->GetDevice()),
+      Extent(createInfo.Extent),
+      Layout(VK_IMAGE_LAYOUT_UNDEFINED),
+      Format(createInfo.Format),
+      Usage(createInfo.Usage),
+      Sema(Vk, createInfo.Imported),
+      AccessMask(0)
+{
+
+    assert(IsImportable(Vk->PhysicalDevice, Format, Usage));
 
     VkExternalMemoryImageCreateInfo resourceCreateInfo = {
         .sType       = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
@@ -337,7 +343,7 @@ MemoryExportInfo Image::GetExportInfo() const
     return MemoryExportInfo{
         .PID        = PlatformGetCurrentProcessId(),
         .Memory     = Allocation.Block->OSHandle,
-        .Sync       = GetSyncOSHandle(),
+        .Sync       = Sema.GetSyncOSHandle(),
         .Offset     = Allocation.Offset + Allocation.Block->Offset,
         .Size       = Allocation.Block->Size,
         .AccessMask = AccessMask,
