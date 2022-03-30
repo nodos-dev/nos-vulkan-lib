@@ -47,7 +47,6 @@ struct mzVulkan_API Image : SharedFactory<Image>
     DescriptorResourceInfo GetDescriptorInfo() const;
 
     void Transition(rc<CommandBuffer> cmd, VkImageLayout TargetLayout, VkAccessFlags TargetAccessMask);
-    void Transition(VkImageLayout TargetLayout, VkAccessFlags TargetAccessMask);
 
     void Upload(u8* data, Allocator* = 0, CommandPool* = 0);
     void Upload(rc<Buffer>, CommandPool* = 0);

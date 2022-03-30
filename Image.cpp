@@ -177,17 +177,6 @@ Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo)
 
 } // namespace mz::vk
 
-void Image::Transition(VkImageLayout TargetLayout, VkAccessFlags TargetAccessMask)
-{
-    auto Cmd = Vk->ImmCmdPool->BeginCmd();
-
-    ImageLayoutTransition(Handle, Cmd, Layout, TargetLayout, AccessMask, TargetAccessMask);
-
-    Cmd->Submit(shared_from_this(), VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
-
-    Layout     = TargetLayout;
-    AccessMask = TargetAccessMask;
-}
 
 void Image::Transition(
     rc<CommandBuffer> Cmd,
