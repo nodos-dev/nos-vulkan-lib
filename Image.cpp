@@ -1,5 +1,6 @@
 
 #include "mzVkCommon.h"
+#include "vulkan/vulkan_core.h"
 #include <NativeAPID3D12.h>
 
 #include <Image.h>
@@ -129,6 +130,12 @@ Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo)
         .usage         = Usage,
         .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
     };
+
+    if (createInfo.Imported)
+    {
+        // info.initialLayout = VK_IMAGE_LAYOUT_PREINITIALIZED;
+        Layout             = VK_IMAGE_LAYOUT_PREINITIALIZED;
+    }
 
     MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateImage(&info, 0, &Handle));
 

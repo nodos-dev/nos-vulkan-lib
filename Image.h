@@ -13,8 +13,8 @@ struct mzVulkan_API Semaphore
     VkSemaphore Handle;
     Device* Vk;
 
-    Semaphore(Device* Vk,   const MemoryExportInfo* Imported);
-    Semaphore(Device* Vk,   u64 pid, HANDLE ext);
+    Semaphore(Device* Vk, const MemoryExportInfo* Imported);
+    Semaphore(Device* Vk, u64 pid, HANDLE ext);
     HANDLE GetSyncOSHandle() const;
 
     operator VkSemaphore() const
@@ -61,6 +61,27 @@ struct mzVulkan_API Image : SharedFactory<Image>
     Image(Device* Vk, ImageCreateInfo const& createInfo);
 
     ~Image();
+
+    void BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Img)
+    {
+        Img->Transition(Cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_ACCESS_TRANSFER_READ_BIT);
+        Transition(Cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_ACCESS_TRANSFER_WRITE_BIT);
+
+        VkImageBlit blit = {
+            .srcSubresource = {
+                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .layerCount = 1,
+            },
+            .srcOffsets     = {{}, {(i32)Img->Extent.width, (i32)Img->Extent.height, 1}},
+            .dstSubresource = {
+                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .layerCount = 1,
+            },
+            .dstOffsets = {{}, {(i32)Extent.width, (i32)Extent.height, 1}},
+        };
+
+        Cmd->BlitImage(Img->Handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, Handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, VK_FILTER_LINEAR);
+    }
 };
 
 }; // namespace mz::vk
