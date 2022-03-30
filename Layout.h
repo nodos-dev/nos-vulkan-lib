@@ -59,11 +59,11 @@ struct mzVulkan_API DescriptorSet : SharedFactory<DescriptorSet>
 
     ~DescriptorSet();
 
-    std::set<Binding> Bound;
+    std::set<rc<Binding>> Bound;
 
     VkDescriptorType GetType(u32 Binding);
 
-    template <std::same_as<Binding>... Bindings>
+    template <std::same_as<rc<Binding>>... Bindings>
     rc<DescriptorSet> UpdateWith(Bindings&&... res)
     {
         VkWriteDescriptorSet writes[sizeof...(Bindings)] = {res.GetDescriptorInfo(Handle, GetType(res.binding))...};
@@ -72,7 +72,7 @@ struct mzVulkan_API DescriptorSet : SharedFactory<DescriptorSet>
         return shared_from_this();
     }
 
-    rc<DescriptorSet> UpdateWith(View<Binding> res);
+    rc<DescriptorSet> UpdateWith(View<rc<Binding>> res);
     rc<DescriptorSet> Bind(rc<CommandBuffer> Cmd);
 };
 

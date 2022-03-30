@@ -42,11 +42,11 @@ DescriptorLayout::~DescriptorLayout()
 
 rc<DescriptorSet> DescriptorSet::Bind(rc<CommandBuffer> Cmd)
 {
-    for (auto& res : Bound)
+    for (auto res : Bound)
     {
-        if (rc<Image> const* ppimage = std::get_if<rc<Image>>(&res.Resource))
+        if (rc<Image> const* ppimage = std::get_if<rc<Image>>(&res->Resource))
         {
-            (*ppimage)->Transition(Cmd, res.Info->Image.imageLayout, res.AccessFlags);
+            (*ppimage)->Transition(Cmd, res->Info.Image.imageLayout, res->AccessFlags);
         }
     }
     Cmd->BindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, Pool->Layout->Handle, Index, 1, &Handle, 0, 0);
@@ -100,9 +100,9 @@ std::vector<VkDescriptorPoolSize> GetPoolSizes(PipelineLayout* Layout)
     return Sizes;
 }
 
-rc<DescriptorSet> DescriptorSet::UpdateWith(View<Binding> res)
+rc<DescriptorSet> DescriptorSet::UpdateWith(View<rc<Binding>> res)
 {
-    std::vector<VkWriteDescriptorSet> writes = TransformView<VkWriteDescriptorSet, Binding>(res, [this](auto res) { return res.GetDescriptorInfo(Handle, GetType(res.Idx)); }).collect();
+    std::vector<VkWriteDescriptorSet> writes = TransformView<VkWriteDescriptorSet, rc<Binding>>(res, [this](auto res) { return res->GetDescriptorInfo(Handle, GetType(res->Idx)); }).collect();
     Layout->Vk->UpdateDescriptorSets(writes.size(), writes.data(), 0, 0);
     Bound.insert(res.begin(), res.end());
     return shared_from_this();

@@ -11,7 +11,7 @@ struct Buffer;
 template <class T>
 concept TypeClassResource = std::same_as<T, rc<Image>> || std::same_as<T, rc<Buffer>>;
 
-struct mzVulkan_API Binding
+struct mzVulkan_API Binding: SharedFactory<Binding>
 {
     using Type = std::variant<rc<Image>, rc<Buffer>>;
 
@@ -19,7 +19,7 @@ struct mzVulkan_API Binding
 
     u32 Idx;
 
-    rc<DescriptorResourceInfo> Info;
+    DescriptorResourceInfo Info;
 
     VkAccessFlags AccessFlags;
 
@@ -27,8 +27,6 @@ struct mzVulkan_API Binding
     {
         return Idx <=> other.Idx;
     }
-
-    Binding() = default;
 
     Binding(Type res, u32 binding, u32 bufferOffset = 0);
 

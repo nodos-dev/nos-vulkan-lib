@@ -154,7 +154,7 @@ void DynamicPipeline::BeginWithRTs(rc<CommandBuffer> Cmd, View<rc<Image>> Images
 
 bool DynamicPipeline::BindResources(rc<CommandBuffer> Cmd, std::unordered_map<std::string, Binding::Type> const& resources)
 {
-    std::map<u32, std::vector<Binding>> Bindings;
+    std::map<u32, std::vector<rc<Binding>>> Bindings;
 
     for (auto& [name, res] : resources)
     {
@@ -163,7 +163,7 @@ bool DynamicPipeline::BindResources(rc<CommandBuffer> Cmd, std::unordered_map<st
         {
             return false;
         }
-        Bindings[it->second.x].push_back(Binding(res, it->second.y));
+        Bindings[it->second.x].push_back(Binding::New(res, it->second.y));
     }
 
     BindResources(Cmd, Bindings);
@@ -171,7 +171,7 @@ bool DynamicPipeline::BindResources(rc<CommandBuffer> Cmd, std::unordered_map<st
     return true;
 }
 
-void DynamicPipeline::BindResources(rc<CommandBuffer> Cmd, std::map<u32, std::vector<Binding>> const& bindings)
+void DynamicPipeline::BindResources(rc<CommandBuffer> Cmd, std::map<u32, std::vector<rc<Binding>>> const& bindings)
 {
     for (auto& [idx, set] : bindings)
     {
