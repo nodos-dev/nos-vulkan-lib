@@ -1,4 +1,5 @@
 
+#include "vulkan/vulkan_core.h"
 #include <Command.h>
 
 #include <Image.h>
@@ -29,20 +30,39 @@ CommandBuffer::CommandBuffer(CommandPool* Pool, VkCommandBuffer Handle)
     MZ_VULKAN_ASSERT_SUCCESS(GetDevice()->CreateFence(&fenceInfo, 0, &Fence));
 }
 
+void CommandBuffer::Wait()
+{
+    MZ_VULKAN_ASSERT_SUCCESS(GetDevice()->WaitForFences(1, &Fence, 0, -1));
+
+    for (auto& fn : Callbacks)
+    {
+        fn();
+    }
+
+    Callbacks.clear();
+    WaitGroup.clear();
+    SignalGroup.clear();
+}
+
 CommandBuffer::~CommandBuffer()
 {
-    if (!Ready())
-    {
-        GetDevice()->WaitForFences(1, &Fence, 1, -1);
-    }
     GetDevice()->DestroyFence(Fence, 0);
-
     MZ_VULKAN_ASSERT_SUCCESS(Reset(VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT));
 }
 
-void CommandBuffer::Submit(View<VkSemaphore> Wait, View<VkPipelineStageFlags> Stages, View<VkSemaphore> Signal)
+rc<CommandBuffer> CommandBuffer::Submit()
 {
-    assert(Wait.size() == Stages.size());
+    std::vector<VkSemaphore> Signal(SignalGroup.begin(), SignalGroup.end());
+    std::vector<VkSemaphore> Wait;
+    std::vector<VkPipelineStageFlags> Stages;
+    Wait.reserve(WaitGroup.size());
+    Stages.reserve(WaitGroup.size());
+
+    for (auto [sema, stage] : WaitGroup)
+    {
+        Wait.push_back(sema);
+        Stages.push_back(stage);
+    }
 
     VkSubmitInfo submitInfo = {
         .sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,
@@ -56,39 +76,32 @@ void CommandBuffer::Submit(View<VkSemaphore> Wait, View<VkPipelineStageFlags> St
     };
 
     MZ_VULKAN_ASSERT_SUCCESS(End());
-
-    // MZ_VULKAN_ASSERT_SUCCESS(Pool->Queue.Submit(1, &submitInfo, 0));
     MZ_VULKAN_ASSERT_SUCCESS(Pool->Queue.Submit(1, &submitInfo, Fence));
+
+    return shared_from_this();
 }
 
-void CommandBuffer::Submit(rc<Image> image, VkPipelineStageFlags stage)
+rc<CommandBuffer> CommandBuffer::Enqueue(rc<Image> image, VkPipelineStageFlags stage)
 {
-    VkSemaphore sem[1]             = {image->Sema};
-    VkPipelineStageFlags stages[1] = {stage};
-    Submit(sem, stages, sem);
+    WaitGroup.insert({image->Sema, stage});
+    SignalGroup.insert(image->Sema);
+
+    AddDependency(image);
+    return shared_from_this();
 }
 
-void CommandBuffer::Submit(View<rc<Image>> images, VkPipelineStageFlags stage)
+rc<CommandBuffer> CommandBuffer::Enqueue(View<rc<Image>> images, VkPipelineStageFlags stage)
 {
-    std::vector<VkSemaphore> semaphores = TransformView<VkSemaphore, rc<Image>>(images, [](auto img) { return img->Sema; }).collect();
-    Submit(semaphores, std::vector<VkPipelineStageFlags>(images.size(), stage), semaphores);
+    for (auto img : images)
+    {
+        Enqueue(img, stage);
+    }
+    return shared_from_this();
 }
 
 bool CommandBuffer::Ready()
 {
     return VK_SUCCESS == GetDevice()->GetFenceStatus(Fence);
-}
-
-void CommandBuffer::Wait()
-{
-    MZ_VULKAN_ASSERT_SUCCESS(GetDevice()->WaitForFences(1, &Fence, 0, -1));
-
-    for (auto& fn : Callbacks)
-    {
-        fn();
-    }
-
-    Callbacks.clear();
 }
 
 Device* CommandBuffer::GetDevice()
@@ -145,9 +158,9 @@ rc<CommandBuffer> CommandPool::AllocCommandBuffer(VkCommandBufferLevel level)
 
     auto cmd = Buffers[NextBuffer];
 
-    assert(cmd->Ready());
-
-    GetDevice()->ResetFences(1, &cmd->Fence);
+    cmd->Wait();
+    MZ_VULKAN_ASSERT_SUCCESS(GetDevice()->ResetFences(1, &cmd->Fence));
+    MZ_VULKAN_ASSERT_SUCCESS(cmd->Reset(VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT));
     return cmd;
 }
 

@@ -17,11 +17,15 @@ struct mzVulkan_API Queue : VklQueueFunctions
 struct mzVulkan_API CommandBuffer : SharedFactory<CommandBuffer>,
                                     VklCommandFunctions
 {
+
     struct CommandPool* Pool;
 
     VkFence Fence;
 
     std::vector<std::function<void()>> Callbacks;
+
+    std::set<std::pair<VkSemaphore, VkPipelineStageFlags>> WaitGroup;
+    std::set<VkSemaphore> SignalGroup;
 
     bool Ready();
 
@@ -32,9 +36,16 @@ struct mzVulkan_API CommandBuffer : SharedFactory<CommandBuffer>,
     ~CommandBuffer();
 
     Device* GetDevice();
-    void Submit(View<VkSemaphore> Wait = {}, View<VkPipelineStageFlags> Stages = {}, View<VkSemaphore> Signal = {});
-    void Submit(rc<struct Image>, VkPipelineStageFlags);
-    void Submit(View<rc<struct Image>>, VkPipelineStageFlags);
+    rc<CommandBuffer> Submit();
+
+    rc<CommandBuffer> Enqueue(rc<struct Image>, VkPipelineStageFlags);
+    rc<CommandBuffer> Enqueue(View<rc<struct Image>>, VkPipelineStageFlags);
+
+    template <class... T>
+    void AddDependency(rc<T>... Resources)
+    {
+        Callbacks.push_back([Resources...]() {});
+    }
 };
 
 struct mzVulkan_API CommandPool : SharedFactory<CommandPool>

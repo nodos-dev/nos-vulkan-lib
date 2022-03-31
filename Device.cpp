@@ -93,14 +93,6 @@ Context::Context()
     MZ_VULKAN_ASSERT_SUCCESS(vkl_init(dynalo::get_function<decltype(vkGetInstanceProcAddr)>((dynalo::native::handle)Lib, "vkGetInstanceProcAddr")));
     u32 count;
 
-    // MZ_VULKAN_ASSERT_SUCCESS(vkEnumerateInstanceLayerProperties(&count, 0));
-    // std::vector<VkLayerProperties> props(count);
-    // MZ_VULKAN_ASSERT_SUCCESS(vkEnumerateInstanceLayerProperties(&count, props.data()));
-
-    // for (auto& prop : props) {
-    //   printf("%s\n", prop.layerName);
-    // }
-
     VkApplicationInfo app = {
         .sType      = VK_STRUCTURE_TYPE_APPLICATION_INFO,
         .apiVersion = VK_API_VERSION_1_3,

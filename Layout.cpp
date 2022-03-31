@@ -1,3 +1,4 @@
+
 #include <Layout.h>
 
 #include <spirv_cross.hpp>
@@ -47,10 +48,11 @@ rc<DescriptorSet> DescriptorSet::Bind(rc<CommandBuffer> Cmd)
         if (rc<Image> const* ppimage = std::get_if<rc<Image>>(&res->Resource))
         {
             (*ppimage)->Transition(Cmd, res->Info.Image.imageLayout, res->AccessFlags);
+            Cmd->Enqueue(*ppimage, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
         }
     }
     Cmd->BindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, Pool->Layout->Handle, Index, 1, &Handle, 0, 0);
-
+    Cmd->AddDependency(shared_from_this());
     return shared_from_this();
 }
 

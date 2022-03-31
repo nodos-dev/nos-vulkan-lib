@@ -1,5 +1,4 @@
 #pragma once
-
 #include <Allocator.h>
 
 namespace mz::vk
@@ -38,13 +37,12 @@ struct mzVulkan_API Buffer : SharedFactory<Buffer>
     };
 
     Buffer(Device* Vk, u64 size, VkBufferUsageFlags usage, Heap heap);
-
     Buffer(Allocator* Allocator, u64 size, VkBufferUsageFlags usage, Heap heap);
+    Buffer(Allocator* Allocator, u8* data, u64 size, VkBufferUsageFlags usage);
 
     ~Buffer();
 
-    void Upload(u8* data, Allocator* = 0, CommandPool* = 0);
-    void Upload(rc<Buffer>, CommandPool* = 0);
+    void Upload(rc<CommandBuffer> Cmd, rc<Buffer> Buffer, const VkBufferCopy* Region = 0);
 };
 
 } // namespace mz::vk

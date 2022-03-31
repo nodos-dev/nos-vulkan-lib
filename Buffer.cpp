@@ -33,6 +33,13 @@ Buffer::Buffer(Device* Vk, u64 size, VkBufferUsageFlags usage, Heap heap)
 {
 }
 
+Buffer::Buffer(Allocator* Allocator, u8* data, u64 size, VkBufferUsageFlags usage)
+    : Buffer(Allocator, size, usage, CPU)
+{
+    memcpy(Map(), data, size);
+    Allocation.Flush();
+}
+
 void Buffer::Bind(VkDescriptorType type, u32 bind, VkDescriptorSet set)
 {
     VkDescriptorBufferInfo info = {
@@ -53,56 +60,36 @@ void Buffer::Bind(VkDescriptorType type, u32 bind, VkDescriptorSet set)
     Vk->UpdateDescriptorSets(1, &write, 0, 0);
 }
 
-void Buffer::Upload(u8* data, Allocator* Allocator, CommandPool* Pool)
+void Buffer::Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src, const VkBufferCopy* Region)
 {
     // if this buffer has already been mapped you could simply use the mapped pointer instead of creating a temporary buffer
     assert(!Map());
     assert(Usage & VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+    assert(Src->Usage & VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
 
-    if (0 == Allocator)
+    VkBufferCopy DefaultRegion = {
+        .srcOffset = 0,
+        .dstOffset = 0,
+        .size      = Src->Allocation.Size,
+    };
+
+    if (!Region)
     {
-        Allocator = Vk->ImmAllocator.get();
+        Region = &DefaultRegion;
     }
-
-    u64 Size = Allocation.Size;
-
-    rc<Buffer> StagingBuffer = Buffer::New(Allocator, Size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, CPU);
-
-    memcpy(StagingBuffer->Map(), data, Size);
-    StagingBuffer->Flush();
-    Upload(StagingBuffer, Pool);
-}
-
-void Buffer::Upload(rc<Buffer> buffer, CommandPool* Pool)
-{
-    // if this buffer has already been mapped you could simply use the mapped pointer instead of creating a temporary buffer
-    assert(!Map());
-    assert(Usage & VK_BUFFER_USAGE_TRANSFER_DST_BIT);
-
-    if (0 == Pool)
-    {
-        Pool = Vk->ImmCmdPool.get();
-    }
-
-    rc<CommandBuffer> Cmd = Pool->BeginCmd();
 
     VkBufferMemoryBarrier bufferMemoryBarrier = {
         .sType  = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
         .buffer = this->Handle,
-        .size   = 1024,
+        .size   = Region->size,
     };
 
     Cmd->PipelineBarrier(VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, 0, 1, &bufferMemoryBarrier, 0, 0);
 
-    VkBufferCopy region = {
-        .srcOffset = 0,
-        .dstOffset = 0,
-        .size      = buffer->Allocation.Size,
-    };
+    Cmd->CopyBuffer(Src->Handle, this->Handle, 1, Region);
 
-    Cmd->CopyBuffer(buffer->Handle, this->Handle, 1, &region);
-    Cmd->Submit({}, {}, {});
-    Cmd->Wait();
+    // make sure the buffers are alive until after the command buffer has finished
+    Cmd->AddDependency(Src, shared_from_this());
 }
 
 void Buffer::Copy(size_t len, void* pp, size_t offset)
@@ -120,7 +107,6 @@ void Buffer::Flush()
 {
     Allocation.Flush();
 }
-
 
 DescriptorResourceInfo Buffer::GetDescriptorInfo() const
 {

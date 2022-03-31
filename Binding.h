@@ -11,7 +11,7 @@ struct Buffer;
 template <class T>
 concept TypeClassResource = std::same_as<T, rc<Image>> || std::same_as<T, rc<Buffer>>;
 
-struct mzVulkan_API Binding: SharedFactory<Binding>
+struct mzVulkan_API Binding : SharedFactory<Binding>
 {
     using Type = std::variant<rc<Image>, rc<Buffer>>;
 
@@ -27,6 +27,9 @@ struct mzVulkan_API Binding: SharedFactory<Binding>
     {
         return Idx <=> other.Idx;
     }
+
+    Binding(Binding const&) = default;
+    Binding(Binding&&)      = default;
 
     Binding(Type res, u32 binding, u32 bufferOffset = 0);
 

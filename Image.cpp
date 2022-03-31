@@ -1,4 +1,5 @@
 
+#include "Allocator.h"
 #include "mzVkCommon.h"
 #include "vulkan/vulkan_core.h"
 #include <NativeAPID3D12.h>
@@ -134,7 +135,7 @@ Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo)
     if (createInfo.Imported)
     {
         // info.initialLayout = VK_IMAGE_LAYOUT_PREINITIALIZED;
-        Layout             = VK_IMAGE_LAYOUT_PREINITIALIZED;
+        Layout = VK_IMAGE_LAYOUT_PREINITIALIZED;
     }
 
     MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateImage(&info, 0, &Handle));
@@ -177,161 +178,138 @@ Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo)
 
 } // namespace mz::vk
 
-
-void Image::Transition(
+rc<CommandBuffer> Image::Transition(
     rc<CommandBuffer> Cmd,
     VkImageLayout TargetLayout,
     VkAccessFlags TargetAccessMask)
 {
 
-    ImageLayoutTransition(Handle, Cmd, Layout, TargetLayout, AccessMask, TargetAccessMask);
+    ImageLayoutTransition(this->Handle, Cmd, this->Layout, TargetLayout, this->AccessMask, TargetAccessMask);
 
     Layout     = TargetLayout;
     AccessMask = TargetAccessMask;
+    return Cmd;
 }
 
-void Image::Upload(u8* data, Allocator* Allocator, CommandPool* Pool)
+rc<CommandBuffer> Image::Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src)
 {
     assert(Usage & VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+    assert(Src->Usage & VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
 
-    if (0 == Allocator)
-    {
-        Allocator = Vk->ImmAllocator.get();
-    }
+    Transition(Cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_ACCESS_TRANSFER_WRITE_BIT);
 
-    u64 Size                 = Extent.width * Extent.height * 4;
-    rc<Buffer> StagingBuffer = Buffer::New(Allocator, Size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, Buffer::Heap::CPU);
-    memcpy(StagingBuffer->Map(), data, Size);
-    StagingBuffer->Flush();
-    Upload(StagingBuffer, Pool);
+    VkBufferImageCopy region = {
+        .imageSubresource = {
+            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .layerCount = 1,
+        },
+        .imageExtent = {
+            .width  = Extent.width,
+            .height = Extent.height,
+            .depth  = 1,
+        },
+    };
 
-} // namespace mz::vk
+    Cmd->CopyBufferToImage(Src->Handle, Handle, Layout, 1, &region);
 
-void Image::Upload(rc<Buffer> StagingBuffer, CommandPool* Pool)
-{
-    assert(Usage & VK_IMAGE_USAGE_TRANSFER_DST_BIT);
-
-    if (0 == Pool)
-    {
-        Pool = Vk->ImmCmdPool.get();
-    }
-
-    rc<CommandBuffer> Cmd = Pool->BeginCmd();
-
-    {
-        Transition(Cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_ACCESS_TRANSFER_WRITE_BIT);
-
-        VkBufferImageCopy region = {
-            .imageSubresource = {
-                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                .layerCount = 1,
-            },
-            .imageExtent = {
-                .width  = Extent.width,
-                .height = Extent.height,
-                .depth  = 1,
-            },
-        };
-
-        Cmd->CopyBufferToImage(StagingBuffer->Handle, Handle, Layout, 1, &region);
-    }
-    MARK_LINE;
-
-    Cmd->Submit(shared_from_this(), VK_PIPELINE_STAGE_TRANSFER_BIT);
-    MARK_LINE;
-
-    Cmd->Wait();
+    // make sure the buffer is alive until after the command buffer has finished
+    Cmd->AddDependency(Src);
+    return Cmd;
 }
 
-rc<Image> Image::Copy(Allocator* Allocator, CommandPool* Pool)
+rc<Image> Image::Copy(rc<CommandBuffer> Cmd, rc<Allocator> Allocator)
 {
     assert(Usage & VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
 
     if (0 == Allocator)
     {
-        Allocator = Vk->ImmAllocator.get();
+        Allocator = Vk->ImmAllocator;
     }
 
-    if (0 == Pool)
-    {
-        Pool = Vk->ImmCmdPool.get();
-    }
+    rc<Image> Img = Image::New(Allocator.get(), ImageCreateInfo{
+                                                    .Extent = Extent,
+                                                    .Format = Format,
+                                                    .Usage  = Usage | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+                                                });
 
-    rc<Image> Img = Image::New(
-        Allocator, ImageCreateInfo{
-                       .Extent = Extent,
-                       .Format = Format,
-                       .Usage  = Usage | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
-                   });
+    Img->Transition(Cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_ACCESS_TRANSFER_WRITE_BIT);
+    this->Transition(Cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_ACCESS_TRANSFER_READ_BIT);
 
-    rc<CommandBuffer> Cmd = Pool->BeginCmd();
+    VkImageCopy region = {
+        .srcSubresource = {
+            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .layerCount = 1,
+        },
+        .dstSubresource = {
+            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .layerCount = 1,
+        },
+        .extent = {Extent.width, Extent.height, 1},
+    };
 
-    {
-        Img->Transition(Cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_ACCESS_TRANSFER_WRITE_BIT);
-        Transition(Cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_ACCESS_TRANSFER_READ_BIT);
+    Cmd->CopyImage(Handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, Img->Handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 
-        VkImageCopy region = {
-            .srcSubresource = {
-                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                .layerCount = 1,
-            },
-            .dstSubresource = {
-                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                .layerCount = 1,
-            },
-            .extent = {Extent.width, Extent.height, 1},
-        };
-
-        Cmd->CopyImage(Handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, Img->Handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
-    }
-
-    rc<Image> Res[2] = {Img, shared_from_this()};
-    Cmd->Submit(Res, VK_PIPELINE_STAGE_TRANSFER_BIT);
-    Cmd->Wait();
+    Cmd->Enqueue(shared_from_this(), VK_PIPELINE_STAGE_TRANSFER_BIT);
+    Cmd->Enqueue(Img, VK_PIPELINE_STAGE_TRANSFER_BIT);
 
     return Img;
 }
 
-rc<Buffer> Image::Download(Allocator* Allocator, CommandPool* Pool)
+rc<Buffer> Image::Download(rc<CommandBuffer> Cmd, rc<Allocator> Allocator)
 {
     assert(Usage & VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
 
     if (0 == Allocator)
     {
-        Allocator = Vk->ImmAllocator.get();
+        Allocator = Vk->ImmAllocator;
     }
 
-    if (0 == Pool)
-    {
-        Pool = Vk->ImmCmdPool.get();
-    }
+    rc<Buffer> StagingBuffer = Buffer::New(Allocator.get(), Allocation.Size, VK_BUFFER_USAGE_TRANSFER_DST_BIT, Buffer::Heap::CPU);
 
-    rc<Buffer> StagingBuffer = Buffer::New(Allocator, Allocation.Size, VK_BUFFER_USAGE_TRANSFER_DST_BIT, Buffer::Heap::CPU);
+    Transition(Cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_ACCESS_TRANSFER_READ_BIT);
 
-    rc<CommandBuffer> Cmd = Pool->BeginCmd();
+    VkBufferImageCopy region = {
+        .imageSubresource = {
+            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .layerCount = 1,
+        },
+        .imageExtent = {
+            .width  = Extent.width,
+            .height = Extent.height,
+            .depth  = 1,
+        },
+    };
 
-    {
-        Transition(Cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_ACCESS_TRANSFER_READ_BIT);
+    Cmd->CopyImageToBuffer(Handle, Layout, StagingBuffer->Handle, 1, &region);
 
-        VkBufferImageCopy region = {
-            .imageSubresource = {
-                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                .layerCount = 1,
-            },
-            .imageExtent = {
-                .width  = Extent.width,
-                .height = Extent.height,
-                .depth  = 1,
-            },
-        };
-
-        Cmd->CopyImageToBuffer(Handle, Layout, StagingBuffer->Handle, 1, &region);
-    }
-
-    Cmd->Submit(shared_from_this(), VK_PIPELINE_STAGE_TRANSFER_BIT);
-    Cmd->Wait();
+    Cmd->Enqueue(shared_from_this(), VK_PIPELINE_STAGE_TRANSFER_BIT);
 
     return StagingBuffer;
+}
+
+rc<CommandBuffer> Image::BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
+{
+    auto Dst = this;
+
+    VkImageBlit blit = {
+        .srcSubresource = {
+            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .layerCount = 1,
+        },
+        .srcOffsets     = {{}, {(i32)Src->Extent.width, (i32)Src->Extent.height, 1}},
+        .dstSubresource = {
+            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .layerCount = 1,
+        },
+        .dstOffsets = {{}, {(i32)Dst->Extent.width, (i32)Dst->Extent.height, 1}},
+    };
+
+    Src->Transition(Cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_ACCESS_TRANSFER_READ_BIT);
+    Dst->Transition(Cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_ACCESS_TRANSFER_WRITE_BIT);
+    Cmd->BlitImage(Src->Handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, Dst->Handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, VK_FILTER_LINEAR);
+    Cmd->Enqueue(shared_from_this(), VK_PIPELINE_STAGE_TRANSFER_BIT);
+    Cmd->Enqueue(Src, VK_PIPELINE_STAGE_TRANSFER_BIT);
+    return Cmd;
 }
 
 MemoryExportInfo Image::GetExportInfo() const
