@@ -28,8 +28,10 @@ struct mzVulkan_API Binding : SharedFactory<Binding>
         return Idx <=> other.Idx;
     }
 
-    Binding(Binding const&) = default;
-    Binding(Binding&&)      = default;
+    Binding(Binding const& r)
+        : Resource(r.Resource), Idx(r.Idx), Info(r.Info), AccessFlags(r.AccessFlags)
+    {
+    }
 
     Binding(Type res, u32 binding, u32 bufferOffset = 0);
 

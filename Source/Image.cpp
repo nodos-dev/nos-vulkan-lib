@@ -1,17 +1,19 @@
 
-#include "Allocator.h"
-#include "mzVkCommon.h"
-#include "vulkan/vulkan_core.h"
 #include <NativeAPID3D12.h>
 
 #include <Image.h>
+
+#include <Device.h>
+
+#include <Command.h>
+
+#include <Buffer.h>
 
 #undef CreateSemaphore
 
 namespace mz::vk
 {
 Semaphore::Semaphore(Device* Vk, u64 pid, HANDLE ext)
-    : Vk(Vk)
 {
     VkExportSemaphoreWin32HandleInfoKHR handleInfo = {
         .sType    = VK_STRUCTURE_TYPE_EXPORT_SEMAPHORE_WIN32_HANDLE_INFO_KHR,
@@ -62,18 +64,7 @@ Semaphore::Semaphore(Device* Vk, u64 pid, HANDLE ext)
         };
 
         MZ_VULKAN_ASSERT_SUCCESS(Vk->ImportSemaphoreWin32HandleKHR(&importInfo));
-        assert(sync == GetSyncOSHandle());
     }
-}
-
-Semaphore::Semaphore(Device* Vk, const MemoryExportInfo* Imported)
-    : Semaphore(Vk, Imported ? Imported->PID : 0, Imported ? Imported->Sync : 0)
-{
-}
-
-HANDLE Semaphore::GetSyncOSHandle() const
-{
-    HANDLE Sync = 0;
 
     VkSemaphoreGetWin32HandleInfoKHR getHandleInfo = {
         .sType      = VK_STRUCTURE_TYPE_SEMAPHORE_GET_WIN32_HANDLE_INFO_KHR,
@@ -81,35 +72,47 @@ HANDLE Semaphore::GetSyncOSHandle() const
         .handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT,
     };
 
-    MZ_VULKAN_ASSERT_SUCCESS(Vk->GetSemaphoreWin32HandleKHR(&getHandleInfo, &Sync));
-    assert(Sync);
+    MZ_VULKAN_ASSERT_SUCCESS(Vk->GetSemaphoreWin32HandleKHR(&getHandleInfo, &OSHandle));
+    assert(OSHandle);
 
     DWORD flags;
-    WIN32_ASSERT(GetHandleInformation(Sync, &flags));
+    WIN32_ASSERT(GetHandleInformation(OSHandle, &flags));
+}
 
-    return Sync;
+Semaphore::operator VkSemaphore() const
+{
+    return Handle;
+}
+
+void Semaphore::Free(Device* Vk)
+{
+    PlatformCloseHandle(OSHandle);
+    Vk->DestroySemaphore(Handle, 0);
+}
+
+Semaphore::Semaphore(Device* Vk, const MemoryExportInfo* Imported)
+    : Semaphore(Vk, Imported ? Imported->PID : 0, Imported ? Imported->Sync : 0)
+{
 }
 
 Image::~Image()
 {
-    PlatformCloseHandle(Sema.GetSyncOSHandle());
     Allocation.Free();
-    Vk->DestroySemaphore(Sema, 0);
-    Vk->DestroyImage(Handle, 0);
+    Sema.Free(Vk);
     Vk->DestroyImageView(View, 0);
     Vk->DestroySampler(Sampler, 0);
+    Vk->DestroyImage(Handle, 0);
 };
 
 Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo)
-    : Vk(Allocator->GetDevice()),
+    : Vk(Allocator->Vk),
       Extent(createInfo.Extent),
-      Layout(VK_IMAGE_LAYOUT_UNDEFINED),
+      Layout(createInfo.Imported ? VK_IMAGE_LAYOUT_PREINITIALIZED : VK_IMAGE_LAYOUT_UNDEFINED),
       Format(createInfo.Format),
       Usage(createInfo.Usage),
       Sema(Vk, createInfo.Imported),
       AccessMask(0)
 {
-
     assert(IsImportable(Vk->PhysicalDevice, Format, Usage));
 
     VkExternalMemoryImageCreateInfo resourceCreateInfo = {
@@ -118,37 +121,45 @@ Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo)
     };
 
     VkImageCreateInfo info = {
-        .sType         = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-        .pNext         = &resourceCreateInfo,
-        .flags         = VK_IMAGE_CREATE_ALIAS_BIT,
-        .imageType     = VK_IMAGE_TYPE_2D,
-        .format        = Format,
-        .extent        = {Extent.width, Extent.height, 1},
-        .mipLevels     = 1,
-        .arrayLayers   = 1,
-        .samples       = VK_SAMPLE_COUNT_1_BIT,
-        .tiling        = VK_IMAGE_TILING_OPTIMAL,
-        .usage         = Usage,
-        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+        .sType                 = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+        .pNext                 = &resourceCreateInfo,
+        .flags                 = VK_IMAGE_CREATE_ALIAS_BIT,
+        .imageType             = VK_IMAGE_TYPE_2D,
+        .format                = Format,
+        .extent                = {Extent.width, Extent.height, 1},
+        .mipLevels             = 1,
+        .arrayLayers           = 1,
+        .samples               = VK_SAMPLE_COUNT_1_BIT,
+        .tiling                = VK_IMAGE_TILING_OPTIMAL,
+        .usage                 = Usage,
+        .sharingMode           = VK_SHARING_MODE_EXCLUSIVE,
+        .queueFamilyIndexCount = 0,
+        .pQueueFamilyIndices   = nullptr,
+        .initialLayout         = VK_IMAGE_LAYOUT_UNDEFINED,
     };
-
-    if (createInfo.Imported)
-    {
-        // info.initialLayout = VK_IMAGE_LAYOUT_PREINITIALIZED;
-        Layout = VK_IMAGE_LAYOUT_PREINITIALIZED;
-    }
 
     MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateImage(&info, 0, &Handle));
 
     Allocation = Allocator->AllocateResourceMemory(Handle, false, createInfo.Imported);
-
     Allocation.BindResource(Handle);
 
+    VkImageViewUsageCreateInfo usageInfo = {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_USAGE_CREATE_INFO,
+        .usage = this->Usage,
+    };
+
     VkImageViewCreateInfo viewInfo = {
-        .sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-        .image            = Handle,
-        .viewType         = VK_IMAGE_VIEW_TYPE_2D,
-        .format           = Format,
+        .sType      = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+        .pNext      = &usageInfo,
+        .image      = Handle,
+        .viewType   = VK_IMAGE_VIEW_TYPE_2D,
+        .format     = Format,
+        .components = {
+            .r = VK_COMPONENT_SWIZZLE_IDENTITY,
+            .g = VK_COMPONENT_SWIZZLE_IDENTITY,
+            .b = VK_COMPONENT_SWIZZLE_IDENTITY,
+            .a = VK_COMPONENT_SWIZZLE_IDENTITY,
+        },
         .subresourceRange = {
             .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
             .levelCount = 1,
@@ -183,7 +194,6 @@ rc<CommandBuffer> Image::Transition(
     VkImageLayout TargetLayout,
     VkAccessFlags TargetAccessMask)
 {
-
     ImageLayoutTransition(this->Handle, Cmd, this->Layout, TargetLayout, this->AccessMask, TargetAccessMask);
 
     Layout     = TargetLayout;
@@ -264,7 +274,7 @@ rc<Buffer> Image::Download(rc<CommandBuffer> Cmd, rc<Allocator> Allocator)
         Allocator = Vk->ImmAllocator;
     }
 
-    rc<Buffer> StagingBuffer = Buffer::New(Allocator.get(), Allocation.Size, VK_BUFFER_USAGE_TRANSFER_DST_BIT, Buffer::Heap::CPU);
+    rc<Buffer> StagingBuffer = Buffer::New(Allocator.get(), Allocation.LocalSize(), VK_BUFFER_USAGE_TRANSFER_DST_BIT, Buffer::Heap::CPU);
 
     Transition(Cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_ACCESS_TRANSFER_READ_BIT);
 
@@ -289,7 +299,7 @@ rc<Buffer> Image::Download(rc<CommandBuffer> Cmd, rc<Allocator> Allocator)
 
 rc<CommandBuffer> Image::BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
 {
-    auto Dst = this;
+    Image* Dst = this;
 
     VkImageBlit blit = {
         .srcSubresource = {
@@ -316,12 +326,17 @@ MemoryExportInfo Image::GetExportInfo() const
 {
     return MemoryExportInfo{
         .PID        = PlatformGetCurrentProcessId(),
-        .Memory     = Allocation.Block->OSHandle,
-        .Sync       = Sema.GetSyncOSHandle(),
-        .Offset     = Allocation.Offset + Allocation.Block->Offset,
-        .Size       = Allocation.Block->Size,
+        .Memory     = Allocation.GetOSHandle(),
+        .Sync       = Sema.OSHandle,
+        .Offset     = Allocation.GlobalOffset(),
+        .Size       = Allocation.GlobalSize(),
         .AccessMask = AccessMask,
     };
+}
+
+Image::Image(Device* Vk, ImageCreateInfo const& createInfo)
+    : Image(Vk->ImmAllocator.get(), createInfo)
+{
 }
 
 DescriptorResourceInfo Image::GetDescriptorInfo() const
@@ -332,11 +347,6 @@ DescriptorResourceInfo Image::GetDescriptorInfo() const
             .imageView   = View,
             .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
         }};
-}
-
-Image::Image(Device* Vk, ImageCreateInfo const& createInfo)
-    : Image(Vk->ImmAllocator.get(), createInfo)
-{
 }
 
 } // namespace mz::vk

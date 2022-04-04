@@ -3,6 +3,7 @@
 
 #include <Layout.h>
 #include <Shader.h>
+#include <Command.h>
 
 namespace mz::vk
 {

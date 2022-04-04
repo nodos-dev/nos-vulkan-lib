@@ -1,5 +1,7 @@
 
 #include <Layout.h>
+#include <Command.h>
+#include <Image.h>
 
 #include <spirv_cross.hpp>
 
@@ -45,10 +47,9 @@ rc<DescriptorSet> DescriptorSet::Bind(rc<CommandBuffer> Cmd)
 {
     for (auto res : Bound)
     {
-        if (rc<Image> const* ppimage = std::get_if<rc<Image>>(&res->Resource))
+        if (rc<Image> const* ppImg = std::get_if<rc<Image>>(&res->Resource))
         {
-            (*ppimage)->Transition(Cmd, res->Info.Image.imageLayout, res->AccessFlags);
-            Cmd->Enqueue(*ppimage, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
+            (*ppImg)->Transition(Cmd, res->Info.Image.imageLayout, res->AccessFlags);
         }
     }
     Cmd->BindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, Pool->Layout->Handle, Index, 1, &Handle, 0, 0);

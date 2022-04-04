@@ -1,12 +1,14 @@
 
 #include <Buffer.h>
 
+#include <Device.h>
+
 #include <Command.h>
 
 namespace mz::vk
 {
 Buffer::Buffer(Allocator* Allocator, u64 size, VkBufferUsageFlags usage, Heap heap)
-    : Vk(Allocator->GetDevice()), Usage(usage)
+    : Vk(Allocator->Vk), Usage(usage)
 {
 
     VkExternalMemoryBufferCreateInfo resourceCreateInfo = {
@@ -70,7 +72,7 @@ void Buffer::Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src, const VkBufferCopy* R
     VkBufferCopy DefaultRegion = {
         .srcOffset = 0,
         .dstOffset = 0,
-        .size      = Src->Allocation.Size,
+        .size      = Src->Allocation.LocalSize(),
     };
 
     if (!Region)
@@ -94,7 +96,7 @@ void Buffer::Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src, const VkBufferCopy* R
 
 void Buffer::Copy(size_t len, void* pp, size_t offset)
 {
-    assert(offset + len < Allocation.Size);
+    assert(offset + len < Allocation.LocalSize());
     memcpy(Allocation.Map() + offset, pp, len);
 }
 

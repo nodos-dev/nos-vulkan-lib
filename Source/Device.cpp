@@ -1,4 +1,6 @@
 
+#include <Device.h>
+
 #include <Allocator.h>
 
 #include <Command.h>
@@ -7,6 +9,7 @@
 
 namespace mz::vk
 {
+
 Device::Device(VkInstance Instance,
                VkPhysicalDevice PhysicalDevice,
                View<const char*> layers,

@@ -2,12 +2,13 @@
 #include <Binding.h>
 
 #include <Image.h>
-#include <variant>
+
+#include <Buffer.h>
 
 namespace mz::vk
 {
 
-Binding::Binding(std::variant<rc<Image>, rc<Buffer>> res, u32 binding, u32 bufferOffset)
+Binding::Binding(Type res, u32 binding, u32 bufferOffset)
     : Resource(res), Idx(binding), Info(std::visit([](auto res) { return res->GetDescriptorInfo(); }, res)), AccessFlags(0)
 {
     if (bufferOffset)

@@ -21,6 +21,11 @@
 namespace mz::vk
 {
 
+struct Device;
+struct Image;
+struct Buffer;
+struct CommandBuffer;
+
 union DescriptorResourceInfo {
     VkDescriptorImageInfo Image;
     VkDescriptorBufferInfo Buffer;

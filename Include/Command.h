@@ -1,9 +1,11 @@
 #pragma once
 
-#include <Device.h>
+#include <mzVkCommon.h>
 
 namespace mz::vk
 {
+
+struct Device;
 
 struct mzVulkan_API Queue : VklQueueFunctions
 {
@@ -50,7 +52,7 @@ struct mzVulkan_API CommandBuffer : SharedFactory<CommandBuffer>,
 
 struct mzVulkan_API CommandPool : SharedFactory<CommandPool>
 {
-    static constexpr u64 DefaultPoolSize = 1024;
+    static constexpr u64 DefaultPoolSize = 64;
 
     VkCommandPool Handle;
 

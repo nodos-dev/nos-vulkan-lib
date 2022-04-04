@@ -5,6 +5,10 @@
 
 #include <Image.h>
 
+#include <Device.h>
+
+#include <Command.h>
+
 namespace mz::vk
 {
 

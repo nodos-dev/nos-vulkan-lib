@@ -1,6 +1,8 @@
 
-#include "vulkan/vulkan_core.h"
+
 #include <DynamicPipeline.h>
+
+#include <Image.h>
 
 namespace mz::vk
 {
@@ -131,7 +133,8 @@ void DynamicPipeline::BeginWithRTs(rc<CommandBuffer> Cmd, View<rc<Image>> Images
 
     for (auto img : Images)
     {
-        img->Transition(Cmd, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)->Enqueue(img, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
+        img->Transition(Cmd, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT);
+        Cmd->Enqueue(img, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
 
         Attachments.push_back(VkRenderingAttachmentInfo{
             .sType       = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
