@@ -1,4 +1,5 @@
 
+#include "vulkan/vulkan_core.h"
 #include <mzVkCommon.h>
 
 #include <NativeAPID3D12.h>
@@ -106,22 +107,18 @@ bool IsImportable(VkPhysicalDevice PhysicalDevice, VkFormat Format, VkImageUsage
 
 void ImageLayoutTransition(VkImage Image,
                            rc<CommandBuffer> Cmd,
-                           VkImageLayout CurrentLayout,
-                           VkImageLayout TargetLayout,
-                           VkAccessFlags srcAccessMask,
-                           VkAccessFlags dstAccessMask,
-                           u32 srcQueueFamilyIndex,
-                           u32 dstQueueFamilyIndex)
+                           ImageState Src,
+                           ImageState Dst)
 {
     // Create an image barrier object
     VkImageMemoryBarrier imageMemoryBarrier = {
         .sType               = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-        .srcAccessMask       = srcAccessMask,
-        .dstAccessMask       = dstAccessMask,
-        .oldLayout           = CurrentLayout,
-        .newLayout           = TargetLayout,
+        .srcAccessMask       = Src.AccessMask,
+        .dstAccessMask       = Dst.AccessMask,
+        .oldLayout           = Src.Layout,
+        .newLayout           = Dst.Layout,
         .srcQueueFamilyIndex = VK_QUEUE_FAMILY_EXTERNAL,
-        .dstQueueFamilyIndex = 0,
+        .dstQueueFamilyIndex = Cmd->Pool->Queue.Idx,
         .image               = Image,
         .subresourceRange    = {
                .aspectMask   = VK_IMAGE_ASPECT_COLOR_BIT,
@@ -131,8 +128,16 @@ void ImageLayoutTransition(VkImage Image,
         },
     };
 
+    // VkDependencyInfo dependencyInfo = {
+    //     .sType                   = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+    //     .dependencyFlags         = VK_DEPENDENCY_DEVICE_GROUP_BIT,
+    //     .imageMemoryBarrierCount = 1,
+    //     .pImageMemoryBarriers    = &imageMemoryBarrier,
+    // };
+
     // Put barrier inside setup command buffer
-    Cmd->PipelineBarrier(VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, 0, 0, 0, 1, &imageMemoryBarrier);
+    // Cmd->PipelineBarrier2(&dependencyInfo);
+    Cmd->PipelineBarrier(Src.StageMask, Dst.StageMask, VK_DEPENDENCY_DEVICE_GROUP_BIT, 0, 0, 0, 0, 1, &imageMemoryBarrier);
 }
 
 std::pair<u32, VkMemoryPropertyFlags> MemoryTypeIndex(VkPhysicalDevice physicalDevice, u32 memoryTypeBits, VkMemoryPropertyFlags requestedProps)

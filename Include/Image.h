@@ -25,20 +25,19 @@ struct mzVulkan_API Image : SharedFactory<Image>
     VkImage Handle;
     VkImageView View;
     VkSampler Sampler;
-
     Semaphore Sema;
 
+    VkImageUsageFlags Usage;
     VkExtent2D Extent;
     VkFormat Format;
-    VkImageUsageFlags Usage;
-    VkImageLayout Layout;
-    VkAccessFlags AccessMask;
+
+    ImageState State;
 
     DescriptorResourceInfo GetDescriptorInfo() const;
     MemoryExportInfo GetExportInfo() const;
-    rc<CommandBuffer> Transition(rc<CommandBuffer> Cmd, VkImageLayout TargetLayout, VkAccessFlags TargetAccessMask);
-    rc<CommandBuffer> BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src);
-    rc<CommandBuffer> Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src);
+    void Transition(rc<CommandBuffer> Cmd, ImageState Dst);
+    void BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src);
+    void Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src);
     rc<Image> Copy(rc<CommandBuffer> Cmd, rc<Allocator> Allocator = 0);
     rc<Buffer> Download(rc<CommandBuffer> Cmd, rc<Allocator> Allocator = 0);
     Image(Allocator*, ImageCreateInfo const&);

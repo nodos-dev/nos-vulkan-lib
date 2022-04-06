@@ -43,20 +43,21 @@ Device::Device(VkInstance Instance,
         .pQueuePriorities = &prio,
     };
 
-    VkPhysicalDeviceDynamicRenderingFeatures dynamicRenderingFeatures = {
-        .sType            = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR,
-        .dynamicRendering = 1,
+    VkPhysicalDeviceVulkan12Features vk12features = {
+        .sType             = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
+        .timelineSemaphore = VK_TRUE,
     };
 
-    VkPhysicalDeviceVulkan12Features vk12featuers = {
-        .sType             = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
-        .pNext             = &dynamicRenderingFeatures,
-        .timelineSemaphore = VK_TRUE,
+    VkPhysicalDeviceVulkan13Features vk13features = {
+        .sType            = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
+        .pNext            = &vk12features,
+        .synchronization2 = VK_TRUE,
+        .dynamicRendering = VK_TRUE,
     };
 
     VkPhysicalDeviceFeatures2 features = {
         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
-        .pNext = &vk12featuers,
+        .pNext = &vk13features,
     };
 
     VkDeviceCreateInfo info = {
@@ -136,8 +137,6 @@ Context::Context()
         "VK_KHR_external_semaphore_win32",
         "VK_KHR_external_memory_win32",
         "VK_EXT_external_memory_host",
-        "VK_KHR_dynamic_rendering",
-        "VK_KHR_timeline_semaphore",
     };
 
     for (auto pdev : pdevices)

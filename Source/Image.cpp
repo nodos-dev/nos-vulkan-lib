@@ -1,4 +1,6 @@
 
+#include "mzVkCommon.h"
+#include "vulkan/vulkan_core.h"
 #include <NativeAPID3D12.h>
 
 #include <Image.h>
@@ -107,12 +109,19 @@ Image::~Image()
 Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo)
     : Vk(Allocator->Vk),
       Extent(createInfo.Extent),
-      Layout(createInfo.Imported ? VK_IMAGE_LAYOUT_PREINITIALIZED : VK_IMAGE_LAYOUT_UNDEFINED),
       Format(createInfo.Format),
       Usage(createInfo.Usage),
       Sema(Vk, createInfo.Imported),
-      AccessMask(0)
+      State{
+          .StageMask  = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+          .AccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT,
+      }
 {
+    if (createInfo.Imported)
+    {
+        State.Layout = VK_IMAGE_LAYOUT_PREINITIALIZED;
+    }
+
     assert(IsImportable(Vk->PhysicalDevice, Format, Usage));
 
     VkExternalMemoryImageCreateInfo resourceCreateInfo = {
@@ -189,24 +198,24 @@ Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo)
 
 } // namespace mz::vk
 
-rc<CommandBuffer> Image::Transition(
+void Image::Transition(
     rc<CommandBuffer> Cmd,
-    VkImageLayout TargetLayout,
-    VkAccessFlags TargetAccessMask)
+    ImageState Dst)
 {
-    ImageLayoutTransition(this->Handle, Cmd, this->Layout, TargetLayout, this->AccessMask, TargetAccessMask);
-
-    Layout     = TargetLayout;
-    AccessMask = TargetAccessMask;
-    return Cmd;
+    ImageLayoutTransition(this->Handle, Cmd, this->State, Dst);
+    State = Dst;
 }
 
-rc<CommandBuffer> Image::Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src)
+void Image::Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src)
 {
     assert(Usage & VK_IMAGE_USAGE_TRANSFER_DST_BIT);
     assert(Src->Usage & VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
 
-    Transition(Cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_ACCESS_TRANSFER_WRITE_BIT);
+    Transition(Cmd, ImageState{
+                        .StageMask  = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                        .AccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+                        .Layout     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                    });
 
     VkBufferImageCopy region = {
         .imageSubresource = {
@@ -220,11 +229,10 @@ rc<CommandBuffer> Image::Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src)
         },
     };
 
-    Cmd->CopyBufferToImage(Src->Handle, Handle, Layout, 1, &region);
+    Cmd->CopyBufferToImage(Src->Handle, Handle, State.Layout, 1, &region);
 
     // make sure the buffer is alive until after the command buffer has finished
     Cmd->AddDependency(Src);
-    return Cmd;
 }
 
 rc<Image> Image::Copy(rc<CommandBuffer> Cmd, rc<Allocator> Allocator)
@@ -242,8 +250,16 @@ rc<Image> Image::Copy(rc<CommandBuffer> Cmd, rc<Allocator> Allocator)
                                                     .Usage  = Usage | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
                                                 });
 
-    Img->Transition(Cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_ACCESS_TRANSFER_WRITE_BIT);
-    this->Transition(Cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_ACCESS_TRANSFER_READ_BIT);
+    Img->Transition(Cmd, ImageState{
+                             .StageMask  = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                             .AccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+                             .Layout     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                         });
+    this->Transition(Cmd, ImageState{
+                              .StageMask  = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                              .AccessMask = VK_ACCESS_TRANSFER_READ_BIT,
+                              .Layout     = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                          });
 
     VkImageCopy region = {
         .srcSubresource = {
@@ -276,7 +292,11 @@ rc<Buffer> Image::Download(rc<CommandBuffer> Cmd, rc<Allocator> Allocator)
 
     rc<Buffer> StagingBuffer = Buffer::New(Allocator.get(), Allocation.LocalSize(), VK_BUFFER_USAGE_TRANSFER_DST_BIT, Buffer::Heap::CPU);
 
-    Transition(Cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_ACCESS_TRANSFER_READ_BIT);
+    Transition(Cmd, ImageState{
+                        .StageMask  = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                        .AccessMask = VK_ACCESS_TRANSFER_READ_BIT,
+                        .Layout     = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                    });
 
     VkBufferImageCopy region = {
         .imageSubresource = {
@@ -290,14 +310,14 @@ rc<Buffer> Image::Download(rc<CommandBuffer> Cmd, rc<Allocator> Allocator)
         },
     };
 
-    Cmd->CopyImageToBuffer(Handle, Layout, StagingBuffer->Handle, 1, &region);
+    Cmd->CopyImageToBuffer(Handle, State.Layout, StagingBuffer->Handle, 1, &region);
 
     Cmd->Enqueue(shared_from_this(), VK_PIPELINE_STAGE_TRANSFER_BIT);
 
     return StagingBuffer;
 }
 
-rc<CommandBuffer> Image::BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
+void Image::BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
 {
     Image* Dst = this;
 
@@ -314,12 +334,21 @@ rc<CommandBuffer> Image::BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
         .dstOffsets = {{}, {(i32)Dst->Extent.width, (i32)Dst->Extent.height, 1}},
     };
 
-    Src->Transition(Cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_ACCESS_TRANSFER_READ_BIT);
-    Dst->Transition(Cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_ACCESS_TRANSFER_WRITE_BIT);
+    Src->Transition(Cmd, ImageState{
+                             .StageMask  = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                             .AccessMask = VK_ACCESS_TRANSFER_READ_BIT,
+                             .Layout     = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                         });
+
+    Dst->Transition(Cmd, ImageState{
+                             .StageMask  = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                             .AccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+                             .Layout     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                         });
+
     Cmd->BlitImage(Src->Handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, Dst->Handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, VK_FILTER_LINEAR);
     Cmd->Enqueue(shared_from_this(), VK_PIPELINE_STAGE_TRANSFER_BIT);
     Cmd->Enqueue(Src, VK_PIPELINE_STAGE_TRANSFER_BIT);
-    return Cmd;
 }
 
 MemoryExportInfo Image::GetExportInfo() const
@@ -330,7 +359,7 @@ MemoryExportInfo Image::GetExportInfo() const
         .Sync       = Sema.OSHandle,
         .Offset     = Allocation.GlobalOffset(),
         .Size       = Allocation.GlobalSize(),
-        .AccessMask = AccessMask,
+        .AccessMask = State.AccessMask,
     };
 }
 

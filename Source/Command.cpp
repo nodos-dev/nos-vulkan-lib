@@ -85,7 +85,8 @@ rc<CommandBuffer> CommandBuffer::Submit()
 
 rc<CommandBuffer> CommandBuffer::Enqueue(rc<Image> image, VkPipelineStageFlags stage)
 {
-    WaitGroup.insert({image->Sema, stage});
+    image->State.StageMask |= stage;
+    WaitGroup[image->Sema] |= stage;
     SignalGroup.insert(image->Sema);
 
     AddDependency(image);

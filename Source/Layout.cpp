@@ -1,4 +1,6 @@
 
+#include "mzVkCommon.h"
+#include "vulkan/vulkan_core.h"
 #include <Layout.h>
 #include <Command.h>
 #include <Image.h>
@@ -49,7 +51,11 @@ rc<DescriptorSet> DescriptorSet::Bind(rc<CommandBuffer> Cmd)
     {
         if (rc<Image> const* ppImg = std::get_if<rc<Image>>(&res->Resource))
         {
-            (*ppImg)->Transition(Cmd, res->Info.Image.imageLayout, res->AccessFlags);
+            (*ppImg)->Transition(Cmd, ImageState{
+                                          .StageMask  = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                                          .AccessMask = res->AccessFlags,
+                                          .Layout     = res->Info.Image.imageLayout,
+                                      });
         }
     }
     Cmd->BindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, Pool->Layout->Handle, Index, 1, &Handle, 0, 0);

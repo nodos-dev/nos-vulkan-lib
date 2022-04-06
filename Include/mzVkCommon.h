@@ -26,6 +26,13 @@ struct Image;
 struct Buffer;
 struct CommandBuffer;
 
+struct ImageState
+{
+    VkPipelineStageFlags StageMask;
+    VkAccessFlags AccessMask;
+    VkImageLayout Layout;
+};
+
 union DescriptorResourceInfo {
     VkDescriptorImageInfo Image;
     VkDescriptorBufferInfo Buffer;
@@ -38,7 +45,7 @@ struct MemoryExportInfo
     HANDLE Sync;
     VkDeviceSize Offset;
     VkDeviceSize Size;
-    VkAccessFlags AccessMask;
+    VkAccessFlags2 AccessMask;
 };
 
 struct ImageCreateInfo
@@ -118,14 +125,11 @@ mzVulkan_API u64 PlatformGetCurrentProcessId();
 mzVulkan_API std::string GetLastErrorAsString();
 
 mzVulkan_API std::pair<u32, VkMemoryPropertyFlags> MemoryTypeIndex(VkPhysicalDevice physicalDevice, u32 memoryTypeBits, VkMemoryPropertyFlags requestedProps);
+
 mzVulkan_API void ImageLayoutTransition(VkImage Image,
-                                        rc<struct CommandBuffer> Cmd,
-                                        VkImageLayout CurrentLayout,
-                                        VkImageLayout TargetLayout,
-                                        VkAccessFlags srcAccessMask,
-                                        VkAccessFlags dstAccessMask,
-                                        u32 srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                                        u32 dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED);
+                                        rc<CommandBuffer> Cmd,
+                                        ImageState Src,
+                                        ImageState Dst);
 
 mzVulkan_API const char* vk_result_string(VkResult re);
 mzVulkan_API const char* descriptor_type_to_string(VkDescriptorType ty);
