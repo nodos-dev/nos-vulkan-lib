@@ -45,8 +45,8 @@ Device::Device(VkInstance Instance,
     };
 
     VkPhysicalDeviceVulkan12Features vk12features = {
-        .sType             = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
-        .timelineSemaphore = VK_TRUE,
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
+        // .timelineSemaphore = VK_TRUE,
     };
 
     VkPhysicalDeviceVulkan13Features vk13features = {
@@ -106,6 +106,7 @@ Context::Context()
 
     std::vector<const char*> layers = {
         "VK_LAYER_KHRONOS_validation",
+        "VK_LAYER_KHRONOS_synchronization2",
     };
 
     std::vector<const char*> extensions = {
@@ -139,6 +140,7 @@ Context::Context()
         "VK_KHR_external_semaphore_win32",
         "VK_KHR_external_memory_win32",
         "VK_EXT_external_memory_host",
+        "VK_KHR_synchronization2",
     };
 
     for (auto pdev : pdevices)

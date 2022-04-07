@@ -123,7 +123,7 @@ DynamicPipeline::DynamicPipeline(Device* Vk, VkExtent2D extent, View<u8> src)
     MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateGraphicsPipelines(0, 1, &info, 0, &Handle));
 }
 
-void DynamicPipeline::BeginWithRTs(rc<CommandBuffer> Cmd, View<rc<Image>> Images)
+void DynamicPipeline::BeginRendering(rc<CommandBuffer> Cmd, View<rc<Image>> Images)
 {
     assert(Images.size() == Layout->RTCount);
 
@@ -157,6 +157,13 @@ void DynamicPipeline::BeginWithRTs(rc<CommandBuffer> Cmd, View<rc<Image>> Images
 
     Cmd->BeginRendering(&renderInfo);
     Cmd->BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, Handle);
+
+    for (auto& set : DescriptorSets)
+    {
+        set->Bind(Cmd);
+    }
+
+    Cmd->AddDependency(shared_from_this());
 }
 
 bool DynamicPipeline::BindResources(rc<CommandBuffer> Cmd, std::unordered_map<std::string, Binding::Type> const& resources)
@@ -180,9 +187,11 @@ bool DynamicPipeline::BindResources(rc<CommandBuffer> Cmd, std::unordered_map<st
 
 void DynamicPipeline::BindResources(rc<CommandBuffer> Cmd, std::map<u32, std::vector<Binding>> const& bindings)
 {
+    DescriptorSets.clear();
+  
     for (auto& [idx, set] : bindings)
     {
-        Layout->AllocateSet(idx)->Bind(Cmd, set);
+        DescriptorSets.push_back(Layout->AllocateSet(idx)->Update(Cmd, set));
     }
 }
 } // namespace mz::vk

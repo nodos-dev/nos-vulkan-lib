@@ -1,3 +1,4 @@
+#include "vulkan/vulkan_core.h"
 #include <NativeAPID3D12.h>
 
 #include <Image.h>
@@ -110,8 +111,9 @@ Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo)
       Usage(createInfo.Usage),
       Sema(Vk, createInfo.Imported),
       State{
-          .StageMask  = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
-          .AccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT,
+          .StageMask  = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+          .AccessMask = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT,
+          .Layout     = VK_IMAGE_LAYOUT_UNDEFINED,
       }
 {
     if (createInfo.Imported)
@@ -347,12 +349,10 @@ void Image::BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
 MemoryExportInfo Image::GetExportInfo() const
 {
     return MemoryExportInfo{
-        .PID        = PlatformGetCurrentProcessId(),
-        .Memory     = Allocation.GetOSHandle(),
-        .Sync       = Sema.OSHandle,
-        .Offset     = Allocation.GlobalOffset(),
-        .Size       = Allocation.GlobalSize(),
-        .AccessMask = State.AccessMask,
+        .PID    = PlatformGetCurrentProcessId(),
+        .Memory = Allocation.GetOSHandle(),
+        .Sync   = Sema.OSHandle,
+        .Offset = Allocation.GlobalOffset(),
     };
 }
 

@@ -276,12 +276,7 @@ Allocation Allocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> res
     {
         HANDLE memory = PlatformDupeHandle(imported->PID, imported->Memory);
 
-        u64 Size = imported->Size;
-
-        if (0 == Size)
-        {
-            Size = req.size;
-        }
+        const u64 Size = imported->Offset + req.size;
 
         VkImportMemoryWin32HandleInfoKHR importInfo = {
             .sType      = VK_STRUCTURE_TYPE_IMPORT_MEMORY_WIN32_HANDLE_INFO_KHR,

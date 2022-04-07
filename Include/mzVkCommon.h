@@ -48,8 +48,6 @@ struct MemoryExportInfo
     HANDLE Memory;
     HANDLE Sync;
     VkDeviceSize Offset;
-    VkDeviceSize Size;
-    VkAccessFlags2 AccessMask;
 };
 
 struct ImageCreateInfo

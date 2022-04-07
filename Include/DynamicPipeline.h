@@ -14,22 +14,22 @@ struct mzVulkan_API DynamicPipeline : SharedFactory<DynamicPipeline>
 
     rc<Shader> Shader;
     rc<PipelineLayout> Layout;
-
     VkPipeline Handle;
-
     VkExtent2D Extent;
+
+    std::vector<rc<DescriptorSet>> DescriptorSets;
 
     DynamicPipeline(Device* Vk, VkExtent2D extent, View<u8> src);
 
     ~DynamicPipeline();
 
-    void BeginWithRTs(rc<CommandBuffer> Cmd, View<rc<Image>> Images);
+    void BeginRendering(rc<CommandBuffer> Cmd, View<rc<Image>> Images);
 
     template <std::same_as<rc<vk::Image>>... RT>
-    void BeginWithRTs(rc<CommandBuffer> Cmd, RT... Images)
+    void BeginRendering(rc<CommandBuffer> Cmd, RT... Images)
     {
         rc<vk::Image> RTs[] = {Images...};
-        BeginWithRTs(Cmd, RTs);
+        BeginRendering(Cmd, RTs);
     }
 
     template <class T>
