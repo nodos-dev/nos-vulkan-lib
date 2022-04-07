@@ -40,12 +40,12 @@ struct mzVulkan_API DynamicPipeline : SharedFactory<DynamicPipeline>
 
     bool BindResources(rc<CommandBuffer> Cmd, std::unordered_map<std::string, Binding::Type> const& resources);
 
-    void BindResources(rc<CommandBuffer> Cmd, std::map<u32, std::vector<rc<Binding>>> const& bindings);
+    void BindResources(rc<CommandBuffer> Cmd, std::map<u32, std::vector<Binding>> const& bindings);
 
     template <class... Args>
     requires(StringResourcePairPack<std::remove_cvref_t<Args>...>()) bool BindResources(rc<CommandBuffer> Cmd, Args&&... args)
     {
-        std::map<u32, std::vector<rc<Binding>>> bindings;
+        std::map<u32, std::vector<Binding>> bindings;
         if (!Insert(bindings, std::forward<Args>(args)...))
         {
             return false;
@@ -55,14 +55,14 @@ struct mzVulkan_API DynamicPipeline : SharedFactory<DynamicPipeline>
     }
 
     template <class K, class V, class... Rest>
-    bool Insert(std::map<u32, std::vector<rc<Binding>>>& bindings, K&& k, V&& v, Rest&&... rest)
+    bool Insert(std::map<u32, std::vector<Binding>>& bindings, K&& k, V&& v, Rest&&... rest)
     {
         auto it = Layout->BindingsByName.find(k);
         if (it == Layout->BindingsByName.end())
         {
             return false;
         }
-        bindings[it->second.x].push_back(Binding::New(v, it->second.y));
+        bindings[it->second.x].push_back(Binding(v, it->second.y));
         if constexpr (sizeof...(rest) > 0)
         {
             return Insert(bindings, std::forward<Rest>(rest)...);

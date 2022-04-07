@@ -11,33 +11,18 @@ struct Buffer;
 template <class T>
 concept TypeClassResource = std::same_as<T, rc<Image>> || std::same_as<T, rc<Buffer>>;
 
-struct mzVulkan_API Binding : SharedFactory<Binding>
+struct mzVulkan_API Binding
 {
     using Type = std::variant<rc<Image>, rc<Buffer>>;
 
     Type Resource;
 
     u32 Idx;
-
-    DescriptorResourceInfo Info;
-
-    VkAccessFlags AccessFlags;
-
-    auto operator<=>(const Binding& other) const
-    {
-        return Idx <=> other.Idx;
-    }
-
-    Binding(Binding const& r)
-        : Resource(r.Resource), Idx(r.Idx), Info(r.Info), AccessFlags(r.AccessFlags)
-    {
-    }
-
+    u32 BufferOffset;
+    mutable VkAccessFlags AccessFlags;
     Binding(Type res, u32 binding, u32 bufferOffset = 0);
 
-    void SanityCheck(VkDescriptorType type);
-
-    VkWriteDescriptorSet GetDescriptorInfo(VkDescriptorSet set, VkDescriptorType type);
+    DescriptorResourceInfo GetDescriptorInfo(VkDescriptorType type) const;
 };
 
 } // namespace mz::vk

@@ -54,6 +54,15 @@ void CommandBuffer::Wait()
 
 CommandBuffer::~CommandBuffer()
 {
+    for (auto& fn : Callbacks)
+    {
+        fn();
+    }
+
+    Callbacks.clear();
+    WaitGroup.clear();
+    SignalGroup.clear();
+
     GetDevice()->DestroyFence(Fence, 0);
     MZ_VULKAN_ASSERT_SUCCESS(Reset(VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT));
 }
@@ -86,25 +95,6 @@ rc<CommandBuffer> CommandBuffer::Submit()
     MZ_VULKAN_ASSERT_SUCCESS(End());
     MZ_VULKAN_ASSERT_SUCCESS(Pool->Queue->Submit(1, &submitInfo, Fence));
 
-    return shared_from_this();
-}
-
-rc<CommandBuffer> CommandBuffer::Enqueue(rc<Image> image, VkPipelineStageFlags stage)
-{
-    image->State.StageMask |= stage;
-    WaitGroup[image->Sema] |= stage;
-    SignalGroup.insert(image->Sema);
-
-    AddDependency(image);
-    return shared_from_this();
-}
-
-rc<CommandBuffer> CommandBuffer::Enqueue(View<rc<Image>> images, VkPipelineStageFlags stage)
-{
-    for (auto img : images)
-    {
-        Enqueue(img, stage);
-    }
     return shared_from_this();
 }
 
@@ -168,6 +158,7 @@ rc<CommandBuffer> CommandPool::AllocCommandBuffer(VkCommandBufferLevel level)
     auto cmd = Buffers[NextBuffer];
 
     cmd->Wait();
+
     MZ_VULKAN_ASSERT_SUCCESS(GetDevice()->ResetFences(1, &cmd->Fence));
     MZ_VULKAN_ASSERT_SUCCESS(cmd->Reset(VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT));
     return cmd;

@@ -199,7 +199,10 @@ void Image::Transition(
     rc<CommandBuffer> Cmd,
     ImageState Dst)
 {
+    // Dst.AccessMask = 0;
+    // Dst.StageMask  = 0;
     ImageLayoutTransition(this->Handle, Cmd, this->State, Dst);
+    Cmd->AddDependency(shared_from_this());
     State = Dst;
 }
 
@@ -272,9 +275,6 @@ rc<Image> Image::Copy(rc<CommandBuffer> Cmd, rc<Allocator> Allocator)
 
     Cmd->CopyImage(Handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, Img->Handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 
-    Cmd->Enqueue(shared_from_this(), VK_PIPELINE_STAGE_TRANSFER_BIT);
-    Cmd->Enqueue(Img, VK_PIPELINE_STAGE_TRANSFER_BIT);
-
     return Img;
 }
 
@@ -309,8 +309,6 @@ rc<Buffer> Image::Download(rc<CommandBuffer> Cmd, rc<Allocator> Allocator)
 
     Cmd->CopyImageToBuffer(Handle, State.Layout, StagingBuffer->Handle, 1, &region);
 
-    Cmd->Enqueue(shared_from_this(), VK_PIPELINE_STAGE_TRANSFER_BIT);
-
     return StagingBuffer;
 }
 
@@ -344,8 +342,6 @@ void Image::BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
                          });
 
     Cmd->BlitImage(Src->Handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, Dst->Handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, VK_FILTER_LINEAR);
-    Cmd->Enqueue(shared_from_this(), VK_PIPELINE_STAGE_TRANSFER_BIT);
-    Cmd->Enqueue(Src, VK_PIPELINE_STAGE_TRANSFER_BIT);
 }
 
 MemoryExportInfo Image::GetExportInfo() const

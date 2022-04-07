@@ -1,5 +1,6 @@
 #pragma once
 
+#include "vulkan/vulkan_core.h"
 #include <mzVkCommon.h>
 
 namespace mz::vk
@@ -18,21 +19,28 @@ struct mzVulkan_API Queue : SharedFactory<Queue>, VklQueueFunctions
     VkResult Submit(uint32_t submitCount, const VkSubmitInfo* pSubmits, VkFence fence);
 };
 
+template <class T>
+void EndResourceDependency(rc<T> Resource)
+{
+    if constexpr (std::same_as<T, Image>)
+    {
+        Resource->State.AccessMask = VK_ACCESS_NONE;
+        Resource->State.StageMask  = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+    }
+}
+
 struct mzVulkan_API CommandBuffer : SharedFactory<CommandBuffer>,
                                     VklCommandFunctions
 {
-
     CommandPool* Pool;
 
     VkFence Fence;
 
     std::vector<std::function<void()>> Callbacks;
-
     std::map<VkSemaphore, VkPipelineStageFlags> WaitGroup;
     std::set<VkSemaphore> SignalGroup;
 
     bool Ready();
-
     void Wait();
 
     CommandBuffer(CommandPool* Pool, VkCommandBuffer Handle);
@@ -42,13 +50,12 @@ struct mzVulkan_API CommandBuffer : SharedFactory<CommandBuffer>,
     Device* GetDevice();
     rc<CommandBuffer> Submit();
 
-    rc<CommandBuffer> Enqueue(rc<struct Image>, VkPipelineStageFlags);
-    rc<CommandBuffer> Enqueue(View<rc<struct Image>>, VkPipelineStageFlags);
-
     template <class... T>
     void AddDependency(rc<T>... Resources)
     {
-        Callbacks.push_back([Resources...]() {});
+        Callbacks.push_back([Resources...]() {
+            (EndResourceDependency(Resources), ...);
+        });
     }
 };
 
@@ -73,9 +80,9 @@ struct mzVulkan_API CommandPool : SharedFactory<CommandPool>
 
     rc<CommandBuffer> BeginCmd(VkCommandBufferLevel level = VK_COMMAND_BUFFER_LEVEL_PRIMARY);
 
-    VkResult Submit(uint32_t submitCount, const VkSubmitInfo* pSubmits, VkFence fence) 
+    VkResult Submit(uint32_t submitCount, const VkSubmitInfo* pSubmits, VkFence fence)
     {
-      return Queue->Submit(submitCount, pSubmits, fence);
+        return Queue->Submit(submitCount, pSubmits, fence);
     }
 };
 

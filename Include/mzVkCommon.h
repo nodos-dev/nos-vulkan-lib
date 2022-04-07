@@ -32,8 +32,8 @@ struct CommandPool;
 
 struct ImageState
 {
-    VkPipelineStageFlags StageMask;
-    VkAccessFlags AccessMask;
+    VkPipelineStageFlags2 StageMask;
+    VkAccessFlags2 AccessMask;
     VkImageLayout Layout;
 };
 

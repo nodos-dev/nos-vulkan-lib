@@ -138,8 +138,6 @@ void DynamicPipeline::BeginWithRTs(rc<CommandBuffer> Cmd, View<rc<Image>> Images
                                  .Layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                              });
 
-        Cmd->Enqueue(img, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
-
         Attachments.push_back(VkRenderingAttachmentInfo{
             .sType       = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
             .imageView   = img->View,
@@ -163,7 +161,7 @@ void DynamicPipeline::BeginWithRTs(rc<CommandBuffer> Cmd, View<rc<Image>> Images
 
 bool DynamicPipeline::BindResources(rc<CommandBuffer> Cmd, std::unordered_map<std::string, Binding::Type> const& resources)
 {
-    std::map<u32, std::vector<rc<Binding>>> Bindings;
+    std::map<u32, std::vector<Binding>> Bindings;
 
     for (auto& [name, res] : resources)
     {
@@ -172,7 +170,7 @@ bool DynamicPipeline::BindResources(rc<CommandBuffer> Cmd, std::unordered_map<st
         {
             return false;
         }
-        Bindings[it->second.x].push_back(Binding::New(res, it->second.y));
+        Bindings[it->second.x].push_back(Binding(res, it->second.y));
     }
 
     BindResources(Cmd, Bindings);
@@ -180,11 +178,11 @@ bool DynamicPipeline::BindResources(rc<CommandBuffer> Cmd, std::unordered_map<st
     return true;
 }
 
-void DynamicPipeline::BindResources(rc<CommandBuffer> Cmd, std::map<u32, std::vector<rc<Binding>>> const& bindings)
+void DynamicPipeline::BindResources(rc<CommandBuffer> Cmd, std::map<u32, std::vector<Binding>> const& bindings)
 {
     for (auto& [idx, set] : bindings)
     {
-        Layout->AllocateSet(idx)->UpdateWith(set)->Bind(Cmd);
+        Layout->AllocateSet(idx)->Bind(Cmd, set);
     }
 }
 } // namespace mz::vk

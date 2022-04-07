@@ -110,8 +110,8 @@ void ImageLayoutTransition(VkImage Image,
     // Create an image barrier object
     VkImageMemoryBarrier imageMemoryBarrier = {
         .sType               = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-        .srcAccessMask       = Src.AccessMask,
-        .dstAccessMask       = Dst.AccessMask,
+        .srcAccessMask       = (u32)Src.AccessMask,
+        .dstAccessMask       = (u32)Dst.AccessMask,
         .oldLayout           = Src.Layout,
         .newLayout           = Dst.Layout,
         .srcQueueFamilyIndex = VK_QUEUE_FAMILY_EXTERNAL,

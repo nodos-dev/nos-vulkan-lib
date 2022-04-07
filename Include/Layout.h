@@ -61,21 +61,9 @@ struct mzVulkan_API DescriptorSet : SharedFactory<DescriptorSet>
 
     ~DescriptorSet();
 
-    std::set<rc<Binding>> Bound;
-
     VkDescriptorType GetType(u32 Binding);
 
-    template <std::same_as<rc<Binding>>... Bindings>
-    rc<DescriptorSet> UpdateWith(Bindings&&... res)
-    {
-        VkWriteDescriptorSet writes[sizeof...(Bindings)] = {res.GetDescriptorInfo(Handle, GetType(res.binding))...};
-        Layout->Vk->UpdateDescriptorSets(sizeof...(Bindings), writes, 0, 0);
-        Bound.insert(res...);
-        return shared_from_this();
-    }
-
-    rc<DescriptorSet> UpdateWith(View<rc<Binding>> res);
-    rc<DescriptorSet> Bind(rc<CommandBuffer> Cmd);
+    rc<DescriptorSet> Bind(rc<CommandBuffer> Cmd, View<Binding> res);
 };
 
 struct mzVulkan_API PipelineLayout : SharedFactory<PipelineLayout>
