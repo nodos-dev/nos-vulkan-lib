@@ -1,6 +1,3 @@
-
-#include "mzVkCommon.h"
-#include "vulkan/vulkan_core.h"
 #include <NativeAPID3D12.h>
 
 #include <Image.h>
@@ -52,7 +49,7 @@ Semaphore::Semaphore(Device* Vk, u64 pid, HANDLE ext)
             .signalSemaphoreCount = 1,
             .pSignalSemaphores    = &Handle,
         };
-        MZ_VULKAN_ASSERT_SUCCESS(Vk->ImmCmdPool->Queue.Submit(1, &submitInfo, 0));
+        MZ_VULKAN_ASSERT_SUCCESS(Vk->ImmCmdPool->Submit(1, &submitInfo, 0));
     }
     else
     {

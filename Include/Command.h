@@ -7,20 +7,22 @@ namespace mz::vk
 
 struct Device;
 
-struct mzVulkan_API Queue : VklQueueFunctions
+struct mzVulkan_API Queue : SharedFactory<Queue>, VklQueueFunctions
 {
     u32 Family;
     u32 Idx;
+    std::mutex Mutex;
 
     Queue(Device* Device, u32 Family, u32 Index);
     Device* GetDevice();
+    VkResult Submit(uint32_t submitCount, const VkSubmitInfo* pSubmits, VkFence fence);
 };
 
 struct mzVulkan_API CommandBuffer : SharedFactory<CommandBuffer>,
                                     VklCommandFunctions
 {
 
-    struct CommandPool* Pool;
+    CommandPool* Pool;
 
     VkFence Fence;
 
@@ -56,12 +58,12 @@ struct mzVulkan_API CommandPool : SharedFactory<CommandPool>
 
     VkCommandPool Handle;
 
-    Queue Queue;
+    rc<Queue> Queue;
 
     std::vector<rc<CommandBuffer>> Buffers;
     CircularIndex NextBuffer;
 
-    CommandPool(Device* Vk, u32 family);
+    CommandPool(Device* Vk);
 
     Device* GetDevice();
 
@@ -70,6 +72,11 @@ struct mzVulkan_API CommandPool : SharedFactory<CommandPool>
     rc<CommandBuffer> AllocCommandBuffer(VkCommandBufferLevel level = VK_COMMAND_BUFFER_LEVEL_PRIMARY);
 
     rc<CommandBuffer> BeginCmd(VkCommandBufferLevel level = VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+
+    VkResult Submit(uint32_t submitCount, const VkSubmitInfo* pSubmits, VkFence fence) 
+    {
+      return Queue->Submit(submitCount, pSubmits, fence);
+    }
 };
 
 } // namespace mz::vk

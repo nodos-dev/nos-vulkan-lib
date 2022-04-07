@@ -1,5 +1,3 @@
-
-
 #include <NativeAPID3D12.h>
 
 namespace mz::vk

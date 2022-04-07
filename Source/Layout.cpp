@@ -1,6 +1,4 @@
 
-#include "mzVkCommon.h"
-#include "vulkan/vulkan_core.h"
 #include <Layout.h>
 #include <Command.h>
 #include <Image.h>

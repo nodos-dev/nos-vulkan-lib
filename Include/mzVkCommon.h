@@ -22,9 +22,13 @@ namespace mz::vk
 {
 
 struct Device;
+struct Queue;
+struct Allocator;
+
 struct Image;
 struct Buffer;
 struct CommandBuffer;
+struct CommandPool;
 
 struct ImageState
 {

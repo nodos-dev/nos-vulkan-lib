@@ -9,6 +9,12 @@
 namespace mz::vk
 {
 
+VkResult Queue::Submit(uint32_t submitCount, const VkSubmitInfo* pSubmits, VkFence fence)
+{
+    std::unique_lock lock(Mutex);
+    return VklQueueFunctions::Submit(submitCount, pSubmits, fence);
+}
+
 Queue::Queue(Device* Device, u32 Family, u32 Index)
     : VklQueueFunctions{Device}, Family(Family), Idx(Index)
 {
@@ -78,7 +84,7 @@ rc<CommandBuffer> CommandBuffer::Submit()
     };
 
     MZ_VULKAN_ASSERT_SUCCESS(End());
-    MZ_VULKAN_ASSERT_SUCCESS(Pool->Queue.Submit(1, &submitInfo, Fence));
+    MZ_VULKAN_ASSERT_SUCCESS(Pool->Queue->Submit(1, &submitInfo, Fence));
 
     return shared_from_this();
 }
@@ -112,13 +118,13 @@ Device* CommandBuffer::GetDevice()
     return static_cast<Device*>(fnptrs);
 }
 
-CommandPool::CommandPool(Device* Vk, u32 family)
-    : Queue(Vk, family, 0), NextBuffer(DefaultPoolSize)
+CommandPool::CommandPool(Device* Vk)
+    : Queue(Vk->Queue), NextBuffer(DefaultPoolSize)
 {
     VkCommandPoolCreateInfo info = {
         .sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
         .flags            = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT | VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
-        .queueFamilyIndex = family,
+        .queueFamilyIndex = Queue->Idx,
     };
 
     MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateCommandPool(&info, 0, &Handle));
@@ -144,7 +150,7 @@ CommandPool::CommandPool(Device* Vk, u32 family)
 
 Device* CommandPool::GetDevice()
 {
-    return Queue.GetDevice();
+    return Queue->GetDevice();
 }
 
 CommandPool::~CommandPool()

@@ -14,7 +14,7 @@ Device::Device(VkInstance Instance,
                VkPhysicalDevice PhysicalDevice,
                View<const char*> layers,
                View<const char*> extensions)
-    : Instance(Instance), PhysicalDevice(PhysicalDevice), QueueFamily(0)
+    : Instance(Instance), PhysicalDevice(PhysicalDevice)
 {
     u32 count;
     vkGetPhysicalDeviceQueueFamilyProperties(PhysicalDevice, &count, 0);
@@ -22,6 +22,7 @@ Device::Device(VkInstance Instance,
     std::vector<VkQueueFamilyProperties> props(count);
 
     vkGetPhysicalDeviceQueueFamilyProperties(PhysicalDevice, &count, props.data());
+    u32 family = 0;
 
     for (auto& prop : props)
     {
@@ -31,14 +32,14 @@ Device::Device(VkInstance Instance,
         {
             break;
         }
-        QueueFamily++;
+        family++;
     }
 
     float prio = 1.f;
 
     VkDeviceQueueCreateInfo qinfo = {
         .sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-        .queueFamilyIndex = QueueFamily,
+        .queueFamilyIndex = family,
         .queueCount       = 1,
         .pQueuePriorities = &prio,
     };
@@ -74,8 +75,9 @@ Device::Device(VkInstance Instance,
     MZ_VULKAN_ASSERT_SUCCESS(vkCreateDevice(PhysicalDevice, &info, 0, &handle));
     vkl_load_device_functions(handle, this);
 
+    Queue        = Queue::New(this, family, 0);
     ImmAllocator = Allocator::New(this);
-    ImmCmdPool   = CommandPool::New(this, QueueFamily);
+    ImmCmdPool   = CommandPool::New(this);
 }
 
 Device::~Device()

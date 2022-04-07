@@ -1,7 +1,4 @@
 
-#include "vulkan/vulkan_core.h"
-#include <mzVkCommon.h>
-
 #include <NativeAPID3D12.h>
 
 #include <Image.h>
@@ -118,7 +115,7 @@ void ImageLayoutTransition(VkImage Image,
         .oldLayout           = Src.Layout,
         .newLayout           = Dst.Layout,
         .srcQueueFamilyIndex = VK_QUEUE_FAMILY_EXTERNAL,
-        .dstQueueFamilyIndex = Cmd->Pool->Queue.Idx,
+        .dstQueueFamilyIndex = Cmd->Pool->Queue->Family,
         .image               = Image,
         .subresourceRange    = {
                .aspectMask   = VK_IMAGE_ASPECT_COLOR_BIT,

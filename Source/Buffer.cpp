@@ -7,6 +7,7 @@
 
 namespace mz::vk
 {
+
 Buffer::Buffer(Allocator* Allocator, u64 size, VkBufferUsageFlags usage, Heap heap)
     : Vk(Allocator->Vk), Usage(usage)
 {

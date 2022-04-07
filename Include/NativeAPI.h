@@ -7,7 +7,7 @@ namespace mz::vk
 
 struct mzVulkan_API NativeAPI
 {
-    struct Device* Vk;
+    Device* Vk;
 
     NativeAPI(Device* Vk)
         : Vk(Vk)

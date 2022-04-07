@@ -27,10 +27,9 @@ struct mzVulkan_API Device : SharedFactory<Device>,
     VkInstance Instance;
     VkPhysicalDevice PhysicalDevice;
 
-    rc<struct Allocator> ImmAllocator;
-    rc<struct CommandPool> ImmCmdPool;
-
-    u32 QueueFamily;
+    rc<Allocator> ImmAllocator;
+    rc<CommandPool> ImmCmdPool;
+    rc<Queue> Queue;
 
     std::unordered_map<std::string, Global> Globals;
 
