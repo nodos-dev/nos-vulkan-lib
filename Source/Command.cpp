@@ -93,7 +93,7 @@ rc<CommandBuffer> CommandBuffer::Submit()
     };
 
     MZ_VULKAN_ASSERT_SUCCESS(End());
-    MZ_VULKAN_ASSERT_SUCCESS(Pool->Queue->Submit(1, &submitInfo, Fence));
+    MZ_VULKAN_ASSERT_SUCCESS(Pool->Submit(1, &submitInfo, Fence));
 
     return shared_from_this();
 }

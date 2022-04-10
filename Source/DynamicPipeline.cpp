@@ -187,8 +187,9 @@ bool DynamicPipeline::BindResources(rc<CommandBuffer> Cmd, std::unordered_map<st
 
 void DynamicPipeline::BindResources(rc<CommandBuffer> Cmd, std::map<u32, std::vector<Binding>> const& bindings)
 {
-    DescriptorSets.clear();
-  
+
+    Cmd->Callbacks.push_back([pipe = shared_from_this()]() { pipe->DescriptorSets.clear(); });
+
     for (auto& [idx, set] : bindings)
     {
         DescriptorSets.push_back(Layout->AllocateSet(idx)->Update(Cmd, set));
