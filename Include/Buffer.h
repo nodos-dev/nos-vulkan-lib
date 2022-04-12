@@ -20,7 +20,7 @@ struct mzVulkan_API Buffer : SharedFactory<Buffer>
     template <class T>
     void Copy(T const& obj, size_t offset = 0)
     {
-        Copy(sizeof(T), &obj, offset);
+        Copy(sizeof(T), (void*)&obj, offset);
     }
 
     u8* Map();

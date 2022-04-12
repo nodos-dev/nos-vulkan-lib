@@ -25,7 +25,7 @@ DescriptorLayout::DescriptorLayout(Device* Vk, std::map<u32, NamedDSLBinding> Na
             .binding         = i,
             .descriptorType  = b.DescriptorType,
             .descriptorCount = b.DescriptorCount,
-            .stageFlags      = VK_SHADER_STAGE_FRAGMENT_BIT,
+            .stageFlags      = b.StageMask,
         });
     }
 
@@ -174,7 +174,7 @@ PipelineLayout::PipelineLayout(Device* Vk, ShaderLayout layout)
     }
 
     VkPushConstantRange pushConstantRange = {
-        .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+        .stageFlags = VK_SHADER_STAGE_ALL,
         .offset     = 0,
         .size       = 256,
     };

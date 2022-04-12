@@ -209,7 +209,7 @@ static rc<SVType> GetType(spirv_cross::Compiler const& cc, u32 typeId, std::map<
     u32 v = (ty->y == 3 ? 4 : ty->y);
 
     ty->Alignment = v * ty->x / 8;
-    ty->Size  = ty->Alignment * ty->z;
+    ty->Size      = ty->Alignment * ty->z;
     ty->Alignment = std::max(1u, ty->Alignment);
 
     switch (type.basetype)
@@ -246,12 +246,12 @@ static rc<SVType> GetType(spirv_cross::Compiler const& cc, u32 typeId, std::map<
 
         ty->Img = {
             .Depth   = type.image.depth,
-            .Array = type.image.arrayed,
+            .Array   = type.image.arrayed,
             .MS      = type.image.ms,
             .Read    = (spv::AccessQualifierReadOnly == type.image.access) || (spv::AccessQualifierReadWrite == type.image.access),
             .Write   = (spv::AccessQualifierWriteOnly == type.image.access) || (spv::AccessQualifierReadWrite == type.image.access),
             .Sampled = type.image.sampled,
-            .Fmt  = MapSpvFormat(type.image.format),
+            .Fmt     = MapSpvFormat(type.image.format),
         };
 
         break;
@@ -326,6 +326,7 @@ ShaderLayout GetShaderLayouts(View<u8> src)
                 .DescriptorCount = std::accumulate(type.array.begin(), type.array.end(), 1u, [](u32 a, u32 b) { return a * b; }),
                 .Name            = cc.get_name(res.id),
                 .Type            = GetType(cc, res.base_type_id, typeCache),
+                .StageMask       = stage,
             };
 
             layout.BindingsByName[cc.get_name(res.id)] = {set, binding};

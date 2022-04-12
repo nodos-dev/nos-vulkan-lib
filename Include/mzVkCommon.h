@@ -105,6 +105,7 @@ struct mzVulkan_API NamedDSLBinding
     uint32_t DescriptorCount;
     std::string Name;
     rc<SVType> Type;
+    VkShaderStageFlags StageMask;
 };
 
 struct mzVulkan_API ShaderLayout
