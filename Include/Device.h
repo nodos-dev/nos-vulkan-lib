@@ -61,10 +61,7 @@ struct mzVulkan_API Device : SharedFactory<Device>,
         return data;
     }
 
-    Device(VkInstance Instance,
-           VkPhysicalDevice PhysicalDevice,
-           View<const char*> layers,
-           View<const char*> extensions);
+    Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice);
     ~Device();
 
     u64 GetLuid() const;
@@ -79,6 +76,7 @@ struct mzVulkan_API Context : SharedFactory<Context>
 
     std::vector<rc<Device>> Devices;
 
+    rc<Device> CreateDevice(u64 luid) const;
     ~Context();
     Context();
 };

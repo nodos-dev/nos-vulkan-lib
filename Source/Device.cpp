@@ -10,10 +10,26 @@
 namespace mz::vk
 {
 
-Device::Device(VkInstance Instance,
-               VkPhysicalDevice PhysicalDevice,
-               View<const char*> layers,
-               View<const char*> extensions)
+static std::vector<const char*> layers = {
+    "VK_LAYER_KHRONOS_validation",
+    "VK_LAYER_KHRONOS_synchronization2",
+};
+
+static std::vector<const char*> extensions = {
+    "VK_KHR_surface",
+    "VK_KHR_win32_surface",
+    "VK_KHR_external_memory_capabilities",
+};
+
+static std::vector<const char*> deviceExtensions = {
+    "VK_KHR_swapchain",
+    "VK_KHR_external_semaphore_win32",
+    "VK_KHR_external_memory_win32",
+    "VK_EXT_external_memory_host",
+    "VK_KHR_synchronization2",
+};
+
+Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice)
     : Instance(Instance), PhysicalDevice(PhysicalDevice)
 {
     u32 count;
@@ -104,17 +120,6 @@ Context::Context()
         .apiVersion = VK_API_VERSION_1_3,
     };
 
-    std::vector<const char*> layers = {
-        "VK_LAYER_KHRONOS_validation",
-        "VK_LAYER_KHRONOS_synchronization2",
-    };
-
-    std::vector<const char*> extensions = {
-        "VK_KHR_surface",
-        "VK_KHR_win32_surface",
-        "VK_KHR_external_memory_capabilities",
-    };
-
     VkInstanceCreateInfo info = {
         .sType                   = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
         .pApplicationInfo        = &app,
@@ -135,17 +140,9 @@ Context::Context()
 
     MZ_VULKAN_ASSERT_SUCCESS(vkEnumeratePhysicalDevices(Instance, &count, pdevices.data()));
 
-    std::vector<const char*> deviceExtensions = {
-        "VK_KHR_swapchain",
-        "VK_KHR_external_semaphore_win32",
-        "VK_KHR_external_memory_win32",
-        "VK_EXT_external_memory_host",
-        "VK_KHR_synchronization2",
-    };
-
     for (auto pdev : pdevices)
     {
-        Devices.emplace_back(Device::New(Instance, pdev, layers, deviceExtensions));
+        Devices.emplace_back(Device::New(Instance, pdev));
     }
 }
 
@@ -156,6 +153,18 @@ Context::~Context()
     vkDestroyInstance(Instance, 0);
 
     dynalo::close((dynalo::native::handle)Lib);
+}
+
+rc<Device> Context::CreateDevice(u64 luid) const
+{
+    for (auto dev : Devices)
+    {
+        if (dev->GetLuid() == luid)
+        {
+            return Device::New(Instance, dev->PhysicalDevice);
+        }
+    }
+    return 0;
 }
 
 u64 Device::GetLuid() const
