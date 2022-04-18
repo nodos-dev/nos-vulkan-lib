@@ -1,4 +1,5 @@
 
+#include "vulkan/vulkan_core.h"
 #include <Device.h>
 
 #include <Allocator.h>
@@ -6,9 +7,6 @@
 #include <Command.h>
 
 #include <dynalo/dynalo.hpp>
-
-namespace mz::vk
-{
 
 static std::vector<const char*> layers = {
     "VK_LAYER_KHRONOS_validation",
@@ -29,15 +27,35 @@ static std::vector<const char*> deviceExtensions = {
     "VK_KHR_synchronization2",
 };
 
+namespace mz::vk
+{
+
 Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice)
     : Instance(Instance), PhysicalDevice(PhysicalDevice)
 {
     u32 count;
+
+#ifndef NDEBUG
+    MZ_VULKAN_ASSERT_SUCCESS(vkEnumerateDeviceExtensionProperties(PhysicalDevice, 0, &count, 0));
+    std::vector<VkExtensionProperties> extensionProps(count);
+    MZ_VULKAN_ASSERT_SUCCESS(vkEnumerateDeviceExtensionProperties(PhysicalDevice, 0, &count, extensionProps.data()));
+
+    for (auto ext : deviceExtensions)
+    {
+        if (std::find_if(extensionProps.begin(), extensionProps.end(), [=](auto& prop) {
+                return 0 == strcmp(ext, prop.extensionName);
+            }) == extensionProps.end())
+        {
+            printf("Device extension %s requested but not available\n", ext);
+            assert(0);
+        }
+    }
+#endif
+
     vkGetPhysicalDeviceQueueFamilyProperties(PhysicalDevice, &count, 0);
-
     std::vector<VkQueueFamilyProperties> props(count);
-
     vkGetPhysicalDeviceQueueFamilyProperties(PhysicalDevice, &count, props.data());
+
     u32 family = 0;
 
     for (auto& prop : props)
@@ -84,8 +102,8 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice)
         .pQueueCreateInfos       = &qinfo,
         .enabledLayerCount       = (u32)layers.size(),
         .ppEnabledLayerNames     = layers.data(),
-        .enabledExtensionCount   = (u32)extensions.size(),
-        .ppEnabledExtensionNames = extensions.data(),
+        .enabledExtensionCount   = (u32)deviceExtensions.size(),
+        .ppEnabledExtensionNames = deviceExtensions.data(),
     };
 
     MZ_VULKAN_ASSERT_SUCCESS(vkCreateDevice(PhysicalDevice, &info, 0, &handle));
@@ -132,6 +150,23 @@ Context::Context()
     MZ_VULKAN_ASSERT_SUCCESS(vkCreateInstance(&info, 0, &Instance));
 
     vkl_load_instance_functions(Instance);
+
+#ifndef NDEBUG
+    MZ_VULKAN_ASSERT_SUCCESS(vkEnumerateInstanceLayerProperties(&count, 0));
+    std::vector<VkLayerProperties> layerProps(count);
+    MZ_VULKAN_ASSERT_SUCCESS(vkEnumerateInstanceLayerProperties(&count, layerProps.data()));
+
+    for (auto layer : layers)
+    {
+        if (std::find_if(layerProps.begin(), layerProps.end(), [=](auto& prop) {
+                return 0 == strcmp(layer, prop.layerName);
+            }) == layerProps.end())
+        {
+            printf("Instance layer %s requested but not available\n", layer);
+            assert(0);
+        }
+    }
+#endif
 
     MZ_VULKAN_ASSERT_SUCCESS(vkEnumeratePhysicalDevices(Instance, &count, 0));
 
