@@ -166,25 +166,29 @@ PipelineLayout::PipelineLayout(Device* Vk, ShaderLayout layout)
 {
     std::vector<VkDescriptorSetLayout> handles;
 
+    VkPushConstantRange pushConstantRange = {
+        .offset = 0,
+        .size   = layout.PushConstantSize,
+    };
+
     for (auto& [idx, set] : layout.DescriptorSets)
     {
+        for (auto& [_, binding] : set)
+        {
+            pushConstantRange.stageFlags |= binding.StageMask;
+        }
+
         auto layout = DescriptorLayout::New(Vk, std::move(set));
         handles.push_back(layout->Handle);
         DescriptorSets[idx] = layout;
     }
-
-    VkPushConstantRange pushConstantRange = {
-        .stageFlags = VK_SHADER_STAGE_ALL,
-        .offset     = 0,
-        .size       = 256,
-    };
 
     VkPipelineLayoutCreateInfo layoutInfo = {
         .sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
         .setLayoutCount         = (u32)handles.size(),
         .pSetLayouts            = handles.data(),
         .pushConstantRangeCount = 1,
-        .pPushConstantRanges    = &pushConstantRange,
+        .pPushConstantRanges    = layout.PushConstantSize ? &pushConstantRange : 0,
     };
 
     MZ_VULKAN_ASSERT_SUCCESS(Vk->CreatePipelineLayout(&layoutInfo, 0, &Handle));
