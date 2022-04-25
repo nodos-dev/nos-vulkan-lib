@@ -187,7 +187,7 @@ PipelineLayout::PipelineLayout(Device* Vk, ShaderLayout layout)
         .sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
         .setLayoutCount         = (u32)handles.size(),
         .pSetLayouts            = handles.data(),
-        .pushConstantRangeCount = 1,
+        .pushConstantRangeCount = layout.PushConstantSize ? 1u : 0u,
         .pPushConstantRanges    = layout.PushConstantSize ? &pushConstantRange : 0,
     };
 
