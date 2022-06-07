@@ -1,4 +1,3 @@
-#include "vulkan/vulkan_core.h"
 #include <NativeAPID3D12.h>
 
 #include <Image.h>

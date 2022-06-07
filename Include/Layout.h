@@ -80,7 +80,7 @@ struct mzVulkan_API PipelineLayout : SharedFactory<PipelineLayout>
     u32 RTCount;
 
     std::map<u32, rc<DescriptorLayout>> DescriptorSets;
-    std::unordered_map<std::string, glm::uvec2> BindingsByName;
+    std::unordered_map<std::string, ShaderLayout::Index> BindingsByName;
 
     DescriptorLayout const& operator[](u32 set) const;
 

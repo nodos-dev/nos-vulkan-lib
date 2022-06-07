@@ -177,7 +177,7 @@ bool DynamicPipeline::BindResources(rc<CommandBuffer> Cmd, std::unordered_map<st
         {
             return false;
         }
-        Bindings[it->second.x].push_back(Binding(res, it->second.y));
+        Bindings[it->second.set].push_back(Binding(res, it->second.binding));
     }
 
     BindResources(Cmd, Bindings);

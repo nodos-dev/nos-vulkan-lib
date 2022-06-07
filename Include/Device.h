@@ -26,7 +26,6 @@ struct mzVulkan_API Device : SharedFactory<Device>,
 
     VkInstance Instance;
     VkPhysicalDevice PhysicalDevice;
-
     rc<Allocator> ImmAllocator;
     rc<CommandPool> ImmCmdPool;
     rc<Queue> Queue;

@@ -11,14 +11,11 @@ namespace mz::vk
 struct mzVulkan_API DynamicPipeline : SharedFactory<DynamicPipeline>
 {
     Device* Vk;
-
     rc<Shader> Shader;
     rc<PipelineLayout> Layout;
     VkPipeline Handle;
     VkExtent2D Extent;
-
     std::vector<rc<DescriptorSet>> DescriptorSets;
-
     DynamicPipeline(Device* Vk, VkExtent2D extent, View<u8> src);
 
     ~DynamicPipeline();
@@ -62,7 +59,7 @@ struct mzVulkan_API DynamicPipeline : SharedFactory<DynamicPipeline>
         {
             return false;
         }
-        bindings[it->second.x].push_back(Binding(v, it->second.y));
+        bindings[it->second.set].push_back(Binding(v, it->second.binding));
         if constexpr (sizeof...(rest) > 0)
         {
             return Insert(bindings, std::forward<Rest>(rest)...);

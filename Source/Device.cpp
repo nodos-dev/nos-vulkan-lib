@@ -1,5 +1,4 @@
 
-#include "vulkan/vulkan_core.h"
 #include <Device.h>
 
 #include <Allocator.h>

@@ -26,11 +26,9 @@ struct mzVulkan_API Image : SharedFactory<Image>
     VkImageView View;
     VkSampler Sampler;
     Semaphore Sema;
-
     VkImageUsageFlags Usage;
     VkExtent2D Extent;
     VkFormat Format;
-
     ImageState State;
 
     DescriptorResourceInfo GetDescriptorInfo() const;
