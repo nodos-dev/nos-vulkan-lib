@@ -79,7 +79,7 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice)
 
     VkPhysicalDeviceVulkan12Features vk12features = {
         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
-        // .timelineSemaphore = VK_TRUE,
+        .timelineSemaphore = VK_TRUE,
     };
 
     VkPhysicalDeviceVulkan13Features vk13features = {

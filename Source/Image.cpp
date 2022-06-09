@@ -12,7 +12,7 @@
 
 namespace mz::vk
 {
-Semaphore::Semaphore(Device* Vk, u64 pid, HANDLE ext)
+Semaphore::Semaphore(Device* Vk, u64 pid, HANDLE ext) : Vk(Vk)
 {
     VkExportSemaphoreWin32HandleInfoKHR handleInfo = {
         .sType    = VK_STRUCTURE_TYPE_EXPORT_SEMAPHORE_WIN32_HANDLE_INFO_KHR,
@@ -22,13 +22,13 @@ Semaphore::Semaphore(Device* Vk, u64 pid, HANDLE ext)
     VkExportSemaphoreCreateInfo exportInfo = {
         .sType       = VK_STRUCTURE_TYPE_EXPORT_SEMAPHORE_CREATE_INFO,
         .pNext       = &handleInfo,
-        .handleTypes = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT,
+        .handleTypes = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_D3D12_FENCE_BIT,
     };
 
     VkSemaphoreTypeCreateInfo semaphoreTypeInfo = {
         .sType         = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
         .pNext         = &exportInfo,
-        .semaphoreType = VK_SEMAPHORE_TYPE_BINARY,
+        .semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE,
     };
 
     VkSemaphoreCreateInfo semaphoreCreateInfo = {
@@ -44,12 +44,19 @@ Semaphore::Semaphore(Device* Vk, u64 pid, HANDLE ext)
     // below is the current way of doing this
     if (!ext)
     {
-        VkSubmitInfo submitInfo = {
-            .sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-            .signalSemaphoreCount = 1,
-            .pSignalSemaphores    = &Handle,
-        };
-        MZ_VULKAN_ASSERT_SUCCESS(Vk->ImmCmdPool->Submit(1, &submitInfo, 0));
+        // u64 val = 0;
+        // VkTimelineSemaphoreSubmitInfo timelineInfo = {
+        //   .sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO,
+        //   .signalSemaphoreValueCount = 1,
+        //   .pSignalSemaphoreValues = &val,
+        // };
+        // VkSubmitInfo submitInfo = {
+        //     .sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        //     .pNext                = &timelineInfo,
+        //     .signalSemaphoreCount = 1,
+        //     .pSignalSemaphores    = &Handle,
+        // };
+        // MZ_VULKAN_ASSERT_SUCCESS(Vk->ImmCmdPool->Submit(1, &submitInfo, 0));
     }
     else
     {
@@ -58,7 +65,7 @@ Semaphore::Semaphore(Device* Vk, u64 pid, HANDLE ext)
         VkImportSemaphoreWin32HandleInfoKHR importInfo = {
             .sType      = VK_STRUCTURE_TYPE_IMPORT_SEMAPHORE_WIN32_HANDLE_INFO_KHR,
             .semaphore  = Handle,
-            .handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT,
+            .handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_D3D12_FENCE_BIT,
             .handle     = sync,
         };
 
@@ -68,7 +75,7 @@ Semaphore::Semaphore(Device* Vk, u64 pid, HANDLE ext)
     VkSemaphoreGetWin32HandleInfoKHR getHandleInfo = {
         .sType      = VK_STRUCTURE_TYPE_SEMAPHORE_GET_WIN32_HANDLE_INFO_KHR,
         .semaphore  = Handle,
-        .handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT,
+        .handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_D3D12_FENCE_BIT,
     };
 
     MZ_VULKAN_ASSERT_SUCCESS(Vk->GetSemaphoreWin32HandleKHR(&getHandleInfo, &OSHandle));
@@ -83,10 +90,17 @@ Semaphore::operator VkSemaphore() const
     return Handle;
 }
 
-void Semaphore::Free(Device* Vk)
+void Semaphore::Free()
 {
     PlatformCloseHandle(OSHandle);
     Vk->DestroySemaphore(Handle, 0);
+}
+
+u64 Semaphore::GetValue() const
+{
+    u64 val;
+    MZ_VULKAN_ASSERT_SUCCESS(Vk->GetSemaphoreCounterValue(Handle, &val));
+    return val;
 }
 
 Semaphore::Semaphore(Device* Vk, const MemoryExportInfo* Imported)
@@ -97,7 +111,7 @@ Semaphore::Semaphore(Device* Vk, const MemoryExportInfo* Imported)
 Image::~Image()
 {
     Allocation.Free();
-    Sema.Free(Vk);
+    Sema.Free();
     Vk->DestroyImageView(View, 0);
     Vk->DestroySampler(Sampler, 0);
     Vk->DestroyImage(Handle, 0);

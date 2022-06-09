@@ -144,7 +144,7 @@ void* NativeAPID3D12::CreateSharedSync()
     MZ_D3D12_ASSERT_SUCCESS(Dx12->CreateFence(0, D3D12_FENCE_FLAG_SHARED, __uuidof(ID3D12Fence), (void**)(&fence)));
 
     MZ_D3D12_ASSERT_SUCCESS(Dx12->CreateSharedHandle(fence, 0, GENERIC_ALL, 0, &handle));
-
+  
     fence->Release();
 
     return handle;

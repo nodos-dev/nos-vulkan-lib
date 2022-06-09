@@ -69,20 +69,43 @@ CommandBuffer::~CommandBuffer()
 
 rc<CommandBuffer> CommandBuffer::Submit()
 {
-    std::vector<VkSemaphore> Signal(SignalGroup.begin(), SignalGroup.end());
+    std::vector<VkSemaphore> Signal;
     std::vector<VkSemaphore> Wait;
     std::vector<VkPipelineStageFlags> Stages;
-    Wait.reserve(WaitGroup.size());
-    Stages.reserve(WaitGroup.size());
+    std::vector<uint64_t> WaitValues;
+    std::vector<uint64_t> SignalValues;
 
-    for (auto [sema, stage] : WaitGroup)
+
+    Wait.reserve(WaitGroup.size());
+    WaitValues.reserve(WaitGroup.size());
+    Stages.reserve(WaitGroup.size());
+    Signal.reserve(Signal.size());
+    SignalValues.reserve(SignalGroup.size());
+    
+    for (auto [sema, val] : SignalGroup)
     {
-        Wait.push_back(sema);
-        Stages.push_back(stage);
+        Signal.push_back(sema);
+        SignalValues.push_back(val);
     }
 
+    for (auto [sema, p] : WaitGroup)
+    {
+        Wait.push_back(sema);
+        WaitValues.push_back(p.first);
+        Stages.push_back(p.second);
+    }
+
+    VkTimelineSemaphoreSubmitInfo timelineInfo = {
+      .sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO,
+      .waitSemaphoreValueCount   = (u32)WaitValues.size(),
+      .pWaitSemaphoreValues      = WaitValues.data(),
+      .signalSemaphoreValueCount = (u32)SignalValues.size(),
+      .pSignalSemaphoreValues    = SignalValues.data(),
+    };
+    
     VkSubmitInfo submitInfo = {
         .sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .pNext                = &timelineInfo,
         .waitSemaphoreCount   = (u32)Wait.size(),
         .pWaitSemaphores      = Wait.data(),
         .pWaitDstStageMask    = Stages.data(),

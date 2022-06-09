@@ -10,12 +10,14 @@ struct Allocation;
 
 struct mzVulkan_API Semaphore
 {
+    Device* Vk;
     VkSemaphore Handle;
     HANDLE OSHandle;
     Semaphore(Device* Vk, const MemoryExportInfo* Imported);
     Semaphore(Device* Vk, u64 pid, HANDLE ext);
     operator VkSemaphore() const;
-    void Free(Device* Vk);
+    void Free();
+    u64 GetValue() const;
 };
 
 struct mzVulkan_API Image : SharedFactory<Image>
