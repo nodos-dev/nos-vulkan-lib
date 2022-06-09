@@ -14,7 +14,7 @@ Buffer::Buffer(Allocator* Allocator, u64 size, VkBufferUsageFlags usage, Heap he
 
     VkExternalMemoryBufferCreateInfo resourceCreateInfo = {
         .sType       = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_BUFFER_CREATE_INFO,
-        .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT,
+        .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT,
     };
 
     VkBufferCreateInfo info = {

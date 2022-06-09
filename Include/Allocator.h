@@ -34,9 +34,10 @@ struct mzVulkan_API Allocator : SharedFactory<Allocator>
 {
     static constexpr u64 DefaultChunkSize = 256 * 1024 * 1024;
     Device* Vk;
+    struct NativeAPI* Dx;
     std::map<u32, std::vector<rc<MemoryBlock>>> Allocations;
-
     Allocator(Device* Vk);
     Allocation AllocateResourceMemory(std::variant<VkBuffer, VkImage> resource, bool map = false, const MemoryExportInfo* exported = 0);
+    Allocation AllocateImageMemory(VkImage img, VkExtent2D extent, VkFormat format, const MemoryExportInfo* exported = 0);
 };
 } // namespace mz::vk

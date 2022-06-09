@@ -1,4 +1,6 @@
 
+#include "NativeAPID3D12.h"
+#include "vulkan/vulkan_core.h"
 #include <Allocator.h>
 
 #include <Device.h>
@@ -246,16 +248,67 @@ VkDeviceSize Allocation::GlobalSize() const
 }
 
 Allocator::Allocator(Device* Vk)
-    : Vk(Vk)
+    : Vk(Vk), Dx(new NativeAPID3D12(Vk))
 {
+}
+
+Allocation Allocator::AllocateImageMemory(VkImage img, VkExtent2D extent, VkFormat format, const MemoryExportInfo* imported)
+{
+    VkMemoryRequirements req;
+    VkPhysicalDeviceMemoryProperties props;
+    VkMemoryWin32HandlePropertiesKHR handleProps = {
+      .sType = VK_STRUCTURE_TYPE_MEMORY_WIN32_HANDLE_PROPERTIES_KHR,
+    };
+
+    Vk->GetImageMemoryRequirements(img, &req);
+
+    HANDLE memory;
+
+    if(imported)
+    {
+        memory = PlatformDupeHandle(imported->PID, imported->Memory);
+    }
+    else 
+    {
+        memory = Dx->CreateSharedTexture(extent, format);
+    }
+    
+    MZ_VULKAN_ASSERT_SUCCESS(Vk->GetMemoryWin32HandlePropertiesKHR(VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT, memory,  &handleProps));
+    auto [typeIndex, actualProps] = MemoryTypeIndex(Vk->PhysicalDevice, handleProps.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    
+    VkMemoryDedicatedAllocateInfo dedicated = {
+      .sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO,
+      .image = img,
+    };
+
+    VkImportMemoryWin32HandleInfoKHR importInfo = {
+        .sType      = VK_STRUCTURE_TYPE_IMPORT_MEMORY_WIN32_HANDLE_INFO_KHR,
+        .pNext      = &dedicated,
+        .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT,
+        .handle     = memory,
+    };
+
+    VkMemoryAllocateInfo info = {
+        .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+        .pNext           = &importInfo,
+        .allocationSize  = req.size,
+        .memoryTypeIndex = typeIndex,
+    };
+
+    VkDeviceMemory mem;
+    MZ_VULKAN_ASSERT_SUCCESS(Vk->AllocateMemory(&info, 0, &mem));
+    auto Block = MemoryBlock::New(Vk, mem, actualProps, 0, req.size, memory);
+    return Block->Allocate(req.size, req.alignment);
 }
 
 Allocation Allocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> resource, bool map, const MemoryExportInfo* imported)
 {
     VkMemoryRequirements req;
-    VkPhysicalDeviceMemoryProperties props;
-
     VkMemoryPropertyFlags memProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
+    VkMemoryDedicatedAllocateInfo dedicated = {
+      .sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO,
+    };
 
     if (auto buf = std::get_if<VkBuffer>(&resource); buf)
     {
@@ -267,7 +320,9 @@ Allocation Allocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> res
     }
     else
     {
-        Vk->GetImageMemoryRequirements(std::get<VkImage>(resource), &req);
+        VkImage img = std::get<VkImage>(resource);
+        dedicated.image = img;
+        Vk->GetImageMemoryRequirements(img, &req);
     }
 
     auto [typeIndex, actualProps] = MemoryTypeIndex(Vk->PhysicalDevice, req.memoryTypeBits, memProps);
@@ -280,9 +335,14 @@ Allocation Allocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> res
 
         VkImportMemoryWin32HandleInfoKHR importInfo = {
             .sType      = VK_STRUCTURE_TYPE_IMPORT_MEMORY_WIN32_HANDLE_INFO_KHR,
-            .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT,
+            .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT,
             .handle     = memory,
         };
+        
+        if(dedicated.image) 
+        {
+          importInfo.pNext = &dedicated;
+        }
 
         VkMemoryAllocateInfo info = {
             .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
@@ -321,10 +381,16 @@ Allocation Allocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> res
         .dwAccess = GENERIC_ALL,
     };
 
+    if(dedicated.image) 
+    {
+      handleInfo.pNext = &dedicated;
+      size = req.size;
+    }
+
     VkExportMemoryAllocateInfo exportInfo = {
         .sType       = VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO,
         .pNext       = &handleInfo,
-        .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT,
+        .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT,
     };
 
     VkMemoryAllocateInfo info = {
@@ -342,7 +408,7 @@ Allocation Allocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> res
     VkMemoryGetWin32HandleInfoKHR getHandleInfo = {
         .sType      = VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR,
         .memory     = mem,
-        .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT,
+        .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT,
     };
 
     MZ_VULKAN_ASSERT_SUCCESS(Vk->GetMemoryWin32HandleKHR(&getHandleInfo, &OSHandle));

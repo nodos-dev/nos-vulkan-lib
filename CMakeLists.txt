@@ -1,4 +1,4 @@
-list(APPEND DEPENDENCIES mzCommon vkl spirv-cross-core d3d12 dxgi)
+list(APPEND DEPENDENCIES mzCommon vkl spirv-cross-core d3d12 d3d11 dxgi)
 list(APPEND INCLUDEFOLDERS ${CMAKE_CURRENT_SOURCE_DIR}/Include ${DYNALO_INCLUDE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/..)
 
 execute_process(COMMAND ${SHADER_COMPILER_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/GlobVS.vert -c -o ${MZ_SHADER_PATH}/GlobVS.vert.spv)
