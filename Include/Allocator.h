@@ -30,10 +30,9 @@ struct mzVulkan_API Allocation
     VkDeviceSize Size;
 };
 
-struct mzVulkan_API Allocator : SharedFactory<Allocator>
+struct mzVulkan_API Allocator : SharedFactory<Allocator>, DeviceChild
 {
     static constexpr u64 DefaultChunkSize = 256 * 1024 * 1024;
-    Device* Vk;
     struct NativeAPI* Dx;
     std::map<u32, std::vector<rc<MemoryBlock>>> Allocations;
     Allocator(Device* Vk);

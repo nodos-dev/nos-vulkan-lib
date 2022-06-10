@@ -16,7 +16,6 @@ struct mzVulkan_API Binding
     using Type = std::variant<rc<Image>, rc<Buffer>>;
 
     Type Resource;
-
     u32 Idx;
     u32 BufferOffset;
     mutable VkAccessFlags AccessFlags;

@@ -30,6 +30,12 @@ struct Buffer;
 struct CommandBuffer;
 struct CommandPool;
 
+struct DeviceChild
+{
+  Device* Vk = 0;
+  Device* GetDevice() { return Vk; }
+};
+
 struct ImageState
 {
     VkPipelineStageFlags2 StageMask;

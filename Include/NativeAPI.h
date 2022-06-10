@@ -5,12 +5,10 @@
 namespace mz::vk
 {
 
-struct mzVulkan_API NativeAPI
+struct mzVulkan_API NativeAPI : DeviceChild
 {
-    Device* Vk;
-
     NativeAPI(Device* Vk)
-        : Vk(Vk)
+        : DeviceChild{.Vk = Vk}
     {
     }
 

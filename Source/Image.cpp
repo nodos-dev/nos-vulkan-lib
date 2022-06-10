@@ -12,7 +12,8 @@
 
 namespace mz::vk
 {
-Semaphore::Semaphore(Device* Vk, u64 pid, HANDLE ext) : Vk(Vk)
+Semaphore::Semaphore(Device* Vk, u64 pid, HANDLE ext) : 
+  DeviceChild{.Vk = Vk}
 {
     VkExportSemaphoreWin32HandleInfoKHR handleInfo = {
         .sType    = VK_STRUCTURE_TYPE_EXPORT_SEMAPHORE_WIN32_HANDLE_INFO_KHR,
@@ -118,7 +119,7 @@ Image::~Image()
 };
 
 Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo)
-    : Vk(Allocator->Vk),
+    : DeviceChild{.Vk = Allocator->Vk},
       Extent(createInfo.Extent),
       Format(createInfo.Format),
       Usage(createInfo.Usage),

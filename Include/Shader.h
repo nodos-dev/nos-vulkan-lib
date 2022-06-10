@@ -6,9 +6,8 @@
 namespace mz::vk
 {
 
-struct mzVulkan_API Shader : SharedFactory<Shader>
+struct mzVulkan_API Shader : SharedFactory<Shader>, DeviceChild
 {
-    Device* Vk;
     VkShaderModule Module;
     VkShaderStageFlags Stage;
     Shader(Device* Vk, VkShaderStageFlags stage, View<u8> src);

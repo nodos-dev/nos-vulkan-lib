@@ -9,9 +9,8 @@ namespace mz::vk
 {
 
 Buffer::Buffer(Allocator* Allocator, u64 size, VkBufferUsageFlags usage, Heap heap)
-    : Vk(Allocator->Vk), Usage(usage)
+    : DeviceChild{.Vk = Allocator->Vk}, Usage(usage)
 {
-
     VkExternalMemoryBufferCreateInfo resourceCreateInfo = {
         .sType       = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_BUFFER_CREATE_INFO,
         .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT,

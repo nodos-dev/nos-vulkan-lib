@@ -8,16 +8,15 @@
 namespace mz::vk
 {
 
-struct mzVulkan_API DynamicPipeline : SharedFactory<DynamicPipeline>
+struct mzVulkan_API DynamicPipeline : SharedFactory<DynamicPipeline>, DeviceChild
 {
-    Device* Vk;
     rc<Shader> Shader;
     rc<PipelineLayout> Layout;
     VkPipeline Handle;
     VkExtent2D Extent;
     std::vector<rc<DescriptorSet>> DescriptorSets;
-    DynamicPipeline(Device* Vk, VkExtent2D extent, View<u8> src);
 
+    DynamicPipeline(Device* Vk, VkExtent2D extent, View<u8> src);
     ~DynamicPipeline();
 
     void BeginRendering(rc<CommandBuffer> Cmd, View<rc<Image>> Images);
@@ -36,7 +35,6 @@ struct mzVulkan_API DynamicPipeline : SharedFactory<DynamicPipeline>
     }
 
     bool BindResources(rc<CommandBuffer> Cmd, std::unordered_map<std::string, Binding::Type> const& resources);
-
     void BindResources(rc<CommandBuffer> Cmd, std::map<u32, std::vector<Binding>> const& bindings);
 
     template <class... Args>

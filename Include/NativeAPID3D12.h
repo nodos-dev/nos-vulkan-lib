@@ -35,7 +35,6 @@ namespace mz::vk
 struct mzVulkan_API NativeAPID3D12 : NativeAPI
 {
     ID3D12Device* Dx12;
-
     NativeAPID3D12(Device* Vk);
 
     // https://docs.microsoft.com/en-us/windows/win32/direct3d12/shared-heaps#sharing-heaps-across-processes

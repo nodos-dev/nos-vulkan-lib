@@ -5,7 +5,7 @@ namespace mz::vk
 {
 
 Shader::Shader(Device* Vk, VkShaderStageFlags stage, View<u8> src)
-    : Vk(Vk), Stage(stage)
+    : DeviceChild{.Vk = Vk}, Stage(stage)
 {
     VkShaderModuleCreateInfo info = {
         .sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,

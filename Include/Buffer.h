@@ -5,14 +5,10 @@
 namespace mz::vk
 {
 
-struct mzVulkan_API Buffer : SharedFactory<Buffer>
+struct mzVulkan_API Buffer : SharedFactory<Buffer>, DeviceChild
 {
-    Device* Vk;
-
     Allocation Allocation;
-
     VkBuffer Handle;
-
     VkBufferUsageFlags Usage;
 
     void Copy(size_t len, void* pp, size_t offset = 0);
@@ -26,9 +22,7 @@ struct mzVulkan_API Buffer : SharedFactory<Buffer>
     u8* Map();
 
     void Flush();
-
     void Bind(VkDescriptorType type, u32 bind, VkDescriptorSet set);
-
     DescriptorResourceInfo GetDescriptorInfo() const;
 
     enum Heap
