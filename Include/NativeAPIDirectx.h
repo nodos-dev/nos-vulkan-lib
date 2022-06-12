@@ -5,6 +5,7 @@
 
 #include <d3d12.h>
 #include <d3d11.h>
+#include <d3d11_4.h>
 #include <dxgi.h>
 
 #include <system_error>
@@ -36,7 +37,7 @@ struct mzVulkan_API NativeAPID3D12 : NativeAPI
 {
     ID3D12Device* Dx12;
     NativeAPID3D12(Device* Vk);
-
+    
     // https://docs.microsoft.com/en-us/windows/win32/direct3d12/shared-heaps#sharing-heaps-across-processes
     virtual void* CreateSharedMemory(u64 size) override;
     virtual void* CreateSharedSync() override;
@@ -46,11 +47,12 @@ struct mzVulkan_API NativeAPID3D12 : NativeAPI
 struct mzVulkan_API NativeAPID3D11 : NativeAPI
 {
     ID3D11Device* Dx11;
+    ID3D11Device5* Dx11_5;
     ID3D11DeviceContext* Ctx;
     NativeAPID3D11(Device* Vk);
-    virtual void* CreateSharedMemory(u64 size) override {return 0;}
-    virtual void* CreateSharedSync() override {return 0;}
-    virtual void* CreateSharedTexture(VkExtent2D extent, VkFormat format) override { return 0 ;}
+    virtual void* CreateSharedMemory(u64 size) override;
+    virtual void* CreateSharedSync() override;
+    virtual void* CreateSharedTexture(VkExtent2D extent, VkFormat format) override;
 };
 
 }; // namespace mz::vk

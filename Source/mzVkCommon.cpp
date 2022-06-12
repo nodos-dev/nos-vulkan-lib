@@ -1,5 +1,5 @@
 
-#include <NativeAPID3D12.h>
+#include <NativeAPIDirectx.h>
 
 #include <Image.h>
 

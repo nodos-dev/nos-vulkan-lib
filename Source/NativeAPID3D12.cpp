@@ -1,6 +1,7 @@
-#include "vulkan/vulkan_core.h"
-#include <NativeAPID3D12.h>
+
+#include <NativeAPIDirectx.h>
 #include <combaseapi.h>
+#include <d3d11.h>
 
 namespace mz::vk
 {
@@ -29,8 +30,10 @@ NativeAPID3D11::NativeAPID3D11(Device* Vk)
     }
 
     D3D_FEATURE_LEVEL featureLevel;
-    D3D_FEATURE_LEVEL featureLevels[] =
+    std::vector<D3D_FEATURE_LEVEL> featureLevels =
     {
+        D3D_FEATURE_LEVEL_12_1,
+        D3D_FEATURE_LEVEL_12_0,
         D3D_FEATURE_LEVEL_11_0,
         D3D_FEATURE_LEVEL_10_1,
         D3D_FEATURE_LEVEL_10_0,
@@ -39,13 +42,58 @@ NativeAPID3D11::NativeAPID3D11(Device* Vk)
         D3D_FEATURE_LEVEL_9_1
     };
 
-    // Create D3D12 device
-    MZ_D3D12_ASSERT_SUCCESS(
-      D3D11CreateDevice(0, D3D_DRIVER_TYPE_HARDWARE, 0, 0, featureLevels, 4, D3D11_SDK_VERSION, &Dx11, &featureLevel, &Ctx)
-      );
-
+    MZ_D3D12_ASSERT_SUCCESS(D3D11CreateDevice(0, D3D_DRIVER_TYPE_HARDWARE, 0, 0, featureLevels.data(), featureLevels.size(), D3D11_SDK_VERSION, &Dx11, &featureLevel, &Ctx));
+    MZ_D3D12_ASSERT_SUCCESS(Dx11->QueryInterface(IID_PPV_ARGS(&Dx11_5)));
     pDXGIFactory->Release();
     pDXGIAdapter->Release();
+}
+
+
+void* NativeAPID3D11::CreateSharedMemory(u64 size)  
+{
+  // Figure this out
+  return 0;
+}
+
+void* NativeAPID3D11::CreateSharedSync() 
+{
+  HANDLE handle = 0;
+  ID3D11Fence* pFence = 0;
+
+  MZ_D3D12_ASSERT_SUCCESS(Dx11_5->CreateFence(0, D3D11_FENCE_FLAG_SHARED, IID_PPV_ARGS(&pFence)));
+  MZ_D3D12_ASSERT_SUCCESS(pFence->CreateSharedHandle(0, GENERIC_ALL, 0, &handle));
+
+  pFence->Release();
+
+  return handle;
+}
+
+void* NativeAPID3D11::CreateSharedTexture(VkExtent2D extent, VkFormat format) 
+{ 
+
+  HANDLE handle = 0;
+  ID3D11Texture2D* pTexture = 0;
+  IDXGIResource * pDXGIResource = 0;
+  D3D11_TEXTURE2D_DESC desc = {
+    .Width = extent.width,
+    .Height = extent.height,
+    .MipLevels = 1,
+    .ArraySize = 1,
+    .Format = VK_FORMAT_TO_DXGI_FORMAT[format],
+    .SampleDesc = { .Count = 1, .Quality = 0 },
+    .Usage = D3D11_USAGE_DEFAULT,
+    .BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET | D3D11_BIND_UNORDERED_ACCESS,
+    .CPUAccessFlags = 0,
+    .MiscFlags = D3D11_RESOURCE_MISC_SHARED | D3D11_RESOURCE_MISC_SHARED_NTHANDLE,
+  };
+
+  MZ_D3D12_ASSERT_SUCCESS(Dx11_5->CreateTexture2D(&desc, 0, &pTexture));
+  MZ_D3D12_ASSERT_SUCCESS(pTexture->QueryInterface(IID_PPV_ARGS(&pDXGIResource)));
+
+  pTexture->Release();
+  pDXGIResource->Release();
+
+  return handle;
 }
 
 NativeAPID3D12::NativeAPID3D12(Device* Vk)

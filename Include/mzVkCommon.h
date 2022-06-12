@@ -48,6 +48,16 @@ union DescriptorResourceInfo {
     VkDescriptorBufferInfo Buffer;
 };
 
+// Might need something like this later if Memory and Sync object are not originating from the same process
+/*
+struct HandleExportInfo 
+{
+    u64 PID;
+    HANDLE Handle;
+    VkExternalMemoryHandleTypeFlagBits Type;
+};
+*/
+
 struct MemoryExportInfo
 {
     u64 PID;
