@@ -20,6 +20,12 @@ Shader::~Shader()
     Vk->DestroyShaderModule(Module, 0);
 }
 
+PixelShader::PixelShader(Device* Vk, View<u8> src)
+    : Shader(Vk, VK_SHADER_STAGE_FRAGMENT_BIT, src)
+{
+
+}
+
 VertexShader::VertexShader(Device* Vk, View<u8> src)
     : Shader(Vk, VK_SHADER_STAGE_VERTEX_BIT, src)
 {

@@ -14,6 +14,12 @@ struct mzVulkan_API Shader : SharedFactory<Shader>, DeviceChild
     ~Shader();
 };
 
+struct mzVulkan_API PixelShader : Shader
+{
+    PixelShader(Device* Vk, View<u8> src);
+};
+
+
 struct mzVulkan_API VertexShader : Shader
 {
     VkVertexInputBindingDescription Binding;

@@ -10,17 +10,20 @@ struct mzVulkan_API Device : SharedFactory<Device>,
     struct mzVulkan_API Global
     {
         u64 Handle;
-        void (*Dtor)(u64);
+        void (*Dtor)(Device*, u64);
 
+        Global() : Handle(0), Dtor([](auto,auto) {}) {}
+        Global(u64 Handle, void (*Dtor)(Device*, u64)) : Handle(Handle), Dtor(Dtor) {}
+ 
         template <class T>
         Global(T* handle)
-            : Handle((u64)handle), Dtor([](u64 handle) { delete (T*)handle; })
+            : Handle((u64)handle), Dtor([](Device*, u64 handle) { delete (T*)handle; })
         {
         }
 
-        void Free()
+        void Free(Device* Dev)
         {
-            Dtor(Handle);
+            Dtor(Dev, Handle);
         }
     };
 
@@ -52,7 +55,7 @@ struct mzVulkan_API Device : SharedFactory<Device>,
 
         if (it != Globals.end())
         {
-            it->second.Free();
+            it->second.Free(this);
             Globals.erase(it);
         }
 

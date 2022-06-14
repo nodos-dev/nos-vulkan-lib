@@ -117,7 +117,7 @@ Device::~Device()
 {
     for (auto& [id, glob] : Globals)
     {
-        glob.Free();
+        glob.Free(this);
     }
 
     ImmAllocator.reset();
