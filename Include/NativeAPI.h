@@ -8,7 +8,7 @@ namespace mz::vk
 struct mzVulkan_API NativeAPI : DeviceChild
 {
     NativeAPI(Device* Vk)
-        : DeviceChild{.Vk = Vk}
+        : DeviceChild(Vk)
     {
     }
 

@@ -14,7 +14,7 @@ NamedDSLBinding const& DescriptorLayout::operator[](u32 binding) const
 }
 
 DescriptorLayout::DescriptorLayout(Device* Vk, std::map<u32, NamedDSLBinding> NamedBindings)
-    : DeviceChild{.Vk = Vk}, Bindings(std::move(NamedBindings))
+    : DeviceChild(Vk), Bindings(std::move(NamedBindings))
 {
     std::vector<VkDescriptorSetLayoutBinding> bindings;
     bindings.reserve(Bindings.size());
@@ -162,7 +162,7 @@ PipelineLayout::PipelineLayout(Device* Vk, View<u8> src)
 }
 
 PipelineLayout::PipelineLayout(Device* Vk, ShaderLayout layout)
-    : DeviceChild{.Vk = Vk}, PushConstantSize(layout.PushConstantSize), RTCount(layout.RTCount), Pool(0), BindingsByName(std::move(layout.BindingsByName))
+    : DeviceChild(Vk), PushConstantSize(layout.PushConstantSize), RTCount(layout.RTCount), Pool(0), BindingsByName(std::move(layout.BindingsByName))
 {
     std::vector<VkDescriptorSetLayout> handles;
 

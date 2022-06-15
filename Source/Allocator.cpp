@@ -248,7 +248,7 @@ VkDeviceSize Allocation::GlobalSize() const
 }
 
 Allocator::Allocator(Device* Vk)
-    : DeviceChild{.Vk = Vk}, Dx(new NativeAPID3D12(Vk))
+    : DeviceChild(Vk), Dx(new NativeAPID3D12(Vk))
 {
 }
 

@@ -33,6 +33,8 @@ struct CommandPool;
 struct DeviceChild
 {
   Device* Vk = 0;
+  DeviceChild() = default;
+  DeviceChild(Device* Vk)  : Vk(Vk) {}
   Device* GetDevice() { return Vk; }
 };
 
