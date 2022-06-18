@@ -35,6 +35,20 @@ struct mzVulkan_API Device : SharedFactory<Device>,
 
     std::unordered_map<std::string, Global> Globals;
 
+   
+    bool RemoveGlobal(std::string const& id)
+    {
+        auto it = Globals.find(id);
+        if (it != Globals.end())
+        {
+            it->second.Free(this);
+            Globals.erase(it);
+            return true;
+        }
+        return false;
+    }
+
+
     template <class T>
     T* GetGlobal(std::string const& id)
     {
@@ -47,19 +61,11 @@ struct mzVulkan_API Device : SharedFactory<Device>,
 
     template <class T, class... Args>
     requires(std::is_constructible_v<T, Args...>)
-        T* RegisterGlobal(std::string id, Args&&... args)
+        T* RegisterGlobal(std::string const& id, Args&&... args)
     {
         T* data = new T(std::forward<Args>(args)...);
-
-        auto it = Globals.find(id);
-
-        if (it != Globals.end())
-        {
-            it->second.Free(this);
-            Globals.erase(it);
-        }
-
-        Globals.insert(it, std::make_pair(std::move(id), Global(data)));
+        RemoveGlobal(id);
+        Globals[id] = Global(data);
         return data;
     }
 
