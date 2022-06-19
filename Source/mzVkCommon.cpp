@@ -69,11 +69,11 @@ std::string GetLastErrorAsString()
     return message;
 }
 
-bool IsImportable(VkPhysicalDevice PhysicalDevice, VkFormat Format, VkImageUsageFlags Usage)
+VkExternalMemoryProperties GetExportProperties(VkPhysicalDevice PhysicalDevice, VkFormat Format, VkImageUsageFlags Usage, VkExternalMemoryHandleTypeFlagBits Type)
 {
     VkPhysicalDeviceExternalImageFormatInfo externalimageFormatInfo = {
         .sType      = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_IMAGE_FORMAT_INFO,
-        .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT,
+        .handleType = Type,
     };
 
     VkPhysicalDeviceImageFormatInfo2 imageFormatInfo = {
@@ -96,10 +96,16 @@ bool IsImportable(VkPhysicalDevice PhysicalDevice, VkFormat Format, VkImageUsage
     };
 
     MZ_VULKAN_ASSERT_SUCCESS(vkGetPhysicalDeviceImageFormatProperties2(PhysicalDevice, &imageFormatInfo, &props));
+    return extProps.externalMemoryProperties;
+}
+
+bool IsImportable(VkPhysicalDevice PhysicalDevice, VkFormat Format, VkImageUsageFlags Usage, VkExternalMemoryHandleTypeFlagBits Type)
+{
+    VkExternalMemoryProperties extProps = GetExportProperties(PhysicalDevice, Format, Usage, Type);
 
     //assert(!(extProps.externalMemoryProperties.externalMemoryFeatures & VK_EXTERNAL_MEMORY_FEATURE_DEDICATED_ONLY_BIT));
 
-    return extProps.externalMemoryProperties.externalMemoryFeatures & (VK_EXTERNAL_MEMORY_FEATURE_EXPORTABLE_BIT | VK_EXTERNAL_MEMORY_FEATURE_IMPORTABLE_BIT);
+    return extProps.externalMemoryFeatures & (VK_EXTERNAL_MEMORY_FEATURE_EXPORTABLE_BIT | VK_EXTERNAL_MEMORY_FEATURE_IMPORTABLE_BIT);
 }
 
 void ImageLayoutTransition(VkImage Image,

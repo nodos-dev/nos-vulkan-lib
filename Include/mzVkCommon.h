@@ -138,7 +138,9 @@ struct mzVulkan_API ShaderLayout
 mzVulkan_API void ReadInputLayout(View<u8> bin, VkVertexInputBindingDescription& binding, std::vector<VkVertexInputAttributeDescription>& attributes);
 
 mzVulkan_API ShaderLayout GetShaderLayouts(View<u8> bin);
-mzVulkan_API bool IsImportable(VkPhysicalDevice PhysicalDevice, VkFormat Format, VkImageUsageFlags Usage);
+
+mzVulkan_API VkExternalMemoryProperties GetExportProperties(VkPhysicalDevice PhysicalDevice, VkFormat Format, VkImageUsageFlags Usage, VkExternalMemoryHandleTypeFlagBits Type);
+mzVulkan_API bool IsImportable(VkPhysicalDevice PhysicalDevice, VkFormat Format, VkImageUsageFlags Usage, VkExternalMemoryHandleTypeFlagBits Type);
 
 mzVulkan_API bool PlatformCloseHandle(HANDLE);
 mzVulkan_API HANDLE PlatformDupeHandle(u64 pid, HANDLE);

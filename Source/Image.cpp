@@ -1,3 +1,4 @@
+
 #include <NativeAPIDirectx.h>
 
 #include <Image.h>
@@ -135,7 +136,7 @@ Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo)
         State.Layout = VK_IMAGE_LAYOUT_PREINITIALIZED;
     }
 
-    assert(IsImportable(Vk->PhysicalDevice, Format, Usage));
+    assert(IsImportable(Vk->PhysicalDevice, Format, Usage, VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT));
 
     VkExternalMemoryImageCreateInfo resourceCreateInfo = {
         .sType       = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
