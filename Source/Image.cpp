@@ -359,6 +359,7 @@ void Image::BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
                          });
 
     Cmd->BlitImage(Src->Handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, Dst->Handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, VK_FILTER_LINEAR);
+    Cmd->AddDependency(Src, shared_from_this());
 }
 
 MemoryExportInfo Image::GetExportInfo() const
