@@ -1,6 +1,7 @@
 #pragma once
 
 #include <mzVkCommon.h>
+#include <type_traits>
 
 namespace mz::vk
 {
@@ -13,17 +14,27 @@ struct mzVulkan_API Device : SharedFactory<Device>,
         void (*Dtor)(Device*, u64);
 
         Global() : Handle(0), Dtor([](auto,auto) {}) {}
+
         Global(u64 Handle, void (*Dtor)(Device*, u64)) : Handle(Handle), Dtor(Dtor) {}
- 
+
         template <class T>
         Global(T* handle)
             : Handle((u64)handle), Dtor([](Device*, u64 handle) { delete (T*)handle; })
         {
+
         }
 
         void Free(Device* Dev)
         {
             Dtor(Dev, Handle);
+        }
+
+        template<class T>
+        auto Get() 
+        {
+            if constexpr(std::is_base_of_v<SharedFactory<T>, T>)
+                 return ((T*)Handle)->shared_from_this();
+            else return ((T*)Handle);
         }
     };
 
@@ -35,7 +46,6 @@ struct mzVulkan_API Device : SharedFactory<Device>,
 
     std::unordered_map<std::string, Global> Globals;
 
-   
     bool RemoveGlobal(std::string const& id)
     {
         auto it = Globals.find(id);
@@ -48,25 +58,47 @@ struct mzVulkan_API Device : SharedFactory<Device>,
         return false;
     }
 
-
     template <class T>
-    T* GetGlobal(std::string const& id)
+    auto GetGlobal(std::string const& id)
     {
         if (auto it = Globals.find(id); it != Globals.end())
         {
-            return (T*)it->second.Handle;
+            return it->second.Get<T>();
         }
-        return 0;
+        return decltype(Global().Get<T>())(0);
+    }
+
+    template<class T>
+    static void AddRef(rc<T> val)
+    {
+        char buf[sizeof(rc<T>)] = {};
+        new (buf) rc<T>(val); // dirty way to addref
+    }
+
+    template<class T>
+    static void DecRef(rc<T> val)
+    {
+        val.~rc<T>();
     }
 
     template <class T, class... Args>
     requires(std::is_constructible_v<T, Args...>)
-        T* RegisterGlobal(std::string const& id, Args&&... args)
+        auto RegisterGlobal(std::string const& id, Args&&... args)
     {
-        T* data = new T(std::forward<Args>(args)...);
         RemoveGlobal(id);
-        Globals[id] = Global(data);
-        return data;
+        if constexpr(std::is_base_of_v<SharedFactory<T>, T>)
+        {
+            auto shared = MakeShared<T>(std::forward<Args>(args)...);
+            AddRef<T>(shared);
+            Globals[id] = Global((u64)shared.get(), [](Device*, u64 handle) { DecRef<T>(((T*)handle)->shared_from_this()); });
+            return shared;
+        }
+        else 
+        {
+            T* data = new T(std::forward<Args>(args)...);
+            Globals[id] = Global(data);
+            return data;
+        }
     }
 
     Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice);
