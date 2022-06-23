@@ -21,7 +21,6 @@ struct mzVulkan_API Device : SharedFactory<Device>,
         Global(T* handle)
             : Handle((u64)handle), Dtor([](Device*, u64 handle) { delete (T*)handle; })
         {
-
         }
 
         void Free(Device* Dev)
@@ -29,13 +28,6 @@ struct mzVulkan_API Device : SharedFactory<Device>,
             Dtor(Dev, Handle);
         }
 
-        template<class T>
-        auto Get() 
-        {
-            if constexpr(std::is_base_of_v<SharedFactory<T>, T>)
-                 return ((T*)Handle)->shared_from_this();
-            else return ((T*)Handle);
-        }
     };
 
     VkInstance Instance;
@@ -59,51 +51,27 @@ struct mzVulkan_API Device : SharedFactory<Device>,
     }
 
     template <class T>
-    auto GetGlobal(std::string const& id)
+    T* GetGlobal(std::string const& id)
     {
         if (auto it = Globals.find(id); it != Globals.end())
         {
-            return it->second.Get<T>();
+            return (T*)it->second.Handle;
         }
-        return decltype(Global().Get<T>())(0);
-    }
-
-    template<class T>
-    static void AddRef(rc<T> val)
-    {
-        char buf[sizeof(rc<T>)] = {};
-        new (buf) rc<T>(val); // dirty way to addref
-    }
-
-    template<class T>
-    static void DecRef(rc<T> val)
-    {
-        val.~rc<T>();
+        return 0;
     }
 
     template <class T, class... Args>
     requires(std::is_constructible_v<T, Args...>)
-        auto RegisterGlobal(std::string const& id, Args&&... args)
+        T* RegisterGlobal(std::string const& id, Args&&... args)
     {
         RemoveGlobal(id);
-        if constexpr(std::is_base_of_v<SharedFactory<T>, T>)
-        {
-            auto shared = MakeShared<T>(std::forward<Args>(args)...);
-            AddRef<T>(shared);
-            Globals[id] = Global((u64)shared.get(), [](Device*, u64 handle) { DecRef<T>(((T*)handle)->shared_from_this()); });
-            return shared;
-        }
-        else 
-        {
-            T* data = new T(std::forward<Args>(args)...);
-            Globals[id] = Global(data);
-            return data;
-        }
+        T* data = new T(std::forward<Args>(args)...);
+        Globals[id] = Global(data);
+        return data;
     }
-
+    
     Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice);
     ~Device();
-
     u64 GetLuid() const;
 
 }; // namespace mz::vk
