@@ -64,7 +64,7 @@ struct MemoryExportInfo
 {
     u64 PID;
     HANDLE Memory;
-    HANDLE Sync;
+    VkExternalMemoryHandleTypeFlagBits Type;
     VkDeviceSize Offset;
 };
 

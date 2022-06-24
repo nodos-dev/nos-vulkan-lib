@@ -8,24 +8,12 @@ namespace mz::vk
 struct Buffer;
 struct Allocation;
 
-struct mzVulkan_API Semaphore : DeviceChild
-{
-    VkSemaphore Handle;
-    HANDLE OSHandle;
-    Semaphore(Device* Vk, const MemoryExportInfo* Imported);
-    Semaphore(Device* Vk, u64 pid, HANDLE ext);
-    operator VkSemaphore() const;
-    void Free();
-    u64 GetValue() const;
-};
-
 struct mzVulkan_API Image : SharedFactory<Image>, DeviceChild
 {
     Allocation Allocation;
     VkImage Handle;
     VkImageView View;
     VkSampler Sampler;
-    Semaphore Sema;
     VkImageUsageFlags Usage;
     VkExtent2D Extent;
     VkFormat Format;
