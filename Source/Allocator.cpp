@@ -310,7 +310,7 @@ Allocation Allocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> res
       .sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO,
     };
 
-    if (auto buf = std::get_if<VkBuffer>(&resource); buf)
+    if (auto buf = std::get_if<VkBuffer>(&resource))
     {
         if (map)
         {

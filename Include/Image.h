@@ -5,6 +5,7 @@
 namespace mz::vk
 {
 
+struct CommandBuffer;
 struct Buffer;
 struct Allocation;
 
