@@ -1,4 +1,5 @@
 
+#include "vulkan/vulkan_core.h"
 #include <Layout.h>
 #include <Command.h>
 #include <Image.h>
@@ -13,7 +14,7 @@ NamedDSLBinding const& DescriptorLayout::operator[](u32 binding) const
     return Bindings.at(binding);
 }
 
-DescriptorLayout::DescriptorLayout(Device* Vk, std::map<u32, NamedDSLBinding> NamedBindings)
+DescriptorLayout::DescriptorLayout(Device* Vk, std::map<u32, NamedDSLBinding> NamedBindings, VkSampler sampler)
     : DeviceChild(Vk), Bindings(std::move(NamedBindings))
 {
     std::vector<VkDescriptorSetLayoutBinding> bindings;
@@ -26,6 +27,7 @@ DescriptorLayout::DescriptorLayout(Device* Vk, std::map<u32, NamedDSLBinding> Na
             .descriptorType  = b.DescriptorType,
             .descriptorCount = b.DescriptorCount,
             .stageFlags      = b.StageMask,
+            .pImmutableSamplers = (sampler && b.DescriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER) ? &sampler : 0,
         });
     }
 
@@ -52,6 +54,7 @@ rc<DescriptorSet> DescriptorSet::Update(rc<CommandBuffer> Cmd, View<Binding> Res
 
     for (auto res : Res)
     {
+
         infos.push_back(res.GetDescriptorInfo(GetType(res.Idx)));
         writes.push_back(VkWriteDescriptorSet{
             .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
@@ -73,7 +76,7 @@ rc<DescriptorSet> DescriptorSet::Update(rc<CommandBuffer> Cmd, View<Binding> Res
         }
     }
     Layout->Vk->UpdateDescriptorSets(writes.size(), writes.data(), 0, 0);
-
+    Cmd->AddDependency(shared_from_this());
     return shared_from_this();
 }
 
@@ -156,12 +159,12 @@ DescriptorPool::~DescriptorPool()
     }
 }
 
-PipelineLayout::PipelineLayout(Device* Vk, View<u8> src)
-    : PipelineLayout(Vk, GetShaderLayouts(src))
+PipelineLayout::PipelineLayout(Device* Vk, View<u8> src, VkSampler sampler)
+    : PipelineLayout(Vk, GetShaderLayouts(src), sampler)
 {
 }
 
-PipelineLayout::PipelineLayout(Device* Vk, ShaderLayout layout)
+PipelineLayout::PipelineLayout(Device* Vk, ShaderLayout layout, VkSampler sampler)
     : DeviceChild(Vk), PushConstantSize(layout.PushConstantSize), RTCount(layout.RTCount), Pool(0), BindingsByName(std::move(layout.BindingsByName))
 {
     std::vector<VkDescriptorSetLayout> handles;
@@ -178,7 +181,7 @@ PipelineLayout::PipelineLayout(Device* Vk, ShaderLayout layout)
             pushConstantRange.stageFlags |= binding.StageMask;
         }
 
-        auto layout = DescriptorLayout::New(Vk, std::move(set));
+        auto layout = DescriptorLayout::New(Vk, std::move(set), sampler);
         handles.push_back(layout->Handle);
         DescriptorSets[idx] = layout;
     }

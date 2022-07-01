@@ -247,6 +247,11 @@ VkDeviceSize Allocation::GlobalSize() const
     return Block->Size;
 }
 
+VkDeviceMemory Allocation::GetMemory() const
+{
+    return Block->Memory;
+}
+
 Allocator::Allocator(Device* Vk)
     : DeviceChild(Vk), Dx(new NativeAPID3D12(Vk))
 {
@@ -254,6 +259,7 @@ Allocator::Allocator(Device* Vk)
 
 Allocation Allocator::AllocateImageMemory(VkImage img, VkExtent2D extent, VkFormat format, const MemoryExportInfo* imported)
 {
+    return AllocateResourceMemory(img, false, imported);
     VkMemoryRequirements req;
     VkPhysicalDeviceMemoryProperties props;
     VkMemoryWin32HandlePropertiesKHR handleProps = {
@@ -306,10 +312,6 @@ Allocation Allocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> res
     VkMemoryRequirements req;
     VkMemoryPropertyFlags memProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
-    VkMemoryDedicatedAllocateInfo dedicated = {
-      .sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO,
-    };
-
     if (auto buf = std::get_if<VkBuffer>(&resource))
     {
         if (map)
@@ -321,7 +323,6 @@ Allocation Allocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> res
     else
     {
         VkImage img = std::get<VkImage>(resource);
-        dedicated.image = img;
         Vk->GetImageMemoryRequirements(img, &req);
     }
 
@@ -338,11 +339,6 @@ Allocation Allocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> res
             .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT,
             .handle     = memory,
         };
-        
-        if(dedicated.image) 
-        {
-          importInfo.pNext = &dedicated;
-        }
 
         VkMemoryAllocateInfo info = {
             .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
@@ -357,7 +353,7 @@ Allocation Allocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> res
 
         return Block->Allocate(req.size, req.alignment);
     }
-
+    if(std::get_if<VkBuffer>(&resource))
     if (auto it = Allocations.find(typeIndex); it != Allocations.end())
     {
         auto& [_, blocks] = *it;
@@ -380,12 +376,6 @@ Allocation Allocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> res
         .sType    = VK_STRUCTURE_TYPE_EXPORT_MEMORY_WIN32_HANDLE_INFO_KHR,
         .dwAccess = GENERIC_ALL,
     };
-
-    if(dedicated.image) 
-    {
-      handleInfo.pNext = &dedicated;
-      size = req.size;
-    }
 
     VkExportMemoryAllocateInfo exportInfo = {
         .sType       = VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO,

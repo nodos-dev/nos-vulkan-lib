@@ -17,7 +17,7 @@ struct mzVulkan_API DescriptorLayout : SharedFactory<DescriptorLayout>, DeviceCh
     VkDescriptorSetLayout Handle;
     std::map<u32, NamedDSLBinding> Bindings;
     NamedDSLBinding const& operator[](u32 binding) const;
-    DescriptorLayout(Device* Vk, std::map<u32, NamedDSLBinding> NamedBindings);
+    DescriptorLayout(Device* Vk, std::map<u32, NamedDSLBinding> NamedBindings, VkSampler sampler);
     ~DescriptorLayout();
     
     auto begin() const
@@ -63,7 +63,7 @@ struct mzVulkan_API PipelineLayout : SharedFactory<PipelineLayout>, DeviceChild
     std::map<u32, rc<DescriptorLayout>> DescriptorSets;
     std::unordered_map<std::string, ShaderLayout::Index> BindingsByName;
     DescriptorLayout const& operator[](u32 set) const;
-    PipelineLayout(Device* Vk, View<u8> src);
+    PipelineLayout(Device* Vk, View<u8> src, VkSampler sampler = 0);
     ~PipelineLayout();
     rc<DescriptorSet> AllocateSet(u32 set);
     void Dump();
@@ -78,7 +78,7 @@ struct mzVulkan_API PipelineLayout : SharedFactory<PipelineLayout>, DeviceChild
         return DescriptorSets.end();
     }
   private:
-    PipelineLayout(Device* Vk, ShaderLayout layout);
+    PipelineLayout(Device* Vk, ShaderLayout layout, VkSampler sampler);
 };
 
 } // namespace mz::vk

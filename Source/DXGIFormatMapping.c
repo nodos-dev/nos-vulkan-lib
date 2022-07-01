@@ -3,7 +3,7 @@
 
 #include <dxgi.h>
 
-const VkFormat __declspec(dllexport) DXGI_FORMAT_TO_VK_FORMAT[] = {
+const VkFormat DXGI_FORMAT_TO_VK_FORMAT[] = {
     [DXGI_FORMAT_UNKNOWN]                  = VK_FORMAT_UNDEFINED,
     [DXGI_FORMAT_R32G32B32A32_TYPELESS]    = VK_FORMAT_R32G32B32A32_UINT,
     [DXGI_FORMAT_R32G32B32A32_FLOAT]       = VK_FORMAT_R32G32B32A32_SFLOAT,
@@ -109,7 +109,7 @@ const VkFormat __declspec(dllexport) DXGI_FORMAT_TO_VK_FORMAT[] = {
     [DXGI_FORMAT_B4G4R4A4_UNORM]           = VK_FORMAT_A4R4G4B4_UNORM_PACK16_EXT,
 };
 
-const DXGI_FORMAT __declspec(dllexport) VK_FORMAT_TO_DXGI_FORMAT[] = {
+const DXGI_FORMAT VK_FORMAT_TO_DXGI_FORMAT[] = {
     [VK_FORMAT_UNDEFINED]                = DXGI_FORMAT_UNKNOWN,
     [VK_FORMAT_R32G32B32A32_SFLOAT]      = DXGI_FORMAT_R32G32B32A32_FLOAT,
     [VK_FORMAT_R32G32B32A32_UINT]        = DXGI_FORMAT_R32G32B32A32_UINT,
@@ -174,3 +174,25 @@ const DXGI_FORMAT __declspec(dllexport) VK_FORMAT_TO_DXGI_FORMAT[] = {
     [VK_FORMAT_BC7_UNORM_BLOCK]          = DXGI_FORMAT_BC7_UNORM,
     [VK_FORMAT_BC7_SRGB_BLOCK]           = DXGI_FORMAT_BC7_UNORM_SRGB,
 };
+
+DXGI_FORMAT __declspec(dllexport) VkFormatToDxgiFormat(VkFormat fmt)
+{
+    switch(fmt)
+    {
+        case VK_FORMAT_G8B8G8R8_422_UNORM:
+            return DXGI_FORMAT_YUY2;
+        default: 
+            return VK_FORMAT_TO_DXGI_FORMAT[fmt];
+    }
+}
+
+VkFormat __declspec(dllexport) DxgiFormatToVkFormat(DXGI_FORMAT fmt)
+{
+    switch(fmt)
+    {
+        case DXGI_FORMAT_YUY2:
+            return VK_FORMAT_G8B8G8R8_422_UNORM;
+        default: 
+            return DXGI_FORMAT_TO_VK_FORMAT[fmt];
+    }
+}

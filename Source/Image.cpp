@@ -7,12 +7,53 @@
 namespace mz::vk
 {
 
+Sampler::Sampler(Device* Vk, VkSamplerYcbcrConversion SamplerYcbcrConversion)
+{
+    VkSamplerYcbcrConversionInfo ycbcrInfo = {
+        .sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO,
+        .conversion = SamplerYcbcrConversion,
+    };
+    
+    VkSamplerCreateInfo samplerInfo = {
+        .sType            = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+        .pNext            = SamplerYcbcrConversion ? &ycbcrInfo : 0,
+        .magFilter        = VK_FILTER_NEAREST,
+        .minFilter        = VK_FILTER_NEAREST,
+        .mipmapMode       = VK_SAMPLER_MIPMAP_MODE_NEAREST,
+        .addressModeU     = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+        .addressModeV     = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+        .addressModeW     = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+        .mipLodBias       = 0.0f,
+        .anisotropyEnable = 0,
+        .maxAnisotropy    = 16,
+        .compareOp        = VK_COMPARE_OP_NEVER,
+        .maxLod           = 1.f,
+        .borderColor      = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE,
+    };
+
+    MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateSampler(&samplerInfo, 0, &Handle));
+}
+
+void Sampler::Free(Device* Vk)
+{
+    if(Handle)
+    {
+        Vk->DestroySampler(Handle, 0);
+    }
+}
+
+
 Image::~Image()
 {
     Allocation.Free();
+    Sampler.Free(Vk);
     Vk->DestroyImageView(View, 0);
-    Vk->DestroySampler(Sampler, 0);
     Vk->DestroyImage(Handle, 0);
+    if(SamplerYcbcrConversion)
+    {
+        Vk->DestroySamplerYcbcrConversion(SamplerYcbcrConversion, 0);
+        SamplerYcbcrConversion = 0;
+    }
 };
 
 Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo)
@@ -20,6 +61,7 @@ Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo)
       Extent(createInfo.Extent),
       Format(createInfo.Format),
       Usage(createInfo.Usage),
+      SamplerYcbcrConversion(0),
       State{
           .StageMask  = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
           .AccessMask = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT,
@@ -60,9 +102,48 @@ Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo)
 
     Allocation = Allocator->AllocateImageMemory(Handle, Extent, Format, createInfo.Imported);
     Allocation.BindResource(Handle);
+    
+
+    VkSamplerYcbcrConversionCreateInfo ycbcrCreateInfo = {
+        .sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_CREATE_INFO,
+        .pNext = 0,
+        .format = Format,
+        .ycbcrModel = VK_SAMPLER_YCBCR_MODEL_CONVERSION_RGB_IDENTITY,
+        .ycbcrRange = VK_SAMPLER_YCBCR_RANGE_ITU_FULL,
+        .components = {
+            .r = VK_COMPONENT_SWIZZLE_IDENTITY,
+            .g = VK_COMPONENT_SWIZZLE_IDENTITY,
+            .b = VK_COMPONENT_SWIZZLE_IDENTITY,
+            .a = VK_COMPONENT_SWIZZLE_ONE,
+        },
+        .xChromaOffset = VK_CHROMA_LOCATION_COSITED_EVEN,
+        .yChromaOffset = VK_CHROMA_LOCATION_COSITED_EVEN,
+        .chromaFilter = VK_FILTER_NEAREST,
+        .forceExplicitReconstruction = VK_FALSE,
+    };
+
+    switch(Format)
+    {
+        case VK_FORMAT_G8B8G8R8_422_UNORM:
+        case VK_FORMAT_B8G8R8G8_422_UNORM:
+        case VK_FORMAT_G8_B8_R8_3PLANE_420_UNORM:
+        case VK_FORMAT_G8_B8R8_2PLANE_420_UNORM:
+        case VK_FORMAT_G8_B8_R8_3PLANE_422_UNORM:
+        case VK_FORMAT_G8_B8R8_2PLANE_422_UNORM:
+        case VK_FORMAT_G8_B8_R8_3PLANE_444_UNORM:
+            MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateSamplerYcbcrConversion(&ycbcrCreateInfo, 0, &SamplerYcbcrConversion));
+        default:
+            break;
+    }
+
+    VkSamplerYcbcrConversionInfo ycbcrInfo = {
+        .sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO,
+        .conversion = SamplerYcbcrConversion,
+    };
 
     VkImageViewUsageCreateInfo usageInfo = {
         .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_USAGE_CREATE_INFO,
+        .pNext = SamplerYcbcrConversion ? &ycbcrInfo : 0,
         .usage = this->Usage,
     };
 
@@ -87,23 +168,7 @@ Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo)
 
     MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateImageView(&viewInfo, 0, &View));
 
-    VkSamplerCreateInfo samplerInfo = {
-        .sType            = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
-        .magFilter        = VK_FILTER_LINEAR,
-        .minFilter        = VK_FILTER_LINEAR,
-        .mipmapMode       = VK_SAMPLER_MIPMAP_MODE_LINEAR,
-        .addressModeU     = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-        .addressModeV     = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-        .addressModeW     = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-        .mipLodBias       = 0.0f,
-        .anisotropyEnable = 0,
-        .maxAnisotropy    = 16,
-        .compareOp        = VK_COMPARE_OP_NEVER,
-        .maxLod           = 1.f,
-        .borderColor      = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE,
-    };
-
-    MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateSampler(&samplerInfo, 0, &Sampler));
+    Sampler = vk::Sampler(Vk, SamplerYcbcrConversion);
 
 } // namespace mz::vk
 
@@ -118,11 +183,14 @@ void Image::Transition(
     State = Dst;
 }
 
-void Image::Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src)
+void Image::Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src, u32 bufferRowLength, u32 bufferImageHeight)
 {
     assert(Usage & VK_IMAGE_USAGE_TRANSFER_DST_BIT);
     assert(Src->Usage & VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
 
+    // make sure the buffer is alive until after the command buffer has finished
+    Cmd->AddDependency(Src);
+    
     Transition(Cmd, ImageState{
                         .StageMask  = VK_PIPELINE_STAGE_TRANSFER_BIT,
                         .AccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
@@ -130,6 +198,8 @@ void Image::Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src)
                     });
 
     VkBufferImageCopy region = {
+        .bufferRowLength = bufferRowLength,
+        .bufferImageHeight = bufferImageHeight,
         .imageSubresource = {
             .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
             .layerCount = 1,
@@ -143,8 +213,6 @@ void Image::Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src)
 
     Cmd->CopyBufferToImage(Src->Handle, Handle, State.Layout, 1, &region);
 
-    // make sure the buffer is alive until after the command buffer has finished
-    Cmd->AddDependency(Src);
 }
 
 rc<Image> Image::Copy(rc<CommandBuffer> Cmd, rc<Allocator> Allocator)
@@ -253,7 +321,7 @@ void Image::BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
                              .Layout     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                          });
 
-    Cmd->BlitImage(Src->Handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, Dst->Handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, VK_FILTER_LINEAR);
+    Cmd->BlitImage(Src->Handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, Dst->Handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, VK_FILTER_NEAREST);
     Cmd->AddDependency(Src, shared_from_this());
 }
 

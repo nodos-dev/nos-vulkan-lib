@@ -34,7 +34,7 @@ CommandBuffer::CommandBuffer(CommandPool* Pool, VkCommandBuffer Handle)
         .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
         .flags = VK_FENCE_CREATE_SIGNALED_BIT,
     };
-
+    
     MZ_VULKAN_ASSERT_SUCCESS(GetDevice()->CreateFence(&fenceInfo, 0, &Fence));
 }
 

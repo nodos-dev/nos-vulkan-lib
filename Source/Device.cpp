@@ -77,8 +77,14 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice)
         .pQueuePriorities = &prio,
     };
 
+    VkPhysicalDeviceVulkan11Features vk11features = {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
+        .samplerYcbcrConversion = VK_TRUE,
+    };
+
     VkPhysicalDeviceVulkan12Features vk12features = {
         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
+        .pNext = &vk11features,
         .timelineSemaphore = VK_TRUE,
     };
 
@@ -87,6 +93,7 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice)
         .pNext            = &vk12features,
         .synchronization2 = VK_TRUE,
         .dynamicRendering = VK_TRUE,
+        
     };
 
     VkPhysicalDeviceFeatures2 features = {

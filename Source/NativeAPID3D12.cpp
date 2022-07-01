@@ -2,6 +2,7 @@
 #include <NativeAPIDirectx.h>
 #include <combaseapi.h>
 #include <d3d11.h>
+#include <dxgiformat.h>
 
 namespace mz::vk
 {
@@ -79,7 +80,7 @@ void* NativeAPID3D11::CreateSharedTexture(VkExtent2D extent, VkFormat format)
     .Height = extent.height,
     .MipLevels = 1,
     .ArraySize = 1,
-    .Format = VK_FORMAT_TO_DXGI_FORMAT[format],
+    .Format = VkFormatToDxgiFormat(format),
     .SampleDesc = { .Count = 1, .Quality = 0 },
     .Usage = D3D11_USAGE_DEFAULT,
     .BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET | D3D11_BIND_UNORDERED_ACCESS,
@@ -165,7 +166,7 @@ void* NativeAPID3D12::CreateSharedTexture(VkExtent2D extent, VkFormat format)
     desc.Height           = extent.height;
     desc.DepthOrArraySize = 1;
     desc.MipLevels        = 1;
-    desc.Format           = VK_FORMAT_TO_DXGI_FORMAT[format];
+    desc.Format           = VkFormatToDxgiFormat(format);
     desc.SampleDesc.Count = 1;
     desc.Layout           = D3D12_TEXTURE_LAYOUT_UNKNOWN;
     desc.Flags            = D3D12_RESOURCE_FLAG_ALLOW_SIMULTANEOUS_ACCESS | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS | D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
@@ -174,13 +175,27 @@ void* NativeAPID3D12::CreateSharedTexture(VkExtent2D extent, VkFormat format)
     HANDLE handle;
     
     D3D12_HEAP_PROPERTIES props = {.Type = D3D12_HEAP_TYPE_DEFAULT};
-    HRESULT hr = Dx12->CreateCommittedResource(
-        &props, D3D12_HEAP_FLAG_SHARED, &desc, D3D12_RESOURCE_STATE_COMMON, 0,
-        IID_PPV_ARGS(&res));
 
-    MZ_D3D12_ASSERT_SUCCESS(Dx12->CreateSharedHandle(res, 0, GENERIC_ALL, 0, &handle));
-    res->Release();
+    auto state = D3D12_RESOURCE_STATE_COMMON;
+
+    switch(desc.Format)
+    {
+        case DXGI_FORMAT_YUY2:
+            state |= D3D12_RESOURCE_STATE_VIDEO_DECODE_READ |
+                     D3D12_RESOURCE_STATE_VIDEO_DECODE_WRITE |
+                     D3D12_RESOURCE_STATE_VIDEO_PROCESS_READ |
+                     D3D12_RESOURCE_STATE_VIDEO_PROCESS_WRITE |
+                     D3D12_RESOURCE_STATE_VIDEO_ENCODE_READ |
+                     D3D12_RESOURCE_STATE_VIDEO_ENCODE_WRITE;
+        default: break;
+    }
+
+    MZ_D3D12_ASSERT_SUCCESS(Dx12->CreateCommittedResource(&props, D3D12_HEAP_FLAG_SHARED, &desc, state, 0, IID_PPV_ARGS(&res)));
     
+    MZ_D3D12_ASSERT_SUCCESS(Dx12->CreateSharedHandle(res, 0, GENERIC_ALL, 0, &handle));
+    
+    res->Release();
+
     return handle;
 }
 

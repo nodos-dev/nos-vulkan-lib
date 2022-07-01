@@ -10,15 +10,16 @@
 
 #include <system_error>
 
-extern "C" mzVulkan_API const VkFormat DXGI_FORMAT_TO_VK_FORMAT[];
-extern "C" mzVulkan_API const DXGI_FORMAT VK_FORMAT_TO_DXGI_FORMAT[];
+extern "C" DXGI_FORMAT mzVulkan_API VkFormatToDxgiFormat(VkFormat fmt);
+extern "C" VkFormat mzVulkan_API DxgiFormatToVkFormat(DXGI_FORMAT fmt);
 
 #define MZ_D3D12_ASSERT_SUCCESS(expr)                                                                              \
     {                                                                                                              \
         HRESULT re = (expr);                                                                                       \
         while (FAILED(re))                                                                                         \
         {                                                                                                          \
-            printf("[%lx]Error: %s\n%s:%d\n", re, std::system_category().message(re).c_str(), __FILE__, __LINE__); \
+            std::string __err = std::system_category().message(re);                                                \
+            printf("[%lx]Error: %s\n%s:%d\n", re, __err.c_str(), __FILE__, __LINE__);                              \
             abort();                                                                                               \
         }                                                                                                          \
     }

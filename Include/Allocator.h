@@ -22,6 +22,7 @@ struct mzVulkan_API Allocation
     VkDeviceSize LocalOffset() const;
     VkDeviceSize LocalSize() const;
     VkDeviceSize GlobalSize() const;
+    VkDeviceMemory GetMemory() const;
     friend struct MemoryBlock;
 
   private:

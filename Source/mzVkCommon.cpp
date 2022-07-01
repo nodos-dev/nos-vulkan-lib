@@ -105,7 +105,7 @@ bool IsImportable(VkPhysicalDevice PhysicalDevice, VkFormat Format, VkImageUsage
 
     //assert(!(extProps.externalMemoryProperties.externalMemoryFeatures & VK_EXTERNAL_MEMORY_FEATURE_DEDICATED_ONLY_BIT));
 
-    return extProps.externalMemoryFeatures & (VK_EXTERNAL_MEMORY_FEATURE_EXPORTABLE_BIT | VK_EXTERNAL_MEMORY_FEATURE_IMPORTABLE_BIT);
+    return extProps.externalMemoryFeatures & VK_EXTERNAL_MEMORY_FEATURE_IMPORTABLE_BIT;
 }
 
 void ImageLayoutTransition(VkImage Image,
