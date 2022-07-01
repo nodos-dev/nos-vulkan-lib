@@ -259,12 +259,8 @@ Allocator::Allocator(Device* Vk)
 
 Allocation Allocator::AllocateImageMemory(VkImage img, VkExtent2D extent, VkFormat format, const MemoryExportInfo* imported)
 {
-    return AllocateResourceMemory(img, false, imported);
     VkMemoryRequirements req;
     VkPhysicalDeviceMemoryProperties props;
-    VkMemoryWin32HandlePropertiesKHR handleProps = {
-      .sType = VK_STRUCTURE_TYPE_MEMORY_WIN32_HANDLE_PROPERTIES_KHR,
-    };
 
     Vk->GetImageMemoryRequirements(img, &req);
 
@@ -275,12 +271,15 @@ Allocation Allocator::AllocateImageMemory(VkImage img, VkExtent2D extent, VkForm
         memory = PlatformDupeHandle(imported->PID, imported->Memory);
     }
     else 
-    {
+    {   
         memory = Dx->CreateSharedTexture(extent, format);
     }
-    
+    VkMemoryPropertyFlags requiredProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    VkMemoryWin32HandlePropertiesKHR handleProps = {
+      .sType = VK_STRUCTURE_TYPE_MEMORY_WIN32_HANDLE_PROPERTIES_KHR,
+    };
     MZ_VULKAN_ASSERT_SUCCESS(Vk->GetMemoryWin32HandlePropertiesKHR(VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT, memory,  &handleProps));
-    auto [typeIndex, actualProps] = MemoryTypeIndex(Vk->PhysicalDevice, handleProps.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    auto [typeIndex, actualProps] = MemoryTypeIndex(Vk->PhysicalDevice, handleProps.memoryTypeBits, requiredProps);
     
     VkMemoryDedicatedAllocateInfo dedicated = {
       .sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO,
@@ -322,6 +321,10 @@ Allocation Allocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> res
     }
     else
     {
+        if(map)
+        {
+            memProps |= VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+        }
         VkImage img = std::get<VkImage>(resource);
         Vk->GetImageMemoryRequirements(img, &req);
     }
@@ -353,7 +356,7 @@ Allocation Allocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> res
 
         return Block->Allocate(req.size, req.alignment);
     }
-    if(std::get_if<VkBuffer>(&resource))
+    // if(std::get_if<VkBuffer>(&resource))
     if (auto it = Allocations.find(typeIndex); it != Allocations.end())
     {
         auto& [_, blocks] = *it;

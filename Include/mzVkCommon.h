@@ -74,6 +74,7 @@ struct ImageCreateInfo
     VkFormat Format;
     VkImageUsageFlags Usage;
     const MemoryExportInfo* Imported = 0;
+    bool HostVisible = false;
 };
 
 struct mzVulkan_API SVType

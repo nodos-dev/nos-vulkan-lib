@@ -16,7 +16,7 @@ struct mzVulkan_API DynamicPipeline : SharedFactory<DynamicPipeline>, DeviceChil
     VkExtent2D Extent;
     std::vector<rc<DescriptorSet>> DescriptorSets;
 
-    DynamicPipeline(Device* Vk, VkExtent2D extent, View<u8> src);
+    DynamicPipeline(Device* Vk, VkExtent2D extent, View<u8> src, VkSampler sampler = 0);
     ~DynamicPipeline();
 
     void BeginRendering(rc<CommandBuffer> Cmd, View<rc<Image>> Images);

@@ -37,6 +37,9 @@ struct mzVulkan_API Image : SharedFactory<Image>, DeviceChild
     MemoryExportInfo GetExportInfo() const;
     void Transition(rc<CommandBuffer> Cmd, ImageState Dst);
     void BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src);
+    void CopyFrom(rc<CommandBuffer> Cmd, rc<Image> Src);
+    void ResolveFrom(rc<CommandBuffer> Cmd, rc<Image> Src);
+
     void Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src, u32 bufferRowLength = 0, u32 bufferImageHeight = 0);
     rc<Image> Copy(rc<CommandBuffer> Cmd, rc<Allocator> Allocator = 0);
     rc<Buffer> Download(rc<CommandBuffer> Cmd, rc<Allocator> Allocator = 0);

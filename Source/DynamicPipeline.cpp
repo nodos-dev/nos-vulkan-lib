@@ -11,8 +11,8 @@ DynamicPipeline::~DynamicPipeline()
     Vk->DestroyPipeline(Handle, 0);
 }
 
-DynamicPipeline::DynamicPipeline(Device* Vk, VkExtent2D extent, View<u8> src)
-    : DeviceChild(Vk), Shader(Shader::New(Vk, VK_SHADER_STAGE_FRAGMENT_BIT, src)), Layout(PipelineLayout::New(Vk, src)), Extent(extent)
+DynamicPipeline::DynamicPipeline(Device* Vk, VkExtent2D extent, View<u8> src, VkSampler sampler)
+    : DeviceChild(Vk), Shader(Shader::New(Vk, VK_SHADER_STAGE_FRAGMENT_BIT, src)), Layout(PipelineLayout::New(Vk, src, sampler)), Extent(extent)
 {
 
     VertexShader* VS = Vk->GetGlobal<VertexShader>("GlobVS");

@@ -3,6 +3,7 @@
 #include <Device.h>
 #include <Command.h>
 #include <Buffer.h>
+#include <unordered_map>
 
 namespace mz::vk
 {
@@ -42,18 +43,12 @@ void Sampler::Free(Device* Vk)
     }
 }
 
-
 Image::~Image()
 {
     Allocation.Free();
     Sampler.Free(Vk);
     Vk->DestroyImageView(View, 0);
     Vk->DestroyImage(Handle, 0);
-    if(SamplerYcbcrConversion)
-    {
-        Vk->DestroySamplerYcbcrConversion(SamplerYcbcrConversion, 0);
-        SamplerYcbcrConversion = 0;
-    }
 };
 
 Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo)
@@ -98,18 +93,12 @@ Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo)
         .initialLayout         = VK_IMAGE_LAYOUT_UNDEFINED,
     };
 
-    MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateImage(&info, 0, &Handle));
-
-    Allocation = Allocator->AllocateImageMemory(Handle, Extent, Format, createInfo.Imported);
-    Allocation.BindResource(Handle);
-    
-
     VkSamplerYcbcrConversionCreateInfo ycbcrCreateInfo = {
         .sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_CREATE_INFO,
         .pNext = 0,
         .format = Format,
-        .ycbcrModel = VK_SAMPLER_YCBCR_MODEL_CONVERSION_RGB_IDENTITY,
-        .ycbcrRange = VK_SAMPLER_YCBCR_RANGE_ITU_FULL,
+        .ycbcrModel = VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_709,
+        .ycbcrRange = VK_SAMPLER_YCBCR_RANGE_ITU_NARROW,
         .components = {
             .r = VK_COMPONENT_SWIZZLE_IDENTITY,
             .g = VK_COMPONENT_SWIZZLE_IDENTITY,
@@ -121,17 +110,54 @@ Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo)
         .chromaFilter = VK_FILTER_NEAREST,
         .forceExplicitReconstruction = VK_FALSE,
     };
+    
+    static std::map<VkFormat, VkSamplerYcbcrConversion>  ycbr;
 
     switch(Format)
     {
         case VK_FORMAT_G8B8G8R8_422_UNORM:
         case VK_FORMAT_B8G8R8G8_422_UNORM:
+        case VK_FORMAT_R10X6_UNORM_PACK16:
+        case VK_FORMAT_R10X6G10X6_UNORM_2PACK16:
+        case VK_FORMAT_R10X6G10X6B10X6A10X6_UNORM_4PACK16:
+        case VK_FORMAT_G10X6B10X6G10X6R10X6_422_UNORM_4PACK16:
+        case VK_FORMAT_B10X6G10X6R10X6G10X6_422_UNORM_4PACK16:
+        case VK_FORMAT_R12X4_UNORM_PACK16:
+        case VK_FORMAT_R12X4G12X4_UNORM_2PACK16:
+        case VK_FORMAT_R12X4G12X4B12X4A12X4_UNORM_4PACK16:
+        case VK_FORMAT_G12X4B12X4G12X4R12X4_422_UNORM_4PACK16:
+        case VK_FORMAT_B12X4G12X4R12X4G12X4_422_UNORM_4PACK16:
+        case VK_FORMAT_G16B16G16R16_422_UNORM:
+        case VK_FORMAT_B16G16R16G16_422_UNORM:
+        case VK_FORMAT_G16_B16_R16_3PLANE_420_UNORM:
+        case VK_FORMAT_G16_B16R16_2PLANE_420_UNORM:
+        case VK_FORMAT_G16_B16_R16_3PLANE_422_UNORM:
+        case VK_FORMAT_G16_B16R16_2PLANE_422_UNORM:
+        case VK_FORMAT_G16_B16_R16_3PLANE_444_UNORM:
+        case VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_420_UNORM_3PACK16:
+        case VK_FORMAT_G12X4_B12X4R12X4_2PLANE_420_UNORM_3PACK16:
+        case VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_422_UNORM_3PACK16:
+        case VK_FORMAT_G12X4_B12X4R12X4_2PLANE_422_UNORM_3PACK16:
+        case VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_444_UNORM_3PACK16:
         case VK_FORMAT_G8_B8_R8_3PLANE_420_UNORM:
         case VK_FORMAT_G8_B8R8_2PLANE_420_UNORM:
         case VK_FORMAT_G8_B8_R8_3PLANE_422_UNORM:
         case VK_FORMAT_G8_B8R8_2PLANE_422_UNORM:
         case VK_FORMAT_G8_B8_R8_3PLANE_444_UNORM:
-            MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateSamplerYcbcrConversion(&ycbcrCreateInfo, 0, &SamplerYcbcrConversion));
+        case VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_420_UNORM_3PACK16:
+        case VK_FORMAT_G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16:
+        case VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_422_UNORM_3PACK16:
+        case VK_FORMAT_G10X6_B10X6R10X6_2PLANE_422_UNORM_3PACK16:
+        case VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_444_UNORM_3PACK16:
+            if(ycbr[Format])
+            {
+                SamplerYcbcrConversion= ycbr[Format];   
+            }
+            else 
+            {
+                MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateSamplerYcbcrConversion(&ycbcrCreateInfo, 0, &SamplerYcbcrConversion));
+                ycbr[Format] = SamplerYcbcrConversion;
+            }
         default:
             break;
     }
@@ -147,6 +173,12 @@ Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo)
         .usage = this->Usage,
     };
 
+
+    MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateImage(&info, 0, &Handle));
+    //if(SamplerYcbcrConversion) Allocation = Allocator->AllocateResourceMemory(Handle, true, createInfo.Imported); else 
+        Allocation = Allocator->AllocateImageMemory(Handle, Extent, Format, createInfo.Imported);
+    Allocation.BindResource(Handle);
+    
     VkImageViewCreateInfo viewInfo = {
         .sType      = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
         .pNext      = &usageInfo,
@@ -165,6 +197,7 @@ Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo)
             .layerCount = 1,
         },
     };
+
 
     MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateImageView(&viewInfo, 0, &View));
 
@@ -296,7 +329,19 @@ void Image::BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
 {
     Image* Dst = this;
 
-    VkImageBlit blit = {
+    Src->Transition(Cmd, ImageState{
+                             .StageMask  = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                             .AccessMask = VK_ACCESS_TRANSFER_READ_BIT,
+                             .Layout     = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                         });
+
+    Dst->Transition(Cmd, ImageState{
+                             .StageMask  = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                             .AccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+                             .Layout     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                         });
+    VkImageBlit2 region = {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2,
         .srcSubresource = {
             .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
             .layerCount = 1,
@@ -308,6 +353,25 @@ void Image::BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
         },
         .dstOffsets = {{}, {(i32)Dst->Extent.width, (i32)Dst->Extent.height, 1}},
     };
+
+    VkBlitImageInfo2 blitInfo = {
+        .sType = VK_STRUCTURE_TYPE_BLIT_IMAGE_INFO_2,
+        .srcImage = Src->Handle,
+        .srcImageLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        .dstImage = Dst->Handle,
+        .dstImageLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        .regionCount = 1,
+        .pRegions = &region,
+        .filter = VK_FILTER_NEAREST,
+    };
+    
+    Cmd->BlitImage2(&blitInfo);
+}
+
+void Image::CopyFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
+{
+    Image* Dst = this;
+    assert(Dst->Extent.width == Src->Extent.width && Dst->Extent.height == Src->Extent.height);
 
     Src->Transition(Cmd, ImageState{
                              .StageMask  = VK_PIPELINE_STAGE_TRANSFER_BIT,
@@ -321,9 +385,65 @@ void Image::BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
                              .Layout     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                          });
 
-    Cmd->BlitImage(Src->Handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, Dst->Handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, VK_FILTER_NEAREST);
-    Cmd->AddDependency(Src, shared_from_this());
+    VkImageCopy region = {
+        .srcSubresource = {
+            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .layerCount = 1,
+        },
+        .dstSubresource = {
+            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .layerCount = 1,
+        },
+        .extent = {Extent.width, Extent.height, 1},
+    };
+
+    Cmd->CopyImage(Src->Handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, Dst->Handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 }
+
+void Image::ResolveFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
+{
+    Image* Dst = this;
+    
+    assert(Dst->Extent.width == Src->Extent.width && Dst->Extent.height == Src->Extent.height);
+
+    Src->Transition(Cmd, ImageState{
+                             .StageMask  = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                             .AccessMask = VK_ACCESS_TRANSFER_READ_BIT,
+                             .Layout     = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                         });
+
+    Dst->Transition(Cmd, ImageState{
+                             .StageMask  = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                             .AccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+                             .Layout     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                         });
+
+    VkImageResolve2 region = {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_RESOLVE_2_KHR,
+        .srcSubresource = {
+            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .layerCount = 1,
+        },
+        .dstSubresource = {
+            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .layerCount = 1,
+        },
+        .extent = {Extent.width, Extent.height, 1},
+    };
+
+    VkResolveImageInfo2 resolveInfo = {
+        .sType = VK_STRUCTURE_TYPE_RESOLVE_IMAGE_INFO_2,
+        .srcImage = Src->Handle,
+        .srcImageLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        .dstImage = Dst->Handle,
+        .dstImageLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        .regionCount = 1,
+        .pRegions = &region,
+    };
+
+    Cmd->ResolveImage2(&resolveInfo);
+}
+
 
 MemoryExportInfo Image::GetExportInfo() const
 {

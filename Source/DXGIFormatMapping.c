@@ -180,7 +180,8 @@ DXGI_FORMAT __declspec(dllexport) VkFormatToDxgiFormat(VkFormat fmt)
     switch(fmt)
     {
         case VK_FORMAT_G8B8G8R8_422_UNORM:
-            return DXGI_FORMAT_YUY2;
+        case VK_FORMAT_B8G8R8G8_422_UNORM:
+            return DXGI_FORMAT_R8G8_TYPELESS;
         default: 
             return VK_FORMAT_TO_DXGI_FORMAT[fmt];
     }
@@ -190,8 +191,12 @@ VkFormat __declspec(dllexport) DxgiFormatToVkFormat(DXGI_FORMAT fmt)
 {
     switch(fmt)
     {
+        case DXGI_FORMAT_Y216:
+        case DXGI_FORMAT_R8G8_TYPELESS:
+        case DXGI_FORMAT_Y210:
         case DXGI_FORMAT_YUY2:
-            return VK_FORMAT_G8B8G8R8_422_UNORM;
+            return VK_FORMAT_B8G8R8G8_422_UNORM;
+            return VK_FORMAT_B8G8R8G8_422_UNORM;
         default: 
             return DXGI_FORMAT_TO_VK_FORMAT[fmt];
     }

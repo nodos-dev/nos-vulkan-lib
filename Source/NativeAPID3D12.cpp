@@ -178,17 +178,19 @@ void* NativeAPID3D12::CreateSharedTexture(VkExtent2D extent, VkFormat format)
 
     auto state = D3D12_RESOURCE_STATE_COMMON;
 
-    switch(desc.Format)
-    {
-        case DXGI_FORMAT_YUY2:
-            state |= D3D12_RESOURCE_STATE_VIDEO_DECODE_READ |
-                     D3D12_RESOURCE_STATE_VIDEO_DECODE_WRITE |
-                     D3D12_RESOURCE_STATE_VIDEO_PROCESS_READ |
-                     D3D12_RESOURCE_STATE_VIDEO_PROCESS_WRITE |
-                     D3D12_RESOURCE_STATE_VIDEO_ENCODE_READ |
-                     D3D12_RESOURCE_STATE_VIDEO_ENCODE_WRITE;
-        default: break;
-    }
+    //switch(desc.Format)
+    //{
+    //    case DXGI_FORMAT_YUY2:
+    //    case DXGI_FORMAT_Y216:
+    //    case DXGI_FORMAT_R8G8_TYPELESS:
+    //        state |= D3D12_RESOURCE_STATE_VIDEO_DECODE_READ |
+    //                 D3D12_RESOURCE_STATE_VIDEO_DECODE_WRITE |
+    //                 D3D12_RESOURCE_STATE_VIDEO_PROCESS_READ |
+    //                 D3D12_RESOURCE_STATE_VIDEO_PROCESS_WRITE |
+    //                 D3D12_RESOURCE_STATE_VIDEO_ENCODE_READ |
+    //                 D3D12_RESOURCE_STATE_VIDEO_ENCODE_WRITE;
+    //    default: break;
+    //}
 
     MZ_D3D12_ASSERT_SUCCESS(Dx12->CreateCommittedResource(&props, D3D12_HEAP_FLAG_SHARED, &desc, state, 0, IID_PPV_ARGS(&res)));
     
