@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Image.h"
 #include "vulkan/vulkan_core.h"
 #include <Allocator.h>
 
@@ -13,27 +14,34 @@ struct Allocation;
 
 struct mzVulkan_API Sampler 
 {
-    VkSampler Handle;
+    VkSampler Handle = 0;
+    VkSamplerYcbcrConversion SamplerYcbcrConversion = 0;
     Sampler() = default;
-    Sampler(Device* Vk, VkSamplerYcbcrConversion SamplerYcbcrConversion);
-    void Free(Device* Vk);
-
+    Sampler(Device* Vk, VkFormat Format);
     operator VkSampler() const { return Handle; }
+};
+
+struct mzVulkan_API ImageView  : SharedFactory<ImageView>
+{
+    VkImageView Handle;
+    VkFormat Format;
+    Sampler Sampler;
+    VkImageUsageFlags Usage;
+    rc<struct Image> Src;
+    ImageView(rc<struct Image> Image, VkFormat Format = VK_FORMAT_UNDEFINED, VkComponentMapping Components = {}, VkImageUsageFlags Usage = 0);
+    ~ImageView();
+    DescriptorResourceInfo GetDescriptorInfo() const;
 };
 
 struct mzVulkan_API Image : SharedFactory<Image>, DeviceChild
 {
     Allocation Allocation;
     VkImage Handle;
-    VkImageView View;
-    Sampler Sampler;
-    VkSamplerYcbcrConversion SamplerYcbcrConversion;
     VkImageUsageFlags Usage;
     VkExtent2D Extent;
     VkFormat Format;
     ImageState State;
 
-    DescriptorResourceInfo GetDescriptorInfo() const;
     MemoryExportInfo GetExportInfo() const;
     void Transition(rc<CommandBuffer> Cmd, ImageState Dst);
     void BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src);
@@ -46,6 +54,21 @@ struct mzVulkan_API Image : SharedFactory<Image>, DeviceChild
     Image(Allocator*, ImageCreateInfo const&);
     Image(Device* Vk, ImageCreateInfo const& createInfo);
     ~Image();
+
+    rc<ImageView> GetView() 
+    { 
+        return ImageView::New(shared_from_this()); 
+    }
+
+    rc<ImageView> GetView(VkFormat fmt) 
+    { 
+        return ImageView::New(shared_from_this(), fmt); 
+    }
+
+    rc<ImageView> GetView(VkComponentMapping comp) 
+    { 
+        return ImageView::New(shared_from_this(), Format, comp); 
+    }
 };
 
 }; // namespace mz::vk

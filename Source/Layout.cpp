@@ -62,13 +62,13 @@ rc<DescriptorSet> DescriptorSet::Update(rc<CommandBuffer> Cmd, View<Binding> Res
             .dstBinding      = res.Idx,
             .descriptorCount = 1,
             .descriptorType  = GetType(res.Idx),
-            .pImageInfo      = (std::get_if<rc<Image>>(&res.Resource) ? &infos.back().Image : 0),
+            .pImageInfo      = (std::get_if<rc<ImageView>>(&res.Resource) ? &infos.back().Image : 0),
             .pBufferInfo     = (std::get_if<rc<Buffer>>(&res.Resource) ? &infos.back().Buffer : 0),
         });
 
-        if (rc<Image> const* ppImg = std::get_if<rc<Image>>(&res.Resource))
+        if (rc<ImageView> const* ppImg = std::get_if<rc<ImageView>>(&res.Resource))
         {
-            (*ppImg)->Transition(Cmd, ImageState{
+            (*ppImg)->Src->Transition(Cmd, ImageState{
                                           .StageMask  = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                                           .AccessMask = res.AccessFlags,
                                           .Layout     = infos.back().Image.imageLayout,

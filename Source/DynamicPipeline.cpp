@@ -11,7 +11,7 @@ DynamicPipeline::~DynamicPipeline()
     Vk->DestroyPipeline(Handle, 0);
 }
 
-DynamicPipeline::DynamicPipeline(Device* Vk, VkExtent2D extent, View<u8> src, VkSampler sampler)
+DynamicPipeline::DynamicPipeline(Device* Vk, VkExtent2D extent, View<u8> src, VkSampler sampler, std::vector<VkFormat> fmt)
     : DeviceChild(Vk), Shader(Shader::New(Vk, VK_SHADER_STAGE_FRAGMENT_BIT, src)), Layout(PipelineLayout::New(Vk, src, sampler)), Extent(extent)
 {
 
@@ -24,19 +24,15 @@ DynamicPipeline::DynamicPipeline(Device* Vk, VkExtent2D extent, View<u8> src, Vk
         VS = Vk->RegisterGlobal<VertexShader>("GlobVS", Vk, GlobalVSSPV);
     }
 
-#define FMT0 VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_R8G8B8A8_UNORM
-#define FMT1 FMT0, FMT0
-#define FMT2 FMT1, FMT1
-#define FMT  FMT2, FMT2
-
-    constexpr static VkFormat FORMAT[] = {FMT, FMT};
-
-    assert(Layout->RTCount <= sizeof(FORMAT) / sizeof(VkFormat));
+    for(u32 i = fmt.size(); i <= Layout->RTCount; ++i)
+    {
+        fmt.push_back(VK_FORMAT_R8G8B8A8_UNORM);
+    }
 
     VkPipelineRenderingCreateInfo renderInfo = {
         .sType                   = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
         .colorAttachmentCount    = Layout->RTCount,
-        .pColorAttachmentFormats = FORMAT,
+        .pColorAttachmentFormats = fmt.data(),
     };
 
     VkPipelineVertexInputStateCreateInfo inputLayout = VS->GetInputLayout();
@@ -123,7 +119,7 @@ DynamicPipeline::DynamicPipeline(Device* Vk, VkExtent2D extent, View<u8> src, Vk
     MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateGraphicsPipelines(0, 1, &info, 0, &Handle));
 }
 
-void DynamicPipeline::BeginRendering(rc<CommandBuffer> Cmd, View<rc<Image>> Images)
+void DynamicPipeline::BeginRendering(rc<CommandBuffer> Cmd, View<rc<ImageView>> Images)
 {
     assert(Images.size() == Layout->RTCount);
 
@@ -132,7 +128,7 @@ void DynamicPipeline::BeginRendering(rc<CommandBuffer> Cmd, View<rc<Image>> Imag
 
     for (auto img : Images)
     {
-        img->Transition(Cmd, ImageState{
+        img->Src->Transition(Cmd, ImageState{
                                  .StageMask  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                                  .AccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                                  .Layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
@@ -140,7 +136,7 @@ void DynamicPipeline::BeginRendering(rc<CommandBuffer> Cmd, View<rc<Image>> Imag
 
         Attachments.push_back(VkRenderingAttachmentInfo{
             .sType       = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-            .imageView   = img->View,
+            .imageView   = img->Handle,
             .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
             .loadOp      = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
             .storeOp     = VK_ATTACHMENT_STORE_OP_STORE,

@@ -8,91 +8,8 @@
 namespace mz::vk
 {
 
-Sampler::Sampler(Device* Vk, VkSamplerYcbcrConversion SamplerYcbcrConversion)
+Sampler::Sampler(Device* Vk, VkFormat Format) : SamplerYcbcrConversion(0)
 {
-    VkSamplerYcbcrConversionInfo ycbcrInfo = {
-        .sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO,
-        .conversion = SamplerYcbcrConversion,
-    };
-    
-    VkSamplerCreateInfo samplerInfo = {
-        .sType            = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
-        .pNext            = SamplerYcbcrConversion ? &ycbcrInfo : 0,
-        .magFilter        = VK_FILTER_NEAREST,
-        .minFilter        = VK_FILTER_NEAREST,
-        .mipmapMode       = VK_SAMPLER_MIPMAP_MODE_NEAREST,
-        .addressModeU     = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-        .addressModeV     = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-        .addressModeW     = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-        .mipLodBias       = 0.0f,
-        .anisotropyEnable = 0,
-        .maxAnisotropy    = 16,
-        .compareOp        = VK_COMPARE_OP_NEVER,
-        .maxLod           = 1.f,
-        .borderColor      = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE,
-    };
-
-    MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateSampler(&samplerInfo, 0, &Handle));
-}
-
-void Sampler::Free(Device* Vk)
-{
-    if(Handle)
-    {
-        Vk->DestroySampler(Handle, 0);
-    }
-}
-
-Image::~Image()
-{
-    Allocation.Free();
-    Sampler.Free(Vk);
-    Vk->DestroyImageView(View, 0);
-    Vk->DestroyImage(Handle, 0);
-};
-
-Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo)
-    : DeviceChild(Allocator->Vk),
-      Extent(createInfo.Extent),
-      Format(createInfo.Format),
-      Usage(createInfo.Usage),
-      SamplerYcbcrConversion(0),
-      State{
-          .StageMask  = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
-          .AccessMask = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT,
-          .Layout     = VK_IMAGE_LAYOUT_UNDEFINED,
-      }
-{
-    if (createInfo.Imported)
-    {
-        State.Layout = VK_IMAGE_LAYOUT_PREINITIALIZED;
-    }
-
-    assert(IsImportable(Vk->PhysicalDevice, Format, Usage, VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT));
-
-    VkExternalMemoryImageCreateInfo resourceCreateInfo = {
-        .sType       = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
-        .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT,
-    };
-
-    VkImageCreateInfo info = {
-        .sType                 = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-        .pNext                 = &resourceCreateInfo,
-        .flags                 = VK_IMAGE_CREATE_ALIAS_BIT,
-        .imageType             = VK_IMAGE_TYPE_2D,
-        .format                = Format,
-        .extent                = {Extent.width, Extent.height, 1},
-        .mipLevels             = 1,
-        .arrayLayers           = 1,
-        .samples               = VK_SAMPLE_COUNT_1_BIT,
-        .tiling                = VK_IMAGE_TILING_OPTIMAL,
-        .usage                 = Usage,
-        .sharingMode           = VK_SHARING_MODE_EXCLUSIVE,
-        .queueFamilyIndexCount = 0,
-        .pQueueFamilyIndices   = nullptr,
-        .initialLayout         = VK_IMAGE_LAYOUT_UNDEFINED,
-    };
-
     VkSamplerYcbcrConversionCreateInfo ycbcrCreateInfo = {
         .sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_CREATE_INFO,
         .pNext = 0,
@@ -110,8 +27,23 @@ Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo)
         .chromaFilter = VK_FILTER_NEAREST,
         .forceExplicitReconstruction = VK_FALSE,
     };
-    
-    static std::map<VkFormat, VkSamplerYcbcrConversion>  ycbr;
+    VkSamplerCreateInfo samplerInfo = {
+            .sType            = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+            .magFilter        = VK_FILTER_NEAREST,
+            .minFilter        = VK_FILTER_NEAREST,
+            .mipmapMode       = VK_SAMPLER_MIPMAP_MODE_NEAREST,
+            .addressModeU     = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+            .addressModeV     = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+            .addressModeW     = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+            .mipLodBias       = 0.0f,
+            .anisotropyEnable = 0,
+            .maxAnisotropy    = 16,
+            .compareOp        = VK_COMPARE_OP_NEVER,
+            .maxLod           = 1.f,
+            .borderColor      = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE,
+        };
+
+    static std::map<VkFormat, std::pair<VkSamplerYcbcrConversion, VkSampler>>  ycbr;
 
     switch(Format)
     {
@@ -149,48 +81,69 @@ Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo)
         case VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_422_UNORM_3PACK16:
         case VK_FORMAT_G10X6_B10X6R10X6_2PLANE_422_UNORM_3PACK16:
         case VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_444_UNORM_3PACK16:
-            if(ycbr[Format])
+            if(ycbr.contains(Format))
             {
-                SamplerYcbcrConversion= ycbr[Format];   
+                auto& [cvt, sampler] = ycbr[Format];
+                SamplerYcbcrConversion = cvt;
+                Handle = sampler;
             }
             else 
             {
                 MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateSamplerYcbcrConversion(&ycbcrCreateInfo, 0, &SamplerYcbcrConversion));
-                ycbr[Format] = SamplerYcbcrConversion;
+                VkSamplerYcbcrConversionInfo ycbcrInfo = {
+                    .sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO,
+                    .conversion = SamplerYcbcrConversion,
+                };
+                samplerInfo.pNext = &ycbcrInfo;
+                MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateSampler(&samplerInfo, 0, &Handle));
+                ycbr[Format] = {SamplerYcbcrConversion, Handle};
             }
+            return;
         default:
             break;
     }
 
+    static VkSampler sampler = 0;
+    if(!sampler)
+    {
+
+        MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateSampler(&samplerInfo, 0, &sampler));
+    }
+    Handle = sampler;
+}
+
+Image::~Image()
+{
+    Allocation.Free();
+    Vk->DestroyImage(Handle, 0);
+};
+
+ImageView::~ImageView()
+{
+    Src->GetDevice()->DestroyImageView(Handle, 0);
+}
+
+ImageView::ImageView(rc<struct Image> Src, VkFormat Format, VkComponentMapping Components, VkImageUsageFlags Usage) : 
+    Src(Src), Format(Format ? Format : Src->Format), Usage(Usage ? Usage : Src->Usage), Sampler(Src->GetDevice(), Src->Format)
+{
     VkSamplerYcbcrConversionInfo ycbcrInfo = {
         .sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO,
-        .conversion = SamplerYcbcrConversion,
+        .conversion = Sampler.SamplerYcbcrConversion,
     };
 
     VkImageViewUsageCreateInfo usageInfo = {
         .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_USAGE_CREATE_INFO,
-        .pNext = SamplerYcbcrConversion ? &ycbcrInfo : 0,
+        .pNext = Sampler.SamplerYcbcrConversion ? &ycbcrInfo : 0,
         .usage = this->Usage,
     };
 
-
-    MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateImage(&info, 0, &Handle));
-    //if(SamplerYcbcrConversion) Allocation = Allocator->AllocateResourceMemory(Handle, true, createInfo.Imported); else 
-        Allocation = Allocator->AllocateImageMemory(Handle, Extent, Format, createInfo.Imported);
-    Allocation.BindResource(Handle);
-    
     VkImageViewCreateInfo viewInfo = {
         .sType      = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
         .pNext      = &usageInfo,
-        .image      = Handle,
+        .image      = Src->Handle,
         .viewType   = VK_IMAGE_VIEW_TYPE_2D,
-        .format     = Format,
-        .components = {
-            .r = VK_COMPONENT_SWIZZLE_IDENTITY,
-            .g = VK_COMPONENT_SWIZZLE_IDENTITY,
-            .b = VK_COMPONENT_SWIZZLE_IDENTITY,
-            .a = VK_COMPONENT_SWIZZLE_IDENTITY,
-        },
+        .format     = this->Format,
+        .components = Components,
         .subresourceRange = {
             .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
             .levelCount = 1,
@@ -198,11 +151,54 @@ Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo)
         },
     };
 
+    MZ_VULKAN_ASSERT_SUCCESS(Src->GetDevice()->CreateImageView(&viewInfo, 0, &Handle));
+}
 
-    MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateImageView(&viewInfo, 0, &View));
+Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo)
+    : DeviceChild(Allocator->Vk),
+      Extent(createInfo.Extent),
+      Format(createInfo.Format),
+      Usage(createInfo.Usage),
+      State{
+          .StageMask  = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+          .AccessMask = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT,
+          .Layout     = VK_IMAGE_LAYOUT_UNDEFINED,
+      }
+{
+    if (createInfo.Imported)
+    {
+        State.Layout = VK_IMAGE_LAYOUT_PREINITIALIZED;
+    }
 
-    Sampler = vk::Sampler(Vk, SamplerYcbcrConversion);
+    // assert(IsImportable(Vk->PhysicalDevice, Format, Usage, VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT));
 
+    VkExternalMemoryImageCreateInfo resourceCreateInfo = {
+        .sType       = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
+        .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT,
+    };
+
+    VkImageCreateInfo info = {
+        .sType                 = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+        .pNext                 = &resourceCreateInfo,
+        .flags                 = createInfo.Flags,
+        .imageType             = VK_IMAGE_TYPE_2D,
+        .format                = Format,
+        .extent                = {Extent.width, Extent.height, 1},
+        .mipLevels             = 1,
+        .arrayLayers           = 1,
+        .samples               = VK_SAMPLE_COUNT_1_BIT,
+        .tiling                = createInfo.Tiling,
+        .usage                 = Usage,
+        .sharingMode           = VK_SHARING_MODE_EXCLUSIVE,
+        .queueFamilyIndexCount = 0,
+        .pQueueFamilyIndices   = nullptr,
+        .initialLayout         = VK_IMAGE_LAYOUT_UNDEFINED,
+    };
+
+    MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateImage(&info, 0, &Handle));
+    //if(SamplerYcbcrConversion) Allocation = Allocator->AllocateResourceMemory(Handle, true, createInfo.Imported); else 
+    Allocation = Allocator->AllocateImageMemory(Handle, Extent, Format, createInfo.Imported);
+    Allocation.BindResource(Handle);
 } // namespace mz::vk
 
 void Image::Transition(
@@ -290,6 +286,7 @@ rc<Image> Image::Copy(rc<CommandBuffer> Cmd, rc<Allocator> Allocator)
 
     return Img;
 }
+
 
 rc<Buffer> Image::Download(rc<CommandBuffer> Cmd, rc<Allocator> Allocator)
 {
@@ -460,12 +457,12 @@ Image::Image(Device* Vk, ImageCreateInfo const& createInfo)
 {
 }
 
-DescriptorResourceInfo Image::GetDescriptorInfo() const
+DescriptorResourceInfo ImageView::GetDescriptorInfo() const
 {
     return DescriptorResourceInfo{
         .Image = {
             .sampler     = Sampler,
-            .imageView   = View,
+            .imageView   = Handle,
             .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
         }};
 }

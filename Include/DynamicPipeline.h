@@ -16,15 +16,15 @@ struct mzVulkan_API DynamicPipeline : SharedFactory<DynamicPipeline>, DeviceChil
     VkExtent2D Extent;
     std::vector<rc<DescriptorSet>> DescriptorSets;
 
-    DynamicPipeline(Device* Vk, VkExtent2D extent, View<u8> src, VkSampler sampler = 0);
+    DynamicPipeline(Device* Vk, VkExtent2D extent, View<u8> src, VkSampler sampler = 0, std::vector<VkFormat> fmt = {});
     ~DynamicPipeline();
 
-    void BeginRendering(rc<CommandBuffer> Cmd, View<rc<Image>> Images);
+    void BeginRendering(rc<CommandBuffer> Cmd, View<rc<ImageView>> Images);
 
-    template <std::same_as<rc<vk::Image>>... RT>
+    template <std::same_as<rc<vk::ImageView>>... RT>
     void BeginRendering(rc<CommandBuffer> Cmd, RT... Images)
     {
-        rc<vk::Image> RTs[] = {Images...};
+        rc<vk::ImageView> RTs[] = {Images...};
         BeginRendering(Cmd, RTs);
     }
 

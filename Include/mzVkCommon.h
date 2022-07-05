@@ -1,5 +1,6 @@
 #pragma once
 
+#include "vulkan/vulkan_core.h"
 #include <vkl.h>
 
 #include <mzCommon.h>
@@ -26,6 +27,7 @@ struct Queue;
 struct Allocator;
 
 struct Image;
+struct ImageView;
 struct Buffer;
 struct CommandBuffer;
 struct CommandPool;
@@ -73,8 +75,9 @@ struct ImageCreateInfo
     VkExtent2D Extent;
     VkFormat Format;
     VkImageUsageFlags Usage;
+    VkImageTiling Tiling = VK_IMAGE_TILING_OPTIMAL;
+    VkImageCreateFlags Flags = VK_IMAGE_CREATE_ALIAS_BIT;
     const MemoryExportInfo* Imported = 0;
-    bool HostVisible = false;
 };
 
 struct mzVulkan_API SVType
