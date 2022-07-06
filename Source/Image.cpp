@@ -318,7 +318,7 @@ rc<Buffer> Image::Download(rc<CommandBuffer> Cmd, rc<Allocator> Allocator)
     };
 
     Cmd->CopyImageToBuffer(Handle, State.Layout, StagingBuffer->Handle, 1, &region);
-
+    Cmd->AddDependency(shared_from_this(), StagingBuffer);
     return StagingBuffer;
 }
 

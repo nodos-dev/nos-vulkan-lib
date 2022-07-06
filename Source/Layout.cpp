@@ -73,6 +73,11 @@ rc<DescriptorSet> DescriptorSet::Update(rc<CommandBuffer> Cmd, View<Binding> Res
                                           .AccessMask = res.AccessFlags,
                                           .Layout     = infos.back().Image.imageLayout,
                                       });
+            Cmd->AddDependency(*ppImg);
+        }
+        else
+        {
+            Cmd->AddDependency(std::get<rc<Buffer>>(res.Resource));
         }
     }
     Layout->Vk->UpdateDescriptorSets(writes.size(), writes.data(), 0, 0);
