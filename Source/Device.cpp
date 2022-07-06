@@ -81,9 +81,9 @@ bool Device::IsSupported(VkPhysicalDevice PhysicalDevice)
     vkGetPhysicalDeviceFeatures2(PhysicalDevice, &features);
 
     supported = 
-        vk11features.samplerYcbcrConversion || 
-        vk12features.timelineSemaphore || 
-        vk13features.synchronization2 || 
+        vk11features.samplerYcbcrConversion &&
+        vk12features.timelineSemaphore && 
+        vk13features.synchronization2 &&
         vk13features.dynamicRendering;
 
     if(!vk11features.samplerYcbcrConversion) printf("%s does not support feature samplerYcbcrConversion\n", name.c_str());
