@@ -29,12 +29,43 @@ static std::vector<const char*> deviceExtensions = {
 namespace mz::vk
 {
 
+bool Device::IsSupported(VkPhysicalDevice PhysicalDevice)
+{
+    u32 count;
+
+    MZ_VULKAN_ASSERT_SUCCESS(vkEnumerateDeviceExtensionProperties(PhysicalDevice, 0, &count, 0));
+    std::vector<VkExtensionProperties> extensionProps(count);
+    MZ_VULKAN_ASSERT_SUCCESS(vkEnumerateDeviceExtensionProperties(PhysicalDevice, 0, &count, extensionProps.data()));
+
+    for (auto ext : deviceExtensions)
+    {
+        if (std::find_if(extensionProps.begin(), extensionProps.end(), [=](auto& prop) {
+                return 0 == strcmp(ext, prop.extensionName);
+            }) == extensionProps.end())
+        {
+            VkPhysicalDeviceIDProperties IDProps = {
+                .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES,
+            };
+
+            VkPhysicalDeviceProperties2 props = {
+                .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
+                .pNext = &IDProps,
+            };
+
+            vkGetPhysicalDeviceProperties2(PhysicalDevice, &props);
+            printf("%s  does not support extension %s\n", props.properties.deviceName, ext);
+            return false;
+        }
+    }
+    return true;
+}
+
+
 Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice)
     : Instance(Instance), PhysicalDevice(PhysicalDevice)
 {
     u32 count;
 
-#ifndef NDEBUG
     MZ_VULKAN_ASSERT_SUCCESS(vkEnumerateDeviceExtensionProperties(PhysicalDevice, 0, &count, 0));
     std::vector<VkExtensionProperties> extensionProps(count);
     MZ_VULKAN_ASSERT_SUCCESS(vkEnumerateDeviceExtensionProperties(PhysicalDevice, 0, &count, extensionProps.data()));
@@ -49,7 +80,6 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice)
             assert(0);
         }
     }
-#endif
 
     vkGetPhysicalDeviceQueueFamilyProperties(PhysicalDevice, &count, 0);
     std::vector<VkQueueFamilyProperties> props(count);
@@ -157,7 +187,6 @@ Context::Context()
 
     vkl_load_instance_functions(Instance);
 
-#ifndef NDEBUG
     MZ_VULKAN_ASSERT_SUCCESS(vkEnumerateInstanceLayerProperties(&count, 0));
     std::vector<VkLayerProperties> layerProps(count);
     MZ_VULKAN_ASSERT_SUCCESS(vkEnumerateInstanceLayerProperties(&count, layerProps.data()));
@@ -172,7 +201,6 @@ Context::Context()
             assert(0);
         }
     }
-#endif
 
     MZ_VULKAN_ASSERT_SUCCESS(vkEnumeratePhysicalDevices(Instance, &count, 0));
 
@@ -183,7 +211,10 @@ Context::Context()
 
     for (auto pdev : pdevices)
     {
-        Devices.emplace_back(Device::New(Instance, pdev));
+        if(Device::IsSupported(pdev))
+        {
+            Devices.emplace_back(Device::New(Instance, pdev));
+        }
     }
 }
 

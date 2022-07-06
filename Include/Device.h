@@ -74,6 +74,8 @@ struct mzVulkan_API Device : SharedFactory<Device>,
     ~Device();
     u64 GetLuid() const;
 
+    static bool IsSupported(VkPhysicalDevice PhysicalDevice);
+    
 }; // namespace mz::vk
 
 struct mzVulkan_API Context : SharedFactory<Context>
