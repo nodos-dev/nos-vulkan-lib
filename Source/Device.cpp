@@ -29,13 +29,67 @@ static std::vector<const char*> deviceExtensions = {
 namespace mz::vk
 {
 
+
+static std::string GetName(VkPhysicalDevice PhysicalDevice)
+{
+    VkPhysicalDeviceIDProperties IDProps = {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES,
+    };
+
+    VkPhysicalDeviceProperties2 props = {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
+        .pNext = &IDProps,
+    };
+
+    vkGetPhysicalDeviceProperties2(PhysicalDevice, &props);
+    return props.properties.deviceName;
+}
+
 bool Device::IsSupported(VkPhysicalDevice PhysicalDevice)
 {
-    u32 count;
+    std::string name = vk::GetName(PhysicalDevice);
+    bool supported = true;
 
+    u32 count;
     MZ_VULKAN_ASSERT_SUCCESS(vkEnumerateDeviceExtensionProperties(PhysicalDevice, 0, &count, 0));
     std::vector<VkExtensionProperties> extensionProps(count);
     MZ_VULKAN_ASSERT_SUCCESS(vkEnumerateDeviceExtensionProperties(PhysicalDevice, 0, &count, extensionProps.data()));
+    
+    VkPhysicalDeviceVulkan11Features vk11features = {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
+        .samplerYcbcrConversion = VK_TRUE,
+    };
+
+    VkPhysicalDeviceVulkan12Features vk12features = {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
+        .pNext = &vk11features,
+        .timelineSemaphore = VK_TRUE,
+    };
+
+    VkPhysicalDeviceVulkan13Features vk13features = {
+        .sType            = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
+        .pNext            = &vk12features,
+        .synchronization2 = VK_TRUE,
+        .dynamicRendering = VK_TRUE,
+    };
+
+    VkPhysicalDeviceFeatures2 features = {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
+        .pNext = &vk13features,
+    };
+
+    vkGetPhysicalDeviceFeatures2(PhysicalDevice, &features);
+
+    supported = 
+        vk11features.samplerYcbcrConversion || 
+        vk12features.timelineSemaphore || 
+        vk13features.synchronization2 || 
+        vk13features.dynamicRendering;
+
+    if(!vk11features.samplerYcbcrConversion) printf("%s does not support feature samplerYcbcrConversion\n", name.c_str());
+    if(!vk12features.timelineSemaphore) printf("%s does not support feature timelineSemaphore\n", name.c_str());
+    if(!vk13features.synchronization2) printf("%s does not support feature synchronization2\n", name.c_str());
+    if(!vk13features.dynamicRendering) printf("%s does not support feature dynamicRendering\n", name.c_str());
 
     for (auto ext : deviceExtensions)
     {
@@ -43,23 +97,18 @@ bool Device::IsSupported(VkPhysicalDevice PhysicalDevice)
                 return 0 == strcmp(ext, prop.extensionName);
             }) == extensionProps.end())
         {
-            VkPhysicalDeviceIDProperties IDProps = {
-                .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES,
-            };
-
-            VkPhysicalDeviceProperties2 props = {
-                .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
-                .pNext = &IDProps,
-            };
-
-            vkGetPhysicalDeviceProperties2(PhysicalDevice, &props);
-            printf("%s  does not support extension %s\n", props.properties.deviceName, ext);
-            return false;
+            printf("%s does not support extension: %s\n", name.c_str(), ext);
+            supported = false;
         }
     }
+
     return true;
 }
 
+std::string Device::GetName() const
+{
+    return vk::GetName(PhysicalDevice);
+}
 
 Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice)
     : Instance(Instance), PhysicalDevice(PhysicalDevice)
@@ -123,7 +172,6 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice)
         .pNext            = &vk12features,
         .synchronization2 = VK_TRUE,
         .dynamicRendering = VK_TRUE,
-        
     };
 
     VkPhysicalDeviceFeatures2 features = {
