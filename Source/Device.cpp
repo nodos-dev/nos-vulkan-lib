@@ -57,20 +57,16 @@ bool Device::IsSupported(VkPhysicalDevice PhysicalDevice)
     
     VkPhysicalDeviceVulkan11Features vk11features = {
         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
-        .samplerYcbcrConversion = VK_TRUE,
     };
 
     VkPhysicalDeviceVulkan12Features vk12features = {
         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
         .pNext = &vk11features,
-        .timelineSemaphore = VK_TRUE,
     };
 
     VkPhysicalDeviceVulkan13Features vk13features = {
         .sType            = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
         .pNext            = &vk12features,
-        .synchronization2 = VK_TRUE,
-        .dynamicRendering = VK_TRUE,
     };
 
     VkPhysicalDeviceFeatures2 features = {
@@ -86,10 +82,26 @@ bool Device::IsSupported(VkPhysicalDevice PhysicalDevice)
         vk13features.synchronization2 &&
         vk13features.dynamicRendering;
 
-    if(!vk11features.samplerYcbcrConversion) printf("%s does not support feature samplerYcbcrConversion\n", name.c_str());
-    if(!vk12features.timelineSemaphore) printf("%s does not support feature timelineSemaphore\n", name.c_str());
-    if(!vk13features.synchronization2) printf("%s does not support feature synchronization2\n", name.c_str());
-    if(!vk13features.dynamicRendering) printf("%s does not support feature dynamicRendering\n", name.c_str());
+    if(!vk11features.samplerYcbcrConversion) 
+    {
+        supported = false;
+        printf("%s does not support feature samplerYcbcrConversion\n", name.c_str());
+    }
+    if(!vk12features.timelineSemaphore) 
+    {
+        supported = false;
+        printf("%s does not support feature timelineSemaphore\n", name.c_str());
+    }
+    if(!vk13features.synchronization2) 
+    {
+        supported = false;
+        printf("%s does not support feature synchronization2\n", name.c_str());
+    }
+    if(!vk13features.dynamicRendering) 
+    {
+        supported = false;
+        printf("%s does not support feature dynamicRendering\n", name.c_str());
+    }
 
     for (auto ext : deviceExtensions)
     {
@@ -102,7 +114,7 @@ bool Device::IsSupported(VkPhysicalDevice PhysicalDevice)
         }
     }
 
-    return true;
+    return supported;
 }
 
 std::string Device::GetName() const
