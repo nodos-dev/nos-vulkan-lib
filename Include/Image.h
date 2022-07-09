@@ -69,6 +69,11 @@ struct mzVulkan_API Image : SharedFactory<Image>, DeviceChild
     { 
         return ImageView::New(shared_from_this(), Format, comp); 
     }
+
+    rc<ImageView> GetView(VkImageUsageFlags usage)
+    {
+        return ImageView::New(shared_from_this(), Format, VkComponentMapping{}, usage);
+    }
 };
 
 }; // namespace mz::vk

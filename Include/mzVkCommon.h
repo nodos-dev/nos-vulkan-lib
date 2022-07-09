@@ -132,7 +132,7 @@ struct mzVulkan_API NamedDSLBinding
 
 struct mzVulkan_API ShaderLayout
 {
-    struct Index { u32 set; u32 binding; };
+    struct Index { u32 set, binding, offset; };
     u32 RTCount;
     u32 PushConstantSize;
     std::map<u32, std::map<u32, NamedDSLBinding>> DescriptorSets;

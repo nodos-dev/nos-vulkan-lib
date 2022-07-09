@@ -319,8 +319,7 @@ ShaderLayout GetShaderLayouts(View<u8> src)
 
             u32 set     = cc.get_decoration(res.id, spv::DecorationDescriptorSet);
             u32 binding = cc.get_decoration(res.id, spv::DecorationBinding);
-
-            layout.DescriptorSets[set][binding] = {
+            NamedDSLBinding dsl = {
                 .Binding         = binding,
                 .DescriptorType  = ty,
                 .DescriptorCount = std::accumulate(type.array.begin(), type.array.end(), 1u, [](u32 a, u32 b) { return a * b; }),
@@ -328,8 +327,18 @@ ShaderLayout GetShaderLayouts(View<u8> src)
                 .Type            = GetType(cc, res.base_type_id, typeCache),
                 .StageMask       = stage,
             };
-
-            layout.BindingsByName[cc.get_name(res.id)] = {set, binding};
+            
+            ShaderLayout::Index idx = {set, binding, 0};
+            layout.BindingsByName[cc.get_name(res.id)] = idx;
+            layout.DescriptorSets[set][binding] = dsl;
+            if(SVType::Struct == dsl.Type->Tag)
+            {
+                for(auto& [name, member] : dsl.Type->Members)
+                {
+                    ShaderLayout::Index idx = {set, binding, member.Offset};
+                    layout.BindingsByName[name] = idx;
+                }
+            }
         }
     };
 

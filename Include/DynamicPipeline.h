@@ -10,23 +10,26 @@ namespace mz::vk
 
 struct mzVulkan_API DynamicPipeline : SharedFactory<DynamicPipeline>, DeviceChild
 {
-    rc<Shader> Shader;
+    inline static VertexShader* VS = nullptr;
+    rc<Shader> PS;
     rc<PipelineLayout> Layout;
-    VkPipeline Handle;
-    VkExtent2D Extent;
+    VkPipeline Handle = 0;
+
+    rc<ImageView> RenderTarget;
+
     std::vector<rc<DescriptorSet>> DescriptorSets;
+
+    DynamicPipeline(Device* Vk, View<u8> src, VkSampler sampler = 0);
 
     DynamicPipeline(Device* Vk, VkExtent2D extent, View<u8> src, VkSampler sampler = 0, std::vector<VkFormat> fmt = {});
     ~DynamicPipeline();
 
-    void BeginRendering(rc<CommandBuffer> Cmd, View<rc<ImageView>> Images);
+    VertexShader* GetVS() const;
+    void ChangeTarget(rc<ImageView> Image);
+    void CreateWithImage(rc<ImageView> Image);
 
-    template <std::same_as<rc<vk::ImageView>>... RT>
-    void BeginRendering(rc<CommandBuffer> Cmd, RT... Images)
-    {
-        rc<vk::ImageView> RTs[] = {Images...};
-        BeginRendering(Cmd, RTs);
-    }
+    void BeginRendering(rc<CommandBuffer> Cmd, rc<ImageView> Image = 0);
+
 
     template <class T>
     void PushConstants(rc<CommandBuffer> Cmd, T const& data)
