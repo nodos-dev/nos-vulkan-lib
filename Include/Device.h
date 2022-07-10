@@ -78,6 +78,7 @@ struct mzVulkan_API Device : SharedFactory<Device>,
     static bool IsSupported(VkPhysicalDevice PhysicalDevice);
     
     std::string GetName() const;
+
 }; // namespace mz::vk
 
 struct mzVulkan_API Context : SharedFactory<Context>

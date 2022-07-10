@@ -51,6 +51,7 @@ struct mzVulkan_API Image : SharedFactory<Image>, DeviceChild
     void Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src, u32 bufferRowLength = 0, u32 bufferImageHeight = 0);
     rc<Image> Copy(rc<CommandBuffer> Cmd, rc<Allocator> Allocator = 0);
     rc<Buffer> Download(rc<CommandBuffer> Cmd, rc<Allocator> Allocator = 0);
+    void Download(rc<CommandBuffer> Cmd, rc<Buffer>);
     Image(Allocator*, ImageCreateInfo const&);
     Image(Device* Vk, ImageCreateInfo const& createInfo);
     ~Image();

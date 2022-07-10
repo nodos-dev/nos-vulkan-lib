@@ -45,6 +45,46 @@ DescriptorLayout::~DescriptorLayout()
     Vk->DestroyDescriptorSetLayout(Handle, 0);
 }
 
+rc<DescriptorSet> DescriptorSet::Update(rc<CommandBuffer> Cmd, std::map<u32, Binding> const& Res)
+{
+    std::vector<DescriptorResourceInfo> infos;
+    std::vector<VkWriteDescriptorSet> writes;
+    infos.reserve(Res.size());
+    writes.reserve(Res.size());
+
+    for (auto [_,res] : Res)
+    {
+
+        infos.push_back(res.GetDescriptorInfo(GetType(res.Idx)));
+        writes.push_back(VkWriteDescriptorSet{
+            .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .dstSet          = Handle,
+            .dstBinding      = res.Idx,
+            .descriptorCount = 1,
+            .descriptorType  = GetType(res.Idx),
+            .pImageInfo      = (std::get_if<rc<ImageView>>(&res.Resource) ? &infos.back().Image : 0),
+            .pBufferInfo     = (std::get_if<rc<Buffer>>(&res.Resource) ? &infos.back().Buffer : 0),
+        });
+
+        if (rc<ImageView> const* ppImg = std::get_if<rc<ImageView>>(&res.Resource))
+        {
+            (*ppImg)->Src->Transition(Cmd, ImageState{
+                                          .StageMask  = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                                          .AccessMask = res.AccessFlags,
+                                          .Layout     = infos.back().Image.imageLayout,
+                                      });
+            Cmd->AddDependency(*ppImg);
+        }
+        else
+        {
+            Cmd->AddDependency(std::get<rc<Buffer>>(res.Resource));
+        }
+    }
+    Layout->Vk->UpdateDescriptorSets(writes.size(), writes.data(), 0, 0);
+    Cmd->AddDependency(shared_from_this());
+    return shared_from_this();
+}
+
 rc<DescriptorSet> DescriptorSet::Update(rc<CommandBuffer> Cmd, View<Binding> Res)
 {
     std::vector<DescriptorResourceInfo> infos;
@@ -54,7 +94,6 @@ rc<DescriptorSet> DescriptorSet::Update(rc<CommandBuffer> Cmd, View<Binding> Res
 
     for (auto res : Res)
     {
-
         infos.push_back(res.GetDescriptorInfo(GetType(res.Idx)));
         writes.push_back(VkWriteDescriptorSet{
             .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,

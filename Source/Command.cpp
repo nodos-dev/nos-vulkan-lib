@@ -131,27 +131,27 @@ Device* CommandBuffer::GetDevice()
     return static_cast<Device*>(fnptrs);
 }
 
-CommandPool::CommandPool(Device* Vk)
-    : Queue(Vk->Queue), NextBuffer(DefaultPoolSize)
+CommandPool::CommandPool(Device* Vk, rc<vk::Queue> Queue, u64 PoolSize)
+    : Queue(Queue), NextBuffer(PoolSize)
 {
     VkCommandPoolCreateInfo info = {
-        .sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-        .flags            = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT | VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
+        .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+        .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT | VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
         .queueFamilyIndex = Queue->Idx,
     };
 
     MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateCommandPool(&info, 0, &Handle));
 
-    VkCommandBuffer buf[DefaultPoolSize];
-
+    std::vector<VkCommandBuffer> buf(PoolSize);
+ 
     VkCommandBufferAllocateInfo cmdInfo = {
-        .sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-        .commandPool        = Handle,
-        .level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+        .commandPool = Handle,
+        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
         .commandBufferCount = DefaultPoolSize,
     };
 
-    MZ_VULKAN_ASSERT_SUCCESS(Vk->AllocateCommandBuffers(&cmdInfo, buf));
+    MZ_VULKAN_ASSERT_SUCCESS(Vk->AllocateCommandBuffers(&cmdInfo, buf.data()));
 
     Buffers.reserve(DefaultPoolSize);
 
@@ -159,6 +159,11 @@ CommandPool::CommandPool(Device* Vk)
     {
         Buffers.emplace_back(CommandBuffer::New(this, cmd));
     }
+}
+
+CommandPool::CommandPool(Device* Vk)
+    : CommandPool(Vk, Vk->Queue)
+{
 }
 
 Device* CommandPool::GetDevice()

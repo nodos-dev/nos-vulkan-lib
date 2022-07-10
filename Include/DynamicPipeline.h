@@ -38,6 +38,7 @@ struct mzVulkan_API DynamicPipeline : SharedFactory<DynamicPipeline>, DeviceChil
     }
 
     bool BindResources(rc<CommandBuffer> Cmd, std::unordered_map<std::string, Binding::Type> const& resources);
+    void BindResources(rc<CommandBuffer> Cmd, std::map<u32, std::map<u32, Binding>> const& bindings);
     void BindResources(rc<CommandBuffer> Cmd, std::map<u32, std::vector<Binding>> const& bindings);
 
     template <class... Args>

@@ -278,7 +278,7 @@ void DynamicPipeline::BeginRendering(rc<CommandBuffer> Cmd, rc<ImageView> Image)
 
 bool DynamicPipeline::BindResources(rc<CommandBuffer> Cmd, std::unordered_map<std::string, Binding::Type> const& resources)
 {
-    std::map<u32, std::vector<Binding>> Bindings;
+    std::map<u32, std::map<u32, Binding>> Bindings;
 
     for (auto& [name, res] : resources)
     {
@@ -287,7 +287,7 @@ bool DynamicPipeline::BindResources(rc<CommandBuffer> Cmd, std::unordered_map<st
         {
             return false;
         }
-        Bindings[it->second.set].push_back(Binding(res, it->second.binding));
+        Bindings[it->second.set][it->second.binding] = Binding(res, it->second.binding);
     }
 
     BindResources(Cmd, Bindings);
@@ -297,7 +297,16 @@ bool DynamicPipeline::BindResources(rc<CommandBuffer> Cmd, std::unordered_map<st
 
 void DynamicPipeline::BindResources(rc<CommandBuffer> Cmd, std::map<u32, std::vector<Binding>> const& bindings)
 {
+    Cmd->Callbacks.push_back([pipe = shared_from_this()]() { pipe->DescriptorSets.clear(); });
+    
+    for (auto& [idx, set] : bindings)
+    {
+        DescriptorSets.push_back(Layout->AllocateSet(idx)->Update(Cmd, set));
+    }
+}
 
+void DynamicPipeline::BindResources(rc<CommandBuffer> Cmd, std::map<u32, std::map<u32, Binding>> const& bindings)
+{
     Cmd->Callbacks.push_back([pipe = shared_from_this()]() { pipe->DescriptorSets.clear(); });
     
     for (auto& [idx, set] : bindings)

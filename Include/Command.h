@@ -16,6 +16,11 @@ struct mzVulkan_API Queue : SharedFactory<Queue>, VklQueueFunctions
     Queue(Device* Device, u32 Family, u32 Index);
     Device* GetDevice();
     VkResult Submit(uint32_t submitCount, const VkSubmitInfo* pSubmits, VkFence fence);
+    void Wait() 
+    {
+        std::unique_lock lock(Mutex);
+        WaitIdle();
+    }
 };
 
 template <class T>
@@ -68,6 +73,7 @@ struct mzVulkan_API CommandPool : SharedFactory<CommandPool>
     CircularIndex NextBuffer;
 
     CommandPool(Device* Vk);
+    CommandPool(Device* Vk, rc<vk::Queue> Queue, u64 PoolSize = DefaultPoolSize);
 
     Device* GetDevice();
 

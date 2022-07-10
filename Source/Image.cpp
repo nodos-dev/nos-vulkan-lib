@@ -298,7 +298,13 @@ rc<Buffer> Image::Download(rc<CommandBuffer> Cmd, rc<Allocator> Allocator)
     }
 
     rc<Buffer> StagingBuffer = Buffer::New(Allocator.get(), Allocation.LocalSize(), VK_BUFFER_USAGE_TRANSFER_DST_BIT, Buffer::Heap::CPU);
+    Download(Cmd, StagingBuffer);
+    return StagingBuffer;
+}
 
+void Image::Download(rc<CommandBuffer> Cmd, rc<Buffer> Buffer)
+{
+    assert(Buffer->Allocation.LocalSize() >= Allocation.LocalSize());
     Transition(Cmd, ImageState{
                         .StageMask  = VK_PIPELINE_STAGE_TRANSFER_BIT,
                         .AccessMask = VK_ACCESS_TRANSFER_READ_BIT,
@@ -317,9 +323,8 @@ rc<Buffer> Image::Download(rc<CommandBuffer> Cmd, rc<Allocator> Allocator)
         },
     };
 
-    Cmd->CopyImageToBuffer(Handle, State.Layout, StagingBuffer->Handle, 1, &region);
-    Cmd->AddDependency(shared_from_this(), StagingBuffer);
-    return StagingBuffer;
+    Cmd->CopyImageToBuffer(Handle, State.Layout, Buffer->Handle, 1, &region);
+    Cmd->AddDependency(shared_from_this(), Buffer);
 }
 
 void Image::BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
