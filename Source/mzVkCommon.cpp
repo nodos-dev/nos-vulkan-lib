@@ -6,6 +6,7 @@
 #include <Device.h>
 
 #include <Command.h>
+#include <handleapi.h>
 
 namespace mz::vk
 {

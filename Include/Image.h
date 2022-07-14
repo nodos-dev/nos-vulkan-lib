@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Image.h"
-#include "vulkan/vulkan_core.h"
 #include <Allocator.h>
 
 namespace mz::vk

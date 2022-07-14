@@ -1,6 +1,5 @@
 #pragma once
 
-#include "vulkan/vulkan_core.h"
 #include <vkl.h>
 
 #include <mzCommon.h>
