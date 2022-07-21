@@ -114,6 +114,11 @@ bool Device::IsSupported(VkPhysicalDevice PhysicalDevice)
         }
     }
 
+
+    //TODO: add mechanism to fallback into non-dynamic pipeline 
+    // when no device suitable for vulkan 1.3 extensions is found 
+    supported = true;
+
     return supported;
 }
 

@@ -120,8 +120,9 @@ NativeAPID3D12::NativeAPID3D12(Device* Vk)
         }
     }
 
-    // Create D3D12 device
-    MZ_D3D12_ASSERT_SUCCESS(D3D12CreateDevice(pDXGIAdapter, D3D_FEATURE_LEVEL_12_1, __uuidof(ID3D12Device), reinterpret_cast<void**>(&Dx12)));
+    //TODO: add logic to select max d3d_feature_level possible for the device 
+    // Create D3D12 device 
+    MZ_D3D12_ASSERT_SUCCESS(D3D12CreateDevice(pDXGIAdapter, D3D_FEATURE_LEVEL_11_0, __uuidof(ID3D12Device), reinterpret_cast<void**>(&Dx12)));
 
     pDXGIFactory->Release();
     pDXGIAdapter->Release();
