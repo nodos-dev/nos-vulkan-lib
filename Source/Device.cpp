@@ -117,7 +117,7 @@ bool Device::IsSupported(VkPhysicalDevice PhysicalDevice)
 
     //TODO: add mechanism to fallback into non-dynamic pipeline 
     // when no device suitable for vulkan 1.3 extensions is found 
-    supported = true;
+    //supported = true;
 
     return supported;
 }
@@ -278,7 +278,16 @@ Context::Context()
     {
         if(Device::IsSupported(pdev))
         {
-            Devices.emplace_back(Device::New(Instance, pdev));
+            rc<Device> device = Device::New(Instance, pdev);
+            device->SupportLevel = MZ_VULKAN_1_3;
+            Devices.emplace_back(device);
+            
+        }
+        else
+        {
+            rc<Device> device = Device::New(Instance, pdev);
+            device->SupportLevel = MZ_VULKAN_1_2;
+            Devices.emplace_back(device);
         }
     }
 }

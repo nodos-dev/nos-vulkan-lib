@@ -123,7 +123,6 @@ void DynamicPipeline::CreateWithImage(rc<ImageView> Image)
         .pColorBlendState    = &colorBlendState,
         .layout              = Layout->Handle,
     };
-
     MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateGraphicsPipelines(0, 1, &info, 0, &Handle));
 }
 

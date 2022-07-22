@@ -6,6 +6,9 @@
 
 namespace mz::vk
 {
+
+enum mzSupportLevel { MZ_VULKAN_1_0, MZ_VULKAN_1_1, MZ_VULKAN_1_2, MZ_VULKAN_1_3 };
+
 struct mzVulkan_API Device : SharedFactory<Device>,
                              VklDeviceFunctions
 {
@@ -36,7 +39,7 @@ struct mzVulkan_API Device : SharedFactory<Device>,
     rc<Allocator> ImmAllocator;
     rc<CommandPool> ImmCmdPool;
     rc<Queue> Queue;
-
+    mzSupportLevel SupportLevel;
     std::unordered_map<std::string, Global> Globals;
 
     bool RemoveGlobal(std::string const& id)
