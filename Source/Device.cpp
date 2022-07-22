@@ -1,4 +1,5 @@
 
+#include "vulkan/vulkan_core.h"
 #include <Device.h>
 
 #include <Allocator.h>
@@ -230,7 +231,6 @@ Device::~Device()
 Context::Context()
     : Lib(dynalo::open("vulkan-1.dll"))
 {
-
     MZ_VULKAN_ASSERT_SUCCESS(vkl_init(dynalo::get_function<decltype(vkGetInstanceProcAddr)>((dynalo::native::handle)Lib, "vkGetInstanceProcAddr")));
     u32 count;
 
