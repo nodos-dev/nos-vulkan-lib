@@ -74,7 +74,7 @@ struct mzVulkan_API Device : SharedFactory<Device>,
         return data;
     }
     
-    Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice);
+    Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, mzSupportLevel level);
     ~Device();
     u64 GetLuid() const;
 

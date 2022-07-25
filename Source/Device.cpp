@@ -128,8 +128,8 @@ std::string Device::GetName() const
     return vk::GetName(PhysicalDevice);
 }
 
-Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice)
-    : Instance(Instance), PhysicalDevice(PhysicalDevice)
+Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, mzSupportLevel level)
+    : Instance(Instance), PhysicalDevice(PhysicalDevice), SupportLevel(level)
 {
     u32 count;
 
@@ -278,15 +278,13 @@ Context::Context()
     {
         if(Device::IsSupported(pdev))
         {
-            rc<Device> device = Device::New(Instance, pdev);
-            device->SupportLevel = MZ_VULKAN_1_3;
+            rc<Device> device = Device::New(Instance, pdev, MZ_VULKAN_1_3);
             Devices.emplace_back(device);
             
         }
         else
         {
-            rc<Device> device = Device::New(Instance, pdev);
-            device->SupportLevel = MZ_VULKAN_1_2;
+            rc<Device> device = Device::New(Instance, pdev, MZ_VULKAN_1_2);
             Devices.emplace_back(device);
         }
     }
@@ -307,7 +305,7 @@ rc<Device> Context::CreateDevice(u64 luid) const
     {
         if (dev->GetLuid() == luid)
         {
-            return Device::New(Instance, dev->PhysicalDevice);
+            return Device::New(Instance, dev->PhysicalDevice, dev->SupportLevel);
         }
     }
     return 0;
