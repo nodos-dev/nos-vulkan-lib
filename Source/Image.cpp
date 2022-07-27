@@ -114,16 +114,18 @@ Sampler::Sampler(Device* Vk, VkFormat Format) : SamplerYcbcrConversion(0)
 
 Image::~Image()
 {
+    Views.clear();
     Allocation.Free();
     Vk->DestroyImage(Handle, 0);
 };
 
 ImageView::~ImageView()
 {
+    Src->Views.erase(Hash());
     Src->GetDevice()->DestroyImageView(Handle, 0);
 }
 
-ImageView::ImageView(rc<struct Image> Src, VkFormat Format, VkComponentMapping Components, VkImageUsageFlags Usage) : 
+ImageView::ImageView(rc<struct Image> Src, VkFormat Format, VkImageUsageFlags Usage) : 
     Src(Src), Format(Format ? Format : Src->Format), Usage(Usage ? Usage : Src->Usage), Sampler(Src->GetDevice(), Src->Format)
 {
     VkSamplerYcbcrConversionInfo ycbcrInfo = {
@@ -143,7 +145,7 @@ ImageView::ImageView(rc<struct Image> Src, VkFormat Format, VkComponentMapping C
         .image      = Src->Handle,
         .viewType   = VK_IMAGE_VIEW_TYPE_2D,
         .format     = this->Format,
-        .components = Components,
+        .components = {},
         .subresourceRange = {
             .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
             .levelCount = 1,
