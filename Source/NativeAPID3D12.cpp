@@ -119,18 +119,23 @@ NativeAPID3D12::NativeAPID3D12(Device* Vk)
             break;
         }
     }
-
+    
     //TODO: add logic to select max d3d_feature_level possible for the device 
     // Create D3D12 device 
-    if (Vk->SupportLevel != MZ_VULKAN_1_3)
-    {
-        MZ_D3D12_ASSERT_SUCCESS(D3D12CreateDevice(pDXGIAdapter, D3D_FEATURE_LEVEL_11_0, __uuidof(ID3D12Device), reinterpret_cast<void**>(&Dx12)));
-    }
-    else
+
+    MZ_D3D12_ASSERT_SUCCESS(D3D12CreateDevice(pDXGIAdapter, D3D_FEATURE_LEVEL_11_0, __uuidof(ID3D12Device), reinterpret_cast<void**>(&Dx12)));
+
+    D3D12_FEATURE_DATA_FEATURE_LEVELS feature_level{};
+    feature_level.NumFeatureLevels = 1;
+    D3D_FEATURE_LEVEL requested = D3D_FEATURE_LEVEL_12_1;
+    feature_level.pFeatureLevelsRequested = &requested;
+
+    Dx12->CheckFeatureSupport(D3D12_FEATURE_FEATURE_LEVELS, &feature_level, sizeof(feature_level));
+    if (feature_level.MaxSupportedFeatureLevel > D3D_FEATURE_LEVEL_12_1)
     {
         MZ_D3D12_ASSERT_SUCCESS(D3D12CreateDevice(pDXGIAdapter, D3D_FEATURE_LEVEL_12_1, __uuidof(ID3D12Device), reinterpret_cast<void**>(&Dx12)));
-    }
 
+    }
 
     pDXGIFactory->Release();
     pDXGIAdapter->Release();

@@ -25,6 +25,7 @@ static std::vector<const char*> deviceExtensions = {
     "VK_KHR_external_memory_win32",
     "VK_EXT_external_memory_host",
     "VK_KHR_synchronization2",
+    "VK_KHR_dynamic_rendering",
 };
 
 namespace mz::vk
@@ -123,13 +124,61 @@ bool Device::IsSupported(VkPhysicalDevice PhysicalDevice)
     return supported;
 }
 
+bool Device::GetFallbackOptionsForDevice(VkPhysicalDevice PhysicalDevice, mzFallbackOptions& FallbackOptions)
+{
+
+    bool supported = true;
+
+    u32 count;
+    MZ_VULKAN_ASSERT_SUCCESS(vkEnumerateDeviceExtensionProperties(PhysicalDevice, 0, &count, 0));
+    std::vector<VkExtensionProperties> extensionProps(count);
+    MZ_VULKAN_ASSERT_SUCCESS(vkEnumerateDeviceExtensionProperties(PhysicalDevice, 0, &count, extensionProps.data()));
+
+    VkPhysicalDeviceVulkan11Features vk11features = {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
+    };
+
+    VkPhysicalDeviceVulkan12Features vk12features = {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
+        .pNext = &vk11features,
+    };
+
+    VkPhysicalDeviceVulkan13Features vk13features = {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
+        .pNext = &vk12features,
+    };
+
+    VkPhysicalDeviceFeatures2 features = {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
+        .pNext = &vk13features,
+    };
+
+    vkGetPhysicalDeviceFeatures2(PhysicalDevice, &features);
+
+    supported =
+        vk11features.samplerYcbcrConversion &&
+        vk12features.timelineSemaphore;
+
+    if (!vk13features.synchronization2)
+    {
+        FallbackOptions.mzSync2Fallback = true;
+    }
+    if (!vk13features.dynamicRendering)
+    {
+        FallbackOptions.mzDynamicRenderingFallback = true;
+    }
+
+    return supported;
+}
+
+
 std::string Device::GetName() const
 {
     return vk::GetName(PhysicalDevice);
 }
 
-Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, mzSupportLevel level)
-    : Instance(Instance), PhysicalDevice(PhysicalDevice), SupportLevel(level)
+Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, mzFallbackOptions FallbackOptions)
+    : Instance(Instance), PhysicalDevice(PhysicalDevice), FallbackOptions(FallbackOptions)
 {
     u32 count;
 
@@ -137,15 +186,30 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, mzSupportLe
     std::vector<VkExtensionProperties> extensionProps(count);
     MZ_VULKAN_ASSERT_SUCCESS(vkEnumerateDeviceExtensionProperties(PhysicalDevice, 0, &count, extensionProps.data()));
 
+    std::vector<const char*> deviceExtensionsToAsk;
+
     for (auto ext : deviceExtensions)
     {
         if (std::find_if(extensionProps.begin(), extensionProps.end(), [=](auto& prop) {
                 return 0 == strcmp(ext, prop.extensionName);
             }) == extensionProps.end())
         {
+            if (strcmp(ext, "VK_KHR_dynamic_rendering") == 0 && FallbackOptions.mzDynamicRenderingFallback)
+            {
+                printf("Device extension %s requested but not available, fallback mechanism in place\n", ext);
+                continue;
+
+            }
+            if (strcmp(ext, "VK_KHR_synchronization2") == 0 && FallbackOptions.mzSync2Fallback)
+            {
+                printf("Device extension %s requested but not available, fallback mechanism in place\n", ext);
+                continue;
+
+            }
             printf("Device extension %s requested but not available\n", ext);
             assert(0);
         }
+        deviceExtensionsToAsk.push_back(ext);
     }
 
     vkGetPhysicalDeviceQueueFamilyProperties(PhysicalDevice, &count, 0);
@@ -204,8 +268,8 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, mzSupportLe
         .pQueueCreateInfos       = &qinfo,
         .enabledLayerCount       = (u32)layers.size(),
         .ppEnabledLayerNames     = layers.data(),
-        .enabledExtensionCount   = (u32)deviceExtensions.size(),
-        .ppEnabledExtensionNames = deviceExtensions.data(),
+        .enabledExtensionCount   = (u32)deviceExtensionsToAsk.size(),
+        .ppEnabledExtensionNames = deviceExtensionsToAsk.data(),
     };
 
     MZ_VULKAN_ASSERT_SUCCESS(vkCreateDevice(PhysicalDevice, &info, 0, &handle));
@@ -214,6 +278,11 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, mzSupportLe
     Queue        = Queue::New(this, family, 0);
     ImmAllocator = Allocator::New(this);
     ImmCmdPool   = CommandPool::New(this);
+}
+
+void Context::OrderDevices()
+{
+    //TODO: Order devices in order to best device to work on is in the first index (Devices[0])
 }
 
 Device::~Device()
@@ -278,15 +347,37 @@ Context::Context()
     {
         if(Device::IsSupported(pdev))
         {
-            rc<Device> device = Device::New(Instance, pdev, MZ_VULKAN_1_3);
+            mzFallbackOptions FallbackOptions{
+                .mzDynamicRenderingFallback = false,
+                .mzSync2Fallback = false,
+            };
+            rc<Device> device = Device::New(Instance, pdev, FallbackOptions);
             Devices.emplace_back(device);
             
         }
-        else
+    }
+    if (Devices.empty())
+    {
+        for (auto pdev : pdevices)
         {
-            rc<Device> device = Device::New(Instance, pdev, MZ_VULKAN_1_2);
-            Devices.emplace_back(device);
+            mzFallbackOptions FallbackOptions{
+                .mzDynamicRenderingFallback = false,
+                .mzSync2Fallback = false,
+            };
+            if (Device::GetFallbackOptionsForDevice(pdev, FallbackOptions))
+            {
+                rc<Device> device = Device::New(Instance, pdev, FallbackOptions);
+                Devices.emplace_back(device);
+            }
         }
+    }
+    if(Devices.empty())
+    {
+        printf("Currently , we do not support any of your graphics cards \n");
+    }
+    else
+    {
+        OrderDevices();
     }
 }
 
@@ -305,7 +396,7 @@ rc<Device> Context::CreateDevice(u64 luid) const
     {
         if (dev->GetLuid() == luid)
         {
-            return Device::New(Instance, dev->PhysicalDevice, dev->SupportLevel);
+            return Device::New(Instance, dev->PhysicalDevice, dev->FallbackOptions);
         }
     }
     return 0;

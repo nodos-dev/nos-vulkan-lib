@@ -209,7 +209,7 @@ void Image::Transition(
 {
     // Dst.AccessMask = 0;
     // Dst.StageMask  = 0;
-    if (Vk->SupportLevel != MZ_VULKAN_1_3)
+    if (Vk->FallbackOptions.mzSync2Fallback)
     {
         ImageLayoutTransition(this->Handle, Cmd, this->State, Dst);
 

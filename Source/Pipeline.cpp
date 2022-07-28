@@ -110,7 +110,7 @@ namespace mz::vk
             .pAttachments = &attachment,
         };
 
-        if (Vk->SupportLevel != MZ_VULKAN_1_3)
+        if (Vk->FallbackOptions.mzDynamicRenderingFallback)
         {
             VkAttachmentDescription colorAttachment{};
             colorAttachment.format = VK_FORMAT_R8G8B8A8_UNORM;
@@ -153,7 +153,7 @@ namespace mz::vk
             .layout = Layout->Handle,
         };
 
-        if (Vk->SupportLevel != MZ_VULKAN_1_3)
+        if (Vk->FallbackOptions.mzDynamicRenderingFallback)
         {
             info.renderPass = RenderPass;
             info.pNext = 0;
@@ -250,7 +250,7 @@ namespace mz::vk
             .pAttachments = attachments,
         };
 
-        if (Vk->SupportLevel != MZ_VULKAN_1_3)
+        if (Vk->FallbackOptions.mzDynamicRenderingFallback)
         {
             VkAttachmentDescription colorAttachment{};
             colorAttachment.format = VK_FORMAT_R8G8B8A8_UNORM;
@@ -293,7 +293,7 @@ namespace mz::vk
             .layout = Layout->Handle,
         };
 
-        if (Vk->SupportLevel != MZ_VULKAN_1_3)
+        if (Vk->FallbackOptions.mzDynamicRenderingFallback)
         {
             info.renderPass = RenderPass;
             info.pNext = 0;
@@ -319,7 +319,7 @@ namespace mz::vk
                                     .Layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
             });
 
-        if (Vk->SupportLevel != MZ_VULKAN_1_3)
+        if (Vk->FallbackOptions.mzDynamicRenderingFallback)
         {
             VkExtent2D extent = Image->Src->Extent;
 

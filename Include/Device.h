@@ -9,6 +9,12 @@ namespace mz::vk
 
 enum mzSupportLevel { MZ_VULKAN_1_0, MZ_VULKAN_1_1, MZ_VULKAN_1_2, MZ_VULKAN_1_3 };
 
+struct mzFallbackOptions
+{
+    bool mzDynamicRenderingFallback;
+    bool mzSync2Fallback;
+};
+
 struct mzVulkan_API Device : SharedFactory<Device>,
                              VklDeviceFunctions
 {
@@ -39,7 +45,7 @@ struct mzVulkan_API Device : SharedFactory<Device>,
     rc<Allocator> ImmAllocator;
     rc<CommandPool> ImmCmdPool;
     rc<Queue> Queue;
-    mzSupportLevel SupportLevel;
+    mzFallbackOptions FallbackOptions;
     std::unordered_map<std::string, Global> Globals;
 
     bool RemoveGlobal(std::string const& id)
@@ -74,11 +80,12 @@ struct mzVulkan_API Device : SharedFactory<Device>,
         return data;
     }
     
-    Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, mzSupportLevel level);
+    Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, mzFallbackOptions FallbackOptions);
     ~Device();
     u64 GetLuid() const;
 
     static bool IsSupported(VkPhysicalDevice PhysicalDevice);
+    static bool GetFallbackOptionsForDevice(VkPhysicalDevice PhysicalDevice, mzFallbackOptions& FallbackOptions);
     
     std::string GetName() const;
 
@@ -93,6 +100,7 @@ struct mzVulkan_API Context : SharedFactory<Context>
     std::vector<rc<Device>> Devices;
 
     rc<Device> CreateDevice(u64 luid) const;
+    void OrderDevices();
     ~Context();
     Context();
 };
