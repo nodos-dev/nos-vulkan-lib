@@ -7,8 +7,6 @@
 namespace mz::vk
 {
 
-enum mzSupportLevel { MZ_VULKAN_1_0, MZ_VULKAN_1_1, MZ_VULKAN_1_2, MZ_VULKAN_1_3 };
-
 struct mzFallbackOptions
 {
     bool mzDynamicRenderingFallback;

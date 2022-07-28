@@ -283,6 +283,19 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, mzFallbackO
 void Context::OrderDevices()
 {
     //TODO: Order devices in order to best device to work on is in the first index (Devices[0])
+
+    int idx = 0;
+    for (auto device : Devices)
+    {
+        VkPhysicalDeviceProperties props = {};
+        vkGetPhysicalDeviceProperties(device->PhysicalDevice, &props);
+        if (props.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+        {
+            std::iter_swap(Devices.begin() + idx, Devices.begin());
+            break;
+        }
+        idx++;
+    }
 }
 
 Device::~Device()
@@ -345,6 +358,8 @@ Context::Context()
 
     for (auto pdev : pdevices)
     {
+
+        
         if(Device::IsSupported(pdev))
         {
             mzFallbackOptions FallbackOptions{
