@@ -27,6 +27,7 @@ void DynamicPipeline::ChangeTarget(rc<ImageView> Image)
 {
     if(RenderTarget && (0 == memcmp(&RenderTarget->Src->Extent, &Image->Src->Extent, sizeof(VkExtent2D))) && RenderTarget->Format == Image->Format)
     {
+        RenderTarget = Image;
         return;
     }
     if(Handle)

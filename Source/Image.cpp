@@ -212,7 +212,6 @@ void Image::Transition(
     if (Vk->FallbackOptions.mzSync2Fallback)
     {
         ImageLayoutTransition(this->Handle, Cmd, this->State, Dst);
-
     }
     else 
     {

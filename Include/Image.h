@@ -1,6 +1,5 @@
 #pragma once
 
-#include "Image.h"
 #include <Allocator.h>
 
 namespace mz::vk
@@ -78,12 +77,12 @@ struct mzVulkan_API Image : SharedFactory<Image>, DeviceChild
 
     rc<ImageView> GetView(VkFormat fmt) 
     { 
-        return ImageView::New(shared_from_this(), fmt); 
+        return GetView(fmt, Usage); 
     }
 
     rc<ImageView> GetView(VkImageUsageFlags usage)
     {
-        return ImageView::New(shared_from_this(), Format, usage);
+        return GetView(Format, usage); 
     }
 };
 

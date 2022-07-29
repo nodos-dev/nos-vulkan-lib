@@ -37,6 +37,7 @@ struct DeviceChild
   DeviceChild() = default;
   DeviceChild(Device* Vk)  : Vk(Vk) {}
   Device* GetDevice() { return Vk; }
+  virtual ~DeviceChild() = default;
 };
 
 struct ImageState
