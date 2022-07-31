@@ -27,7 +27,7 @@ rc<Image> Stream::AcquireRead()
     std::unique_lock lock(Mutex);
     if(Ready.empty())
     {
-        return Images[Head.Prev()];
+        return Images[Head];
     }
     return Ready.front();
 }

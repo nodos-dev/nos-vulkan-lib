@@ -13,7 +13,7 @@ struct mzVulkan_API Stream : SharedFactory<Stream>, DeviceChild
     std::mutex Mutex;
     std::condition_variable CV;
 
-    CircularIndex Head;
+    CircularIndex<> Head;
     u32 Size;
     ImageCreateInfo Info;
     Stream(Device* Vk, u32 Size, ImageCreateInfo const& info);

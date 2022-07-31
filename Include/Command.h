@@ -70,7 +70,7 @@ struct mzVulkan_API CommandPool : SharedFactory<CommandPool>
     VkCommandPool Handle;
     rc<Queue> Queue;
     std::vector<rc<CommandBuffer>> Buffers;
-    CircularIndex NextBuffer;
+    CircularIndex<> NextBuffer;
 
     CommandPool(Device* Vk);
     CommandPool(Device* Vk, rc<vk::Queue> Queue, u64 PoolSize = DefaultPoolSize);
