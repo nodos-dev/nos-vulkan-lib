@@ -148,12 +148,12 @@ CommandPool::CommandPool(Device* Vk, rc<vk::Queue> Queue, u64 PoolSize)
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
         .commandPool = Handle,
         .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-        .commandBufferCount = DefaultPoolSize,
+        .commandBufferCount = (u32)PoolSize,
     };
 
     MZ_VULKAN_ASSERT_SUCCESS(Vk->AllocateCommandBuffers(&cmdInfo, buf.data()));
 
-    Buffers.reserve(DefaultPoolSize);
+    Buffers.reserve(PoolSize);
 
     for (VkCommandBuffer cmd : buf)
     {

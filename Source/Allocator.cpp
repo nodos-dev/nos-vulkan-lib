@@ -260,6 +260,7 @@ Allocator::Allocator(Device* Vk)
 
 Allocation Allocator::AllocateImageMemory(VkImage img, VkExtent2D extent, VkFormat format, const MemoryExportInfo* imported)
 {
+    std::lock_guard lock(Mutex);
     VkMemoryRequirements req;
     VkPhysicalDeviceMemoryProperties props;
 
@@ -311,6 +312,7 @@ Allocation Allocator::AllocateImageMemory(VkImage img, VkExtent2D extent, VkForm
 
 Allocation Allocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> resource, bool map, const MemoryExportInfo* imported)
 {
+    std::lock_guard lock(Mutex);
     VkMemoryRequirements req;
     VkMemoryPropertyFlags memProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 

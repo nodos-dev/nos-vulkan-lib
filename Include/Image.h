@@ -40,6 +40,7 @@ struct mzVulkan_API ImageView  : private SharedFactory<ImageView>
 
 struct mzVulkan_API Image : SharedFactory<Image>, DeviceChild
 {
+    std::mutex Mutex;
     Allocation Allocation;
     VkImage Handle;
     VkImageUsageFlags Usage;

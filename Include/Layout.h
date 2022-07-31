@@ -50,6 +50,7 @@ struct mzVulkan_API DescriptorSet : SharedFactory<DescriptorSet>
     DescriptorSet(DescriptorPool*, u32);
     ~DescriptorSet();
     VkDescriptorType GetType(u32 Binding);
+    rc<DescriptorSet> Update(View<Binding> Res);
     rc<DescriptorSet> Update(rc<CommandBuffer> Cmd, View<Binding> Res);
     rc<DescriptorSet> Update(rc<CommandBuffer> Cmd, std::map<u32, Binding> const& Res);
     void Bind(rc<CommandBuffer> Cmd);

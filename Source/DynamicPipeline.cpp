@@ -268,10 +268,10 @@ void DynamicPipeline::BeginRendering(rc<CommandBuffer> Cmd, rc<ImageView> Image)
     Cmd->BeginRendering(&renderInfo);
     Cmd->BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, Handle);
 
-    for (auto& set : DescriptorSets)
-    {
-        set->Bind(Cmd);
-    }
+    // for (auto& set : DescriptorSets)
+    // {
+    //     set->Bind(Cmd);
+    // }
 
     Cmd->AddDependency(shared_from_this());
 }

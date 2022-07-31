@@ -33,6 +33,7 @@ struct mzVulkan_API Allocation
 
 struct mzVulkan_API Allocator : SharedFactory<Allocator>, DeviceChild
 {
+    std::mutex Mutex;
     static constexpr u64 DefaultChunkSize = 256 * 1024 * 1024;
     struct NativeAPI* Dx;
     std::map<u32, std::vector<rc<MemoryBlock>>> Allocations;

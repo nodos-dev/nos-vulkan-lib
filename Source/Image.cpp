@@ -207,6 +207,7 @@ void Image::Transition(
     rc<CommandBuffer> Cmd,
     ImageState Dst)
 {
+
     // Dst.AccessMask = 0;
     // Dst.StageMask  = 0;
     if (Vk->FallbackOptions.mzSync2Fallback)

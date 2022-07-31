@@ -57,9 +57,9 @@ struct mzVulkan_API CommandBuffer : SharedFactory<CommandBuffer>,
     template <class... T>
     void AddDependency(rc<T>... Resources)
     {
-        Callbacks.push_back([Resources...]() {
-            (EndResourceDependency(Resources), ...);
-        });
+        // Callbacks.push_back([Resources...]() {
+        //     (EndResourceDependency(Resources), ...);
+        // });
     }
 };
 
