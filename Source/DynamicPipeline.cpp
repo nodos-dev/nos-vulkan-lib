@@ -265,18 +265,17 @@ void DynamicPipeline::BeginRendering(rc<CommandBuffer> Cmd, rc<ImageView> Image)
         .pColorAttachments    = &Attachment,
     };
 
+     for (auto& set : DescriptorSets)
+     {
+         set->Bind(Cmd);
+     }
+
     Cmd->BeginRendering(&renderInfo);
     Cmd->BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, Handle);
-
-    // for (auto& set : DescriptorSets)
-    // {
-    //     set->Bind(Cmd);
-    // }
-
     Cmd->AddDependency(shared_from_this());
 }
 
-bool DynamicPipeline::BindResources(rc<CommandBuffer> Cmd, std::unordered_map<std::string, Binding::Type> const& resources)
+bool DynamicPipeline::BindResources( std::unordered_map<std::string, Binding::Type> const& resources)
 {
     std::map<u32, std::map<u32, Binding>> Bindings;
 
@@ -290,28 +289,25 @@ bool DynamicPipeline::BindResources(rc<CommandBuffer> Cmd, std::unordered_map<st
         Bindings[it->second.set][it->second.binding] = Binding(res, it->second.binding);
     }
 
-    BindResources(Cmd, Bindings);
+    BindResources(Bindings);
 
     return true;
 }
 
-void DynamicPipeline::BindResources(rc<CommandBuffer> Cmd, std::map<u32, std::vector<Binding>> const& bindings)
+void DynamicPipeline::BindResources(std::map<u32, std::vector<Binding>> const& bindings)
 {
-    Cmd->Callbacks.push_back([pipe = shared_from_this()]() { pipe->DescriptorSets.clear(); });
-    
+
     for (auto& [idx, set] : bindings)
     {
-        DescriptorSets.push_back(Layout->AllocateSet(idx)->Update(Cmd, set));
+        DescriptorSets.push_back(Layout->AllocateSet(idx)->Update(set));
     }
 }
 
-void DynamicPipeline::BindResources(rc<CommandBuffer> Cmd, std::map<u32, std::map<u32, Binding>> const& bindings)
+void DynamicPipeline::BindResources(std::map<u32, std::map<u32, Binding>> const& bindings)
 {
-    Cmd->Callbacks.push_back([pipe = shared_from_this()]() { pipe->DescriptorSets.clear(); });
-    
     for (auto& [idx, set] : bindings)
     {
-        DescriptorSets.push_back(Layout->AllocateSet(idx)->Update(Cmd, set));
+        DescriptorSets.push_back(Layout->AllocateSet(idx)->Update(set));
     }
 }
 } // namespace mz::vk

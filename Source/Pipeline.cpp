@@ -397,21 +397,17 @@ namespace mz::vk
 
     void Pipeline::BindResources(rc<CommandBuffer> Cmd, std::map<u32, std::vector<Binding>> const& bindings)
     {
-        Cmd->Callbacks.push_back([pipe = shared_from_this()]() { pipe->DescriptorSets.clear(); });
-
         for (auto& [idx, set] : bindings)
         {
-            DescriptorSets.push_back(Layout->AllocateSet(idx)->Update(Cmd, set));
+            DescriptorSets.push_back(Layout->AllocateSet(idx)->Update(set));
         }
     }
 
     void Pipeline::BindResources(rc<CommandBuffer> Cmd, std::map<u32, std::map<u32, Binding>> const& bindings)
     {
-        Cmd->Callbacks.push_back([pipe = shared_from_this()]() { pipe->DescriptorSets.clear(); });
-
         for (auto& [idx, set] : bindings)
         {
-            DescriptorSets.push_back(Layout->AllocateSet(idx)->Update(Cmd, set));
+            DescriptorSets.push_back(Layout->AllocateSet(idx)->Update(set));
         }
     }
 } // namespace mz::vk

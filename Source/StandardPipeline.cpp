@@ -383,7 +383,7 @@ namespace mz::vk
 
         for (auto& [idx, set] : bindings)
         {
-            DescriptorSets.push_back(Layout->AllocateSet(idx)->Update(Cmd, set));
+            DescriptorSets.push_back(Layout->AllocateSet(idx)->Update(set));
         }
     }
 
@@ -393,7 +393,7 @@ namespace mz::vk
 
         for (auto& [idx, set] : bindings)
         {
-            DescriptorSets.push_back(Layout->AllocateSet(idx)->Update(Cmd, set));
+            DescriptorSets.push_back(Layout->AllocateSet(idx)->Update(set));
         }
     }
 } // namespace mz::vk

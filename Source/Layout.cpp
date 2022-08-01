@@ -45,8 +45,9 @@ DescriptorLayout::~DescriptorLayout()
     Vk->DestroyDescriptorSetLayout(Handle, 0);
 }
 
-rc<DescriptorSet> DescriptorSet::Update(rc<CommandBuffer> Cmd, std::map<u32, Binding> const& Res)
+rc<DescriptorSet> DescriptorSet::Update(std::map<u32, Binding> const& Res)
 {
+    BindStates.clear();
     std::vector<DescriptorResourceInfo> infos;
     std::vector<VkWriteDescriptorSet> writes;
     infos.reserve(Res.size());
@@ -68,25 +69,20 @@ rc<DescriptorSet> DescriptorSet::Update(rc<CommandBuffer> Cmd, std::map<u32, Bin
 
         if (rc<ImageView> const* ppImg = std::get_if<rc<ImageView>>(&res.Resource))
         {
-            (*ppImg)->Src->Transition(Cmd, ImageState{
-                                          .StageMask  = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+            BindStates[(*ppImg)->Src] = ImageState{
+                                          .StageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                                           .AccessMask = res.AccessFlags,
-                                          .Layout     = infos.back().Image.imageLayout,
-                                      });
-            Cmd->AddDependency(*ppImg);
-        }
-        else
-        {
-            Cmd->AddDependency(std::get<rc<Buffer>>(res.Resource));
+                                          .Layout = infos.back().Image.imageLayout,
+            };
         }
     }
     Layout->Vk->UpdateDescriptorSets(writes.size(), writes.data(), 0, 0);
-    Cmd->AddDependency(shared_from_this());
     return shared_from_this();
 }
 
 rc<DescriptorSet> DescriptorSet::Update(View<Binding> Res)
 {
+    BindStates.clear();
     std::vector<DescriptorResourceInfo> infos;
     std::vector<VkWriteDescriptorSet> writes;
     infos.reserve(Res.size());
@@ -104,52 +100,26 @@ rc<DescriptorSet> DescriptorSet::Update(View<Binding> Res)
             .pImageInfo      = (std::get_if<rc<ImageView>>(&res.Resource) ? &infos.back().Image : 0),
             .pBufferInfo     = (std::get_if<rc<Buffer>>(&res.Resource) ? &infos.back().Buffer : 0),
         });
-    }
-    Layout->Vk->UpdateDescriptorSets(writes.size(), writes.data(), 0, 0);
-    return shared_from_this();
-}
-
-rc<DescriptorSet> DescriptorSet::Update(rc<CommandBuffer> Cmd, View<Binding> Res)
-{
-    std::vector<DescriptorResourceInfo> infos;
-    std::vector<VkWriteDescriptorSet> writes;
-    infos.reserve(Res.size());
-    writes.reserve(Res.size());
-
-    for (auto res : Res)
-    {
-        infos.push_back(res.GetDescriptorInfo(GetType(res.Idx)));
-        writes.push_back(VkWriteDescriptorSet{
-            .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-            .dstSet          = Handle,
-            .dstBinding      = res.Idx,
-            .descriptorCount = 1,
-            .descriptorType  = GetType(res.Idx),
-            .pImageInfo      = (std::get_if<rc<ImageView>>(&res.Resource) ? &infos.back().Image : 0),
-            .pBufferInfo     = (std::get_if<rc<Buffer>>(&res.Resource) ? &infos.back().Buffer : 0),
-        });
-
         if (rc<ImageView> const* ppImg = std::get_if<rc<ImageView>>(&res.Resource))
         {
-            //(*ppImg)->Src->Transition(Cmd, ImageState{
-            //                              .StageMask  = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-            //                              .AccessMask = res.AccessFlags,
-            //                              .Layout     = infos.back().Image.imageLayout,
-            //                          });
-            Cmd->AddDependency(*ppImg);
-        }
-        else
-        {
-            Cmd->AddDependency(std::get<rc<Buffer>>(res.Resource));
+            BindStates[(*ppImg)->Src] = ImageState{
+                                          .StageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                                          .AccessMask = res.AccessFlags,
+                                          .Layout = infos.back().Image.imageLayout,
+            };
         }
     }
     Layout->Vk->UpdateDescriptorSets(writes.size(), writes.data(), 0, 0);
-    Cmd->AddDependency(shared_from_this());
     return shared_from_this();
 }
 
 void DescriptorSet::Bind(rc<CommandBuffer> Cmd)
 {
+    for (auto [img, state] : BindStates)
+    {
+        img->Transition(Cmd, state);
+    }
+
     Cmd->BindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, Pool->Layout->Handle, Index, 1, &Handle, 0, 0);
 }
 
