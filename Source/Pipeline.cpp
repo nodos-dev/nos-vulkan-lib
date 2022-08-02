@@ -27,6 +27,7 @@ namespace mz::vk
     {
         if (RenderTarget && (0 == memcmp(&RenderTarget->Src->Extent, &Image->Src->Extent, sizeof(VkExtent2D))) && RenderTarget->Format == Image->Format)
         {
+            RenderTarget = Image;
             return;
         }
         if (Handle)
@@ -376,7 +377,7 @@ namespace mz::vk
         Cmd->AddDependency(shared_from_this());
     }
 
-    bool Pipeline::BindResources(rc<CommandBuffer> Cmd, std::unordered_map<std::string, Binding::Type> const& resources)
+    bool Pipeline::BindResources(std::unordered_map<std::string, Binding::Type> const& resources)
     {
         std::map<u32, std::map<u32, Binding>> Bindings;
 
@@ -390,21 +391,23 @@ namespace mz::vk
             Bindings[it->second.set][it->second.binding] = Binding(res, it->second.binding);
         }
 
-        BindResources(Cmd, Bindings);
+        BindResources(Bindings);
 
         return true;
     }
 
-    void Pipeline::BindResources(rc<CommandBuffer> Cmd, std::map<u32, std::vector<Binding>> const& bindings)
+    void Pipeline::BindResources(std::map<u32, std::vector<Binding>> const& bindings)
     {
+        DescriptorSets.clear();
         for (auto& [idx, set] : bindings)
         {
             DescriptorSets.push_back(Layout->AllocateSet(idx)->Update(set));
         }
     }
 
-    void Pipeline::BindResources(rc<CommandBuffer> Cmd, std::map<u32, std::map<u32, Binding>> const& bindings)
+    void Pipeline::BindResources(std::map<u32, std::map<u32, Binding>> const& bindings)
     {
+        DescriptorSets.clear();
         for (auto& [idx, set] : bindings)
         {
             DescriptorSets.push_back(Layout->AllocateSet(idx)->Update(set));
