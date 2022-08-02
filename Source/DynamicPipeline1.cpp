@@ -1,4 +1,4 @@
-#include <DynamicPipeline.h>
+#include <Pipeline.h>
 
 #include <spirv_cross.hpp>
 
