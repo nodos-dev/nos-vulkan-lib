@@ -65,7 +65,17 @@ void Buffer::Bind(VkDescriptorType type, u32 bind, VkDescriptorSet set)
 void Buffer::Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src, const VkBufferCopy* Region)
 {
     // if this buffer has already been mapped you could simply use the mapped pointer instead of creating a temporary buffer
-    assert(!Map());
+
+    if (auto dst = Map())
+    {
+        if (auto src = Src->Map())
+        {
+            memcpy(dst, src, Allocation.LocalSize());
+            return;
+        }
+        UNREACHABLE;
+    }
+
     assert(Usage & VK_BUFFER_USAGE_TRANSFER_DST_BIT);
     assert(Src->Usage & VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
 

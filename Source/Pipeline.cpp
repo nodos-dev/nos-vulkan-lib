@@ -320,6 +320,11 @@ namespace mz::vk
                                     .Layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
             });
 
+        for (auto& set : DescriptorSets)
+        {
+            set->Bind(Cmd);
+        }
+
         if (Vk->FallbackOptions.mzDynamicRenderingFallback)
         {
             VkExtent2D extent = Image->Src->Extent;
@@ -369,18 +374,13 @@ namespace mz::vk
         
         Cmd->BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, Handle);
 
-        for (auto& set : DescriptorSets)
-        {
-            set->Bind(Cmd);
-        }
-
         Cmd->AddDependency(shared_from_this());
     }
 
     bool Pipeline::BindResources(std::unordered_map<std::string, Binding::Type> const& resources)
     {
         std::map<u32, std::map<u32, Binding>> Bindings;
-
+        
         for (auto& [name, res] : resources)
         {
             auto it = Layout->BindingsByName.find(name);

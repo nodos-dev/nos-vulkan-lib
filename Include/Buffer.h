@@ -38,6 +38,7 @@ struct mzVulkan_API Buffer : SharedFactory<Buffer>, DeviceChild
     ~Buffer();
 
     void Upload(rc<CommandBuffer> Cmd, rc<Buffer> Buffer, const VkBufferCopy* Region = 0);
+
 };
 
 } // namespace mz::vk
