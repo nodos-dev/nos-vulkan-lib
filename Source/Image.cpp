@@ -314,7 +314,7 @@ rc<Buffer> Image::Download(rc<CommandBuffer> Cmd, rc<Allocator> Allocator)
 
 void Image::Download(rc<CommandBuffer> Cmd, rc<Buffer> Buffer)
 {
-    assert(Buffer->Allocation.LocalSize() >= Allocation.LocalSize());
+    // assert(Buffer->Allocation.LocalSize() >= Allocation.LocalSize());
     Transition(Cmd, ImageState{
                         .StageMask  = VK_PIPELINE_STAGE_TRANSFER_BIT,
                         .AccessMask = VK_ACCESS_TRANSFER_READ_BIT,
