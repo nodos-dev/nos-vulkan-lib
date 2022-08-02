@@ -87,7 +87,6 @@ rc<DescriptorSet> DescriptorSet::Update(View<Binding> Res)
     std::vector<VkWriteDescriptorSet> writes;
     infos.reserve(Res.size());
     writes.reserve(Res.size());
-
     for (auto res : Res)
     {
         infos.push_back(res.GetDescriptorInfo(GetType(res.Idx)));
@@ -119,7 +118,7 @@ void DescriptorSet::Bind(rc<CommandBuffer> Cmd)
     {
         img->Transition(Cmd, state);
     }
-
+    Cmd->AddDependency(shared_from_this());
     Cmd->BindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, Pool->Layout->Handle, Index, 1, &Handle, 0, 0);
 }
 

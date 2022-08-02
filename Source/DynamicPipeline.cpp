@@ -264,11 +264,12 @@ void DynamicPipeline::BeginRendering(rc<CommandBuffer> Cmd, rc<ImageView> Image)
         .colorAttachmentCount = 1,
         .pColorAttachments    = &Attachment,
     };
-
-     for (auto& set : DescriptorSets)
-     {
-         set->Bind(Cmd);
-     }
+    
+    assert(Layout->DescriptorSets.size() == DescriptorSets.size());
+    for (auto& set : DescriptorSets)
+    {
+        set->Bind(Cmd);
+    }
 
     Cmd->BeginRendering(&renderInfo);
     Cmd->BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, Handle);
@@ -296,7 +297,7 @@ bool DynamicPipeline::BindResources( std::unordered_map<std::string, Binding::Ty
 
 void DynamicPipeline::BindResources(std::map<u32, std::vector<Binding>> const& bindings)
 {
-
+    DescriptorSets.clear();
     for (auto& [idx, set] : bindings)
     {
         DescriptorSets.push_back(Layout->AllocateSet(idx)->Update(set));
@@ -305,6 +306,7 @@ void DynamicPipeline::BindResources(std::map<u32, std::vector<Binding>> const& b
 
 void DynamicPipeline::BindResources(std::map<u32, std::map<u32, Binding>> const& bindings)
 {
+    DescriptorSets.clear();
     for (auto& [idx, set] : bindings)
     {
         DescriptorSets.push_back(Layout->AllocateSet(idx)->Update(set));

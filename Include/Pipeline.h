@@ -20,7 +20,6 @@ namespace mz::vk
         std::vector<rc<DescriptorSet>> DescriptorSets;
 
         Pipeline(Device* Vk, View<u8> src, VkSampler sampler = 0);
-
         Pipeline(Device* Vk, VkExtent2D extent, View<u8> src, VkSampler sampler = 0, std::vector<VkFormat> fmt = {});
         ~Pipeline();
 
