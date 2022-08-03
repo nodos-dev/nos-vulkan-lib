@@ -23,6 +23,7 @@ struct mzVulkan_API Allocation
     VkDeviceSize LocalSize() const;
     VkDeviceSize GlobalSize() const;
     VkDeviceMemory GetMemory() const;
+    VkExternalMemoryHandleTypeFlagBits GetType() const;
     friend struct MemoryBlock;
 
   private:
@@ -38,7 +39,7 @@ struct mzVulkan_API Allocator : SharedFactory<Allocator>, DeviceChild
     struct NativeAPI* Dx;
     std::map<u32, std::vector<rc<MemoryBlock>>> Allocations;
     Allocator(Device* Vk);
-    Allocation AllocateResourceMemory(std::variant<VkBuffer, VkImage> resource, bool map = false, const MemoryExportInfo* exported = 0);
-    Allocation AllocateImageMemory(VkImage img, VkExtent2D extent, VkFormat format, const MemoryExportInfo* exported = 0);
+    Allocation AllocateResourceMemory(std::variant<VkBuffer, VkImage> resource, VkExternalMemoryHandleTypeFlagBits type, bool map = false, const MemoryExportInfo* exported = 0);
+    Allocation AllocateImageMemory(VkImage img, ImageCreateInfo const& info);
 };
 } // namespace mz::vk

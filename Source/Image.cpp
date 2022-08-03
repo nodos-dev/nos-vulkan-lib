@@ -45,70 +45,36 @@ Sampler::Sampler(Device* Vk, VkFormat Format) : SamplerYcbcrConversion(0)
 
     static std::map<VkFormat, std::pair<VkSamplerYcbcrConversion, VkSampler>>  ycbr;
 
-    switch(Format)
+    if (IsYCbCr(Format))
     {
-        case VK_FORMAT_G8B8G8R8_422_UNORM:
-        case VK_FORMAT_B8G8R8G8_422_UNORM:
-        case VK_FORMAT_R10X6_UNORM_PACK16:
-        case VK_FORMAT_R10X6G10X6_UNORM_2PACK16:
-        case VK_FORMAT_R10X6G10X6B10X6A10X6_UNORM_4PACK16:
-        case VK_FORMAT_G10X6B10X6G10X6R10X6_422_UNORM_4PACK16:
-        case VK_FORMAT_B10X6G10X6R10X6G10X6_422_UNORM_4PACK16:
-        case VK_FORMAT_R12X4_UNORM_PACK16:
-        case VK_FORMAT_R12X4G12X4_UNORM_2PACK16:
-        case VK_FORMAT_R12X4G12X4B12X4A12X4_UNORM_4PACK16:
-        case VK_FORMAT_G12X4B12X4G12X4R12X4_422_UNORM_4PACK16:
-        case VK_FORMAT_B12X4G12X4R12X4G12X4_422_UNORM_4PACK16:
-        case VK_FORMAT_G16B16G16R16_422_UNORM:
-        case VK_FORMAT_B16G16R16G16_422_UNORM:
-        // case VK_FORMAT_G16_B16_R16_3PLANE_420_UNORM:
-        // case VK_FORMAT_G16_B16R16_2PLANE_420_UNORM:
-        // case VK_FORMAT_G16_B16_R16_3PLANE_422_UNORM:
-        // case VK_FORMAT_G16_B16R16_2PLANE_422_UNORM:
-        // case VK_FORMAT_G16_B16_R16_3PLANE_444_UNORM:
-        // case VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_420_UNORM_3PACK16:
-        // case VK_FORMAT_G12X4_B12X4R12X4_2PLANE_420_UNORM_3PACK16:
-        // case VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_422_UNORM_3PACK16:
-        // case VK_FORMAT_G12X4_B12X4R12X4_2PLANE_422_UNORM_3PACK16:
-        // case VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_444_UNORM_3PACK16:
-        // case VK_FORMAT_G8_B8_R8_3PLANE_420_UNORM:
-        // case VK_FORMAT_G8_B8R8_2PLANE_420_UNORM:
-        // case VK_FORMAT_G8_B8_R8_3PLANE_422_UNORM:
-        // case VK_FORMAT_G8_B8R8_2PLANE_422_UNORM:
-        // case VK_FORMAT_G8_B8_R8_3PLANE_444_UNORM:
-        // case VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_420_UNORM_3PACK16:
-        // case VK_FORMAT_G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16:
-        // case VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_422_UNORM_3PACK16:
-        // case VK_FORMAT_G10X6_B10X6R10X6_2PLANE_422_UNORM_3PACK16:
-        // case VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_444_UNORM_3PACK16:
-            if(ycbr.contains(Format))
-            {
-                auto& [cvt, sampler] = ycbr[Format];
-                SamplerYcbcrConversion = cvt;
-                Handle = sampler;
-            }
-            else 
-            {
-                MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateSamplerYcbcrConversion(&ycbcrCreateInfo, 0, &SamplerYcbcrConversion));
-                VkSamplerYcbcrConversionInfo ycbcrInfo = {
-                    .sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO,
-                    .conversion = SamplerYcbcrConversion,
-                };
-                samplerInfo.pNext = &ycbcrInfo;
-                MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateSampler(&samplerInfo, 0, &Handle));
-                ycbr[Format] = {SamplerYcbcrConversion, Handle};
-            }
-            return;
-        default:
-            break;
+        if (ycbr.contains(Format))
+        {
+            auto& [cvt, sampler] = ycbr[Format];
+            SamplerYcbcrConversion = cvt;
+            Handle = sampler;
+        }
+        else
+        {
+            MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateSamplerYcbcrConversion(&ycbcrCreateInfo, 0, &SamplerYcbcrConversion));
+            VkSamplerYcbcrConversionInfo ycbcrInfo = {
+                .sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO,
+                .conversion = SamplerYcbcrConversion,
+            };
+            samplerInfo.pNext = &ycbcrInfo;
+            MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateSampler(&samplerInfo, 0, &Handle));
+            ycbr[Format] = { SamplerYcbcrConversion, Handle };
+        }
+        return;
     }
 
     static VkSampler sampler = 0;
+
     if(!sampler)
     {
 
         MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateSampler(&samplerInfo, 0, &sampler));
     }
+
     Handle = sampler;
 }
 
@@ -176,12 +142,12 @@ Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo)
 
     VkExternalMemoryImageCreateInfo resourceCreateInfo = {
         .sType       = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
-        .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT,
+        .handleTypes = (VkFlags)createInfo.Type,
     };
 
     VkImageCreateInfo info = {
         .sType                 = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-        .pNext                 = &resourceCreateInfo,
+         .pNext                 = &resourceCreateInfo,
         .flags                 = createInfo.Flags,
         .imageType             = VK_IMAGE_TYPE_2D,
         .format                = Format,
@@ -199,7 +165,7 @@ Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo)
 
     MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateImage(&info, 0, &Handle));
     //if(SamplerYcbcrConversion) Allocation = Allocator->AllocateResourceMemory(Handle, true, createInfo.Imported); else 
-    Allocation = Allocator->AllocateImageMemory(Handle, Extent, Format, createInfo.Imported);
+    Allocation = Allocator->AllocateImageMemory(Handle, createInfo);
     Allocation.BindResource(Handle);
 } // namespace mz::vk
 
@@ -462,7 +428,7 @@ MemoryExportInfo Image::GetExportInfo() const
     return MemoryExportInfo{
         .PID    = PlatformGetCurrentProcessId(),
         .Memory = Allocation.GetOSHandle(),
-        .Type   = VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT,
+        .Type   = Allocation.GetType(),
         .Offset = Allocation.GlobalOffset(),
     };
 }

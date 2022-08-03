@@ -11,9 +11,14 @@ namespace mz::vk
 Buffer::Buffer(Allocator* Allocator, u64 size, VkBufferUsageFlags usage, Heap heap)
     : DeviceChild(Allocator->Vk), Usage(usage)
 {
+    if(size == 0)
+    {
+        UNREACHABLE;
+    }
+
     VkExternalMemoryBufferCreateInfo resourceCreateInfo = {
         .sType       = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_BUFFER_CREATE_INFO,
-        .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT,
+        .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT,
     };
 
     VkBufferCreateInfo info = {
@@ -25,8 +30,7 @@ Buffer::Buffer(Allocator* Allocator, u64 size, VkBufferUsageFlags usage, Heap he
 
     MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateBuffer(&info, 0, &Handle));
 
-    Allocation = Allocator->AllocateResourceMemory(Handle, heap == CPU);
-
+    Allocation = Allocator->AllocateResourceMemory(Handle, VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT, heap == CPU);
     Allocation.BindResource(Handle);
 }
 

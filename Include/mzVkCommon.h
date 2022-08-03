@@ -61,6 +61,7 @@ struct HandleExportInfo
     VkExternalMemoryHandleTypeFlagBits Type;
 };
 */
+bool mzVulkan_API IsYCbCr(VkFormat);
 
 struct MemoryExportInfo
 {
@@ -77,6 +78,7 @@ struct ImageCreateInfo
     VkImageUsageFlags Usage;
     VkImageTiling Tiling = VK_IMAGE_TILING_OPTIMAL;
     VkImageCreateFlags Flags = VK_IMAGE_CREATE_ALIAS_BIT;
+    VkExternalMemoryHandleTypeFlagBits Type = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
     const MemoryExportInfo* Imported = 0;
 };
 
