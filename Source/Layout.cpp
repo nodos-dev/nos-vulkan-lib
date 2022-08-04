@@ -14,7 +14,7 @@ NamedDSLBinding const& DescriptorLayout::operator[](u32 binding) const
     return Bindings.at(binding);
 }
 
-DescriptorLayout::DescriptorLayout(Device* Vk, std::map<u32, NamedDSLBinding> NamedBindings, VkSampler sampler)
+DescriptorLayout::DescriptorLayout(Device* Vk, std::map<u32, NamedDSLBinding> NamedBindings)
     : DeviceChild(Vk), Bindings(std::move(NamedBindings))
 {
     std::vector<VkDescriptorSetLayoutBinding> bindings;
@@ -22,15 +22,16 @@ DescriptorLayout::DescriptorLayout(Device* Vk, std::map<u32, NamedDSLBinding> Na
 
     for (auto& [i, b] : Bindings)
     {
+        VkSampler  sampler = 0;
+
         bindings.emplace_back(VkDescriptorSetLayoutBinding{
             .binding         = i,
             .descriptorType  = b.DescriptorType,
             .descriptorCount = b.DescriptorCount,
             .stageFlags      = b.StageMask,
-            .pImmutableSamplers = (sampler && b.DescriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER) ? &sampler : 0,
         });
     }
-
+    
     VkDescriptorSetLayoutCreateInfo info = {
         .sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
         .bindingCount = (u32)bindings.size(),
@@ -196,12 +197,12 @@ DescriptorPool::~DescriptorPool()
     }
 }
 
-PipelineLayout::PipelineLayout(Device* Vk, View<u8> src, VkSampler sampler)
-    : PipelineLayout(Vk, GetShaderLayouts(src), sampler)
+PipelineLayout::PipelineLayout(Device* Vk, View<u8> src)
+    : PipelineLayout(Vk, GetShaderLayouts(src))
 {
 }
 
-PipelineLayout::PipelineLayout(Device* Vk, ShaderLayout layout, VkSampler sampler)
+PipelineLayout::PipelineLayout(Device* Vk, ShaderLayout layout)
     : DeviceChild(Vk), PushConstantSize(layout.PushConstantSize), RTCount(layout.RTCount), Pool(0), BindingsByName(std::move(layout.BindingsByName))
 {
     std::vector<VkDescriptorSetLayout> handles;
@@ -218,7 +219,7 @@ PipelineLayout::PipelineLayout(Device* Vk, ShaderLayout layout, VkSampler sample
             pushConstantRange.stageFlags |= binding.StageMask;
         }
 
-        auto layout = DescriptorLayout::New(Vk, std::move(set), sampler);
+        auto layout = DescriptorLayout::New(Vk, std::move(set));
         handles.push_back(layout->Handle);
         DescriptorSets[idx] = layout;
     }

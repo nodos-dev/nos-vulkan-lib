@@ -25,10 +25,16 @@ namespace mz::vk
 
     void Pipeline::ChangeTarget(rc<ImageView> Image)
     {
-        if (RenderTarget && (0 == memcmp(&RenderTarget->Src->Extent, &Image->Src->Extent, sizeof(VkExtent2D))) && RenderTarget->Format == Image->Format)
+
+        if (RenderTarget && RenderTarget->GetEffectiveFormat() == Image->GetEffectiveFormat())
         {
-            RenderTarget = Image;
-            return;
+            auto e0 = RenderTarget->Src->GetEffectiveExtent();
+            auto e1 = Image->Src->GetEffectiveExtent();
+            if (e0.width == e1.width && e0.height == e1.height)
+            {
+                RenderTarget = Image;
+                return;
+            }
         }
         if (Handle)
         {
@@ -43,14 +49,15 @@ namespace mz::vk
 
         RenderTarget = Image;
 
-        VkExtent2D extent = Image->Src->Extent;
+        VkExtent2D extent = Image->Src->GetEffectiveExtent();
 
         VertexShader* VS = GetVS();
-
+        VkFormat fmt = Image->GetEffectiveFormat();
+      
         VkPipelineRenderingCreateInfo renderInfo = {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
             .colorAttachmentCount = Layout->RTCount,
-            .pColorAttachmentFormats = &Image->Format,
+            .pColorAttachmentFormats = &fmt,
         };
 
         VkPipelineVertexInputStateCreateInfo inputLayout = VS->GetInputLayout();
@@ -163,13 +170,13 @@ namespace mz::vk
         MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateGraphicsPipelines(0, 1, &info, 0, &Handle));
     }
 
-    Pipeline::Pipeline(Device* Vk, View<u8> src, VkSampler sampler)
-        : DeviceChild(Vk), PS(Shader::New(Vk, VK_SHADER_STAGE_FRAGMENT_BIT, src)), Layout(PipelineLayout::New(Vk, src, sampler))
+    Pipeline::Pipeline(Device* Vk, View<u8> src)
+        : DeviceChild(Vk), PS(Shader::New(Vk, VK_SHADER_STAGE_FRAGMENT_BIT, src)), Layout(PipelineLayout::New(Vk, src))
     {
     }
 
-    Pipeline::Pipeline(Device* Vk, VkExtent2D extent, View<u8> src, VkSampler sampler, std::vector<VkFormat> fmt)
-        : DeviceChild(Vk), PS(Shader::New(Vk, VK_SHADER_STAGE_FRAGMENT_BIT, src)), Layout(PipelineLayout::New(Vk, src, sampler))
+    Pipeline::Pipeline(Device* Vk, VkExtent2D extent, View<u8> src, std::vector<VkFormat> fmt)
+        : DeviceChild(Vk), PS(Shader::New(Vk, VK_SHADER_STAGE_FRAGMENT_BIT, src)), Layout(PipelineLayout::New(Vk, src))
     {
 
         for (u32 i = fmt.size(); i <= Layout->RTCount; ++i)
@@ -327,7 +334,7 @@ namespace mz::vk
 
         if (Vk->FallbackOptions.mzDynamicRenderingFallback)
         {
-            VkExtent2D extent = Image->Src->Extent;
+            VkExtent2D extent = Image->Src->GetEffectiveExtent();
 
             VkFramebufferCreateInfo framebufferInfo{
             .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
@@ -363,7 +370,7 @@ namespace mz::vk
 
             VkRenderingInfo renderInfo = {
                 .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
-                .renderArea = {.extent = RenderTarget->Src->Extent},
+                .renderArea = {.extent = RenderTarget->Src->GetEffectiveExtent()},
                 .layerCount = 1,
                 .colorAttachmentCount = 1,
                 .pColorAttachments = &Attachment,

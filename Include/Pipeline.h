@@ -16,11 +16,11 @@ namespace mz::vk
         VkPipeline Handle = 0;
 
         rc<ImageView> RenderTarget;
-
+        
         std::vector<rc<DescriptorSet>> DescriptorSets;
 
-        Pipeline(Device* Vk, View<u8> src, VkSampler sampler = 0);
-        Pipeline(Device* Vk, VkExtent2D extent, View<u8> src, VkSampler sampler = 0, std::vector<VkFormat> fmt = {});
+        Pipeline(Device* Vk, View<u8> src);
+        Pipeline(Device* Vk, VkExtent2D extent, View<u8> src, std::vector<VkFormat> fmt = {});
         ~Pipeline();
 
         VertexShader* GetVS() const;
@@ -28,7 +28,6 @@ namespace mz::vk
         void CreateWithImage(rc<ImageView> Image);
 
         void BeginRendering(rc<CommandBuffer> Cmd, rc<ImageView> Image = 0);
-
 
         template <class T>
         void PushConstants(rc<CommandBuffer> Cmd, T const& data)

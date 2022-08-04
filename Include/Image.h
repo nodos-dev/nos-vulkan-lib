@@ -1,5 +1,7 @@
 #pragma once
 
+#include "mzVkCommon.h"
+#include "vulkan/vulkan_core.h"
 #include <Allocator.h>
 
 namespace mz::vk
@@ -22,9 +24,10 @@ struct mzVulkan_API Sampler
 struct mzVulkan_API ImageView  : private SharedFactory<ImageView>
 {
     friend struct Image;
-
     VkImageView Handle;
+private:
     VkFormat Format;
+public:
     Sampler Sampler;
     VkImageUsageFlags Usage;
     rc<struct Image> Src;
@@ -36,16 +39,22 @@ struct mzVulkan_API ImageView  : private SharedFactory<ImageView>
     {
         return (((u64)Format << 32ull) | (u64)Usage);
     }
+
+    VkFormat GetEffectiveFormat() const { return IsYCbCr(Format) ? VK_FORMAT_R8G8B8A8_UNORM : Format; }
+    VkFormat GetFormat() const { return Format; }
 };
 
 struct mzVulkan_API Image : SharedFactory<Image>, DeviceChild
 {
+private:
+    VkExtent2D Extent;
+    VkFormat Format;
+public:
     std::mutex Mutex;
     Allocation Allocation;
     VkImage Handle;
     VkImageUsageFlags Usage;
-    VkExtent2D Extent;
-    VkFormat Format;
+
     ImageState State;
     std::map<u64, rc<ImageView>> Views;
 
@@ -54,6 +63,11 @@ struct mzVulkan_API Image : SharedFactory<Image>, DeviceChild
     void BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src);
     void CopyFrom(rc<CommandBuffer> Cmd, rc<Image> Src);
     void ResolveFrom(rc<CommandBuffer> Cmd, rc<Image> Src);
+
+    VkExtent2D GetEffectiveExtent() const { return { Extent.width / (1 + IsYCbCr(Format)), Extent.height}; }
+    VkFormat GetEffectiveFormat() const { return IsYCbCr(Format) ? VK_FORMAT_R8G8B8A8_UNORM : Format; }
+    VkFormat GetFormat() const { return Format; }
+    VkExtent2D GetExtent() const { return Extent; }
 
     void Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src, u32 bufferRowLength = 0, u32 bufferImageHeight = 0);
     rc<Image> Copy(rc<CommandBuffer> Cmd, rc<Allocator> Allocator = 0);

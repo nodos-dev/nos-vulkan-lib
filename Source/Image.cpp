@@ -43,29 +43,30 @@ Sampler::Sampler(Device* Vk, VkFormat Format) : SamplerYcbcrConversion(0)
             .borderColor      = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE,
         };
 
+    static std::mutex Mutex;
     static std::map<VkFormat, std::pair<VkSamplerYcbcrConversion, VkSampler>>  ycbr;
-
-    if (IsYCbCr(Format))
-    {
-        if (ycbr.contains(Format))
-        {
-            auto& [cvt, sampler] = ycbr[Format];
-            SamplerYcbcrConversion = cvt;
-            Handle = sampler;
-        }
-        else
-        {
-            MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateSamplerYcbcrConversion(&ycbcrCreateInfo, 0, &SamplerYcbcrConversion));
-            VkSamplerYcbcrConversionInfo ycbcrInfo = {
-                .sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO,
-                .conversion = SamplerYcbcrConversion,
-            };
-            samplerInfo.pNext = &ycbcrInfo;
-            MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateSampler(&samplerInfo, 0, &Handle));
-            ycbr[Format] = { SamplerYcbcrConversion, Handle };
-        }
-        return;
-    }
+    std::unique_lock lock(Mutex);
+    //if (IsYCbCr(Format))
+    //{
+    //    if (ycbr.contains(Format))
+    //    {
+    //        auto& [cvt, sampler] = ycbr[Format];
+    //        SamplerYcbcrConversion = cvt;
+    //        Handle = sampler;
+    //    }
+    //    else
+    //    {
+    //        MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateSamplerYcbcrConversion(&ycbcrCreateInfo, 0, &SamplerYcbcrConversion));
+    //        VkSamplerYcbcrConversionInfo ycbcrInfo = {
+    //            .sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO,
+    //            .conversion = SamplerYcbcrConversion,
+    //        };
+    //        samplerInfo.pNext = &ycbcrInfo;
+    //        MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateSampler(&samplerInfo, 0, &Handle));
+    //        ycbr[Format] = { SamplerYcbcrConversion, Handle };
+    //    }
+    //    return;
+    //}
 
     static VkSampler sampler = 0;
 
@@ -92,7 +93,7 @@ ImageView::~ImageView()
 }
 
 ImageView::ImageView(rc<struct Image> Src, VkFormat Format, VkImageUsageFlags Usage) : 
-    Src(Src), Format(Format ? Format : Src->Format), Usage(Usage ? Usage : Src->Usage), Sampler(Src->GetDevice(), Src->Format)
+    Src(Src), Format(Format ? Format : Src->GetFormat()), Usage(Usage ? Usage : Src->Usage), Sampler(Src->GetDevice(), Src->GetFormat())
 {
     VkSamplerYcbcrConversionInfo ycbcrInfo = {
         .sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO,
@@ -110,7 +111,7 @@ ImageView::ImageView(rc<struct Image> Src, VkFormat Format, VkImageUsageFlags Us
         .pNext      = &usageInfo,
         .image      = Src->Handle,
         .viewType   = VK_IMAGE_VIEW_TYPE_2D,
-        .format     = this->Format,
+        .format     = IsYCbCr(this->Format) ? VK_FORMAT_R8G8B8A8_UNORM : this->Format,
         .components = {},
         .subresourceRange = {
             .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
@@ -150,12 +151,12 @@ Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo)
          .pNext                 = &resourceCreateInfo,
         .flags                 = createInfo.Flags,
         .imageType             = VK_IMAGE_TYPE_2D,
-        .format                = Format,
-        .extent                = {Extent.width, Extent.height, 1},
+        .format                = IsYCbCr(Format) ? VK_FORMAT_R8G8B8A8_UNORM : Format,
+        .extent                = {Extent.width / (IsYCbCr(Format) + 1), Extent.height, 1},
         .mipLevels             = 1,
         .arrayLayers           = 1,
         .samples               = VK_SAMPLE_COUNT_1_BIT,
-        .tiling                = createInfo.Tiling,
+        .tiling                = createInfo.Tiling, //IsYCbCr(Format) ? VK_IMAGE_TILING_LINEAR : createInfo.Tiling,
         .usage                 = Usage,
         .sharingMode           = VK_SHARING_MODE_EXCLUSIVE,
         .queueFamilyIndexCount = 0,
@@ -210,7 +211,7 @@ void Image::Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src, u32 bufferRowLength, u
             .layerCount = 1,
         },
         .imageExtent = {
-            .width  = Extent.width,
+            .width  = Extent.width / (IsYCbCr(Format) + 1),
             .height = Extent.height,
             .depth  = 1,
         },
@@ -255,7 +256,7 @@ rc<Image> Image::Copy(rc<CommandBuffer> Cmd, rc<Allocator> Allocator)
             .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
             .layerCount = 1,
         },
-        .extent = {Extent.width, Extent.height, 1},
+        .extent = {Extent.width / (IsYCbCr(Format) + 1), Extent.height, 1},
     };
 
     Cmd->CopyImage(Handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, Img->Handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
@@ -293,7 +294,7 @@ void Image::Download(rc<CommandBuffer> Cmd, rc<Buffer> Buffer)
             .layerCount = 1,
         },
         .imageExtent = {
-            .width  = Extent.width,
+            .width  = Extent.width / (IsYCbCr(Format) + 1),
             .height = Extent.height,
             .depth  = 1,
         },
@@ -324,12 +325,12 @@ void Image::BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
             .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
             .layerCount = 1,
         },
-        .srcOffsets     = {{}, {(i32)Src->Extent.width, (i32)Src->Extent.height, 1}},
+        .srcOffsets     = {{}, {(i32)Src->Extent.width / (IsYCbCr(Src->Format) + 1), (i32)Src->Extent.height, 1}},
         .dstSubresource = {
             .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
             .layerCount = 1,
         },
-        .dstOffsets = {{}, {(i32)Dst->Extent.width, (i32)Dst->Extent.height, 1}},
+        .dstOffsets = {{}, {(i32)Dst->Extent.width / (IsYCbCr(Dst->Format) + 1), (i32)Dst->Extent.height, 1}},
     };
 
     VkBlitImageInfo2 blitInfo = {
@@ -349,7 +350,10 @@ void Image::BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
 void Image::CopyFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
 {
     Image* Dst = this;
-    assert(Dst->Extent.width == Src->Extent.width && Dst->Extent.height == Src->Extent.height);
+    assert(
+        (Dst->Extent.width == Src->Extent.width && Dst->Extent.height == Src->Extent.height) ||
+        Dst->Allocation.LocalSize() >= Src->Allocation.LocalSize()
+    );
 
     Src->Transition(Cmd, ImageState{
                              .StageMask  = VK_PIPELINE_STAGE_TRANSFER_BIT,
@@ -372,7 +376,7 @@ void Image::CopyFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
             .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
             .layerCount = 1,
         },
-        .extent = {Extent.width, Extent.height, 1},
+        .extent = {Extent.width / (IsYCbCr(Format) + 1), Extent.height, 1},
     };
 
     Cmd->CopyImage(Src->Handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, Dst->Handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
@@ -406,7 +410,7 @@ void Image::ResolveFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
             .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
             .layerCount = 1,
         },
-        .extent = {Extent.width, Extent.height, 1},
+        .extent = {Extent.width / (IsYCbCr(Format) + 1), Extent.height, 1},
     };
 
     VkResolveImageInfo2 resolveInfo = {
