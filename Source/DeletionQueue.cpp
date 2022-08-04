@@ -40,12 +40,15 @@ namespace mz::vk
 				return result;
 			}
 		}
+
 		for (auto deletor = m_Deletors.rbegin(); deletor != m_Deletors.rend(); ++deletor)
 		{
 			(*deletor)();
 		}
 
 		m_Deletors.clear();
+
+		return VK_SUCCESS;
 	}
 
 }
