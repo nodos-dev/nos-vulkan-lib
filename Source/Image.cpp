@@ -319,32 +319,52 @@ void Image::BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
                              .AccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
                              .Layout     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                          });
-    VkImageBlit2 region = {
-        .sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2,
-        .srcSubresource = {
-            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-            .layerCount = 1,
-        },
-        .srcOffsets     = {{}, {(i32)Src->Extent.width / (IsYCbCr(Src->Format) + 1), (i32)Src->Extent.height, 1}},
-        .dstSubresource = {
-            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-            .layerCount = 1,
-        },
-        .dstOffsets = {{}, {(i32)Dst->Extent.width / (IsYCbCr(Dst->Format) + 1), (i32)Dst->Extent.height, 1}},
-    };
 
-    VkBlitImageInfo2 blitInfo = {
-        .sType = VK_STRUCTURE_TYPE_BLIT_IMAGE_INFO_2,
-        .srcImage = Src->Handle,
-        .srcImageLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-        .dstImage = Dst->Handle,
-        .dstImageLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-        .regionCount = 1,
-        .pRegions = &region,
-        .filter = VK_FILTER_NEAREST,
-    };
-    //TODO: Add fallback mechanism to BlitImage
-    Cmd->BlitImage2(&blitInfo);
+    if (Vk->FallbackOptions.mzCopy2Fallback)
+    {
+        VkImageBlit region = {
+            .srcSubresource = {
+                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .layerCount = 1,
+            },
+            .srcOffsets = {{}, {(i32)Src->Extent.width / (IsYCbCr(Src->Format) + 1), (i32)Src->Extent.height, 1}},
+            .dstSubresource = {
+                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .layerCount = 1,
+            },
+            .dstOffsets = {{}, {(i32)Dst->Extent.width / (IsYCbCr(Dst->Format) + 1), (i32)Dst->Extent.height, 1}},
+        };
+        Cmd->BlitImage(Src->Handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, Dst->Handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1 , &region, VK_FILTER_NEAREST);
+    }
+    else
+    {
+        VkImageBlit2 region = {
+            .sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2,
+            .srcSubresource = {
+                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .layerCount = 1,
+            },
+            .srcOffsets = {{}, {(i32)Src->Extent.width / (IsYCbCr(Src->Format) + 1), (i32)Src->Extent.height, 1}},
+            .dstSubresource = {
+                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .layerCount = 1,
+            },
+            .dstOffsets = {{}, {(i32)Dst->Extent.width / (IsYCbCr(Dst->Format) + 1), (i32)Dst->Extent.height, 1}},
+        };
+
+        VkBlitImageInfo2 blitInfo = {
+            .sType = VK_STRUCTURE_TYPE_BLIT_IMAGE_INFO_2,
+            .srcImage = Src->Handle,
+            .srcImageLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            .dstImage = Dst->Handle,
+            .dstImageLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            .regionCount = 1,
+            .pRegions = &region,
+            .filter = VK_FILTER_NEAREST,
+        };
+
+        Cmd->BlitImage2(&blitInfo);
+    }
 }
 
 void Image::CopyFrom(rc<CommandBuffer> Cmd, rc<Image> Src)

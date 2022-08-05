@@ -26,6 +26,7 @@ static std::vector<const char*> deviceExtensions = {
     "VK_EXT_external_memory_host",
     "VK_KHR_synchronization2",
     "VK_KHR_dynamic_rendering",
+    "VK_KHR_copy_commands2",
 };
 
 namespace mz::vk
@@ -159,13 +160,29 @@ bool Device::GetFallbackOptionsForDevice(VkPhysicalDevice PhysicalDevice, mzFall
         vk11features.samplerYcbcrConversion &&
         vk12features.timelineSemaphore;
 
-    if (!vk13features.synchronization2)
+    u32 instanceVersion = VK_API_VERSION_1_0;
+    auto FN_vkEnumerateInstanceVersion = PFN_vkEnumerateInstanceVersion(vkGetInstanceProcAddr(nullptr, "vkEnumerateInstanceVersion"));
+    if (vkEnumerateInstanceVersion) {
+        vkEnumerateInstanceVersion(&instanceVersion);
+    }
+    uint32_t minorVulkanVersion = VK_VERSION_MINOR(instanceVersion);
+    
+    if (minorVulkanVersion < 3)
     {
         FallbackOptions.mzSync2Fallback = true;
-    }
-    if (!vk13features.dynamicRendering)
-    {
         FallbackOptions.mzDynamicRenderingFallback = true;
+        FallbackOptions.mzCopy2Fallback = true;
+    }
+    else
+    {
+        if (!vk13features.synchronization2)
+        {
+            FallbackOptions.mzSync2Fallback = true;
+        }
+        if (!vk13features.dynamicRendering)
+        {
+            FallbackOptions.mzDynamicRenderingFallback = true;
+        }
     }
 
     return supported;
@@ -180,6 +197,8 @@ std::string Device::GetName() const
 Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, mzFallbackOptions FallbackOptions)
     : Instance(Instance), PhysicalDevice(PhysicalDevice), FallbackOptions(FallbackOptions)
 {
+    
+
     u32 count;
 
     MZ_VULKAN_ASSERT_SUCCESS(vkEnumerateDeviceExtensionProperties(PhysicalDevice, 0, &count, 0));
@@ -205,6 +224,12 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, mzFallbackO
                 printf("Device extension %s requested but not available, fallback mechanism in place\n", ext);
                 continue;
 
+            }
+            if (strcmp(ext, "VK_KHR_copy_commands2") == 0 && FallbackOptions.mzSync2Fallback)
+            {
+                printf("Device extension %s requested but not available, fallback mechanism in place\n", ext);
+                FallbackOptions.mzCopy2Fallback = true;
+                continue;
             }
             printf("Device extension %s requested but not available\n", ext);
             assert(0);
@@ -365,6 +390,7 @@ Context::Context()
             mzFallbackOptions FallbackOptions{
                 .mzDynamicRenderingFallback = false,
                 .mzSync2Fallback = false,
+                .mzCopy2Fallback = false,
             };
             rc<Device> device = Device::New(Instance, pdev, FallbackOptions);
             Devices.emplace_back(device);
@@ -378,6 +404,7 @@ Context::Context()
             mzFallbackOptions FallbackOptions{
                 .mzDynamicRenderingFallback = false,
                 .mzSync2Fallback = false,
+                .mzCopy2Fallback = false,
             };
             if (Device::GetFallbackOptionsForDevice(pdev, FallbackOptions))
             {

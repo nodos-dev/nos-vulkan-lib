@@ -11,6 +11,7 @@ struct mzFallbackOptions
 {
     bool mzDynamicRenderingFallback;
     bool mzSync2Fallback;
+    bool mzCopy2Fallback;
 };
 
 struct mzVulkan_API Device : SharedFactory<Device>,
