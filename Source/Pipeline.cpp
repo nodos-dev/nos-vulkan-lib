@@ -384,6 +384,19 @@ namespace mz::vk
         Cmd->AddDependency(shared_from_this());
     }
 
+    void Pipeline::EndRendering(rc<CommandBuffer> Cmd)
+    {
+        if (Vk->FallbackOptions.mzDynamicRenderingFallback)
+        {
+            Cmd->EndRenderPass();
+        }
+        else
+        {
+            Cmd->EndRendering();
+        }
+
+    }
+
     bool Pipeline::BindResources(std::unordered_map<std::string, Binding::Type> const& resources)
     {
         std::map<u32, std::map<u32, Binding>> Bindings;

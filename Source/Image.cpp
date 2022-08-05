@@ -343,7 +343,7 @@ void Image::BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
         .pRegions = &region,
         .filter = VK_FILTER_NEAREST,
     };
-    
+    //TODO: Add fallback mechanism to BlitImage
     Cmd->BlitImage2(&blitInfo);
 }
 

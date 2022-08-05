@@ -28,6 +28,7 @@ namespace mz::vk
         void CreateWithImage(rc<ImageView> Image);
 
         void BeginRendering(rc<CommandBuffer> Cmd, rc<ImageView> Image = 0);
+        void EndRendering(rc<CommandBuffer> Cmd);
 
         template <class T>
         void PushConstants(rc<CommandBuffer> Cmd, T const& data)
