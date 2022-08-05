@@ -14,41 +14,60 @@ namespace mz::vk
 	{
 	}
 
-	DeletionQueue::DeletionQueue(Device* Vk, VkFence m_Fence)
-		:DeviceChild(Vk)
+	void DeletionQueue::AddFenceForDeletor(std::function<void()>&& deletor, VkFence m_Fence)
 	{
-		m_FencesToWait.push_back(m_Fence);
+		if (!m_Fence)
+		{
+			return;
+		}
+		if (m_FencesToWait.contains(deletor))
+		{
+			m_FencesToWait[deletor].push_back(m_Fence);
+		}
+		std::vector<VkFence> fences;
+		fences.push_back(m_Fence);
+		m_FencesToWait.insert({ deletor, fences });
 	}
 
-	void DeletionQueue::AddFenceToWait(VkFence m_Fence)
-	{
-		m_FencesToWait.push_back(m_Fence);
-	}
-
-	void DeletionQueue::EnqueueDeletion(std::function<void()>&& deletor)
+	void DeletionQueue::EnqueueDeletion(std::function<void()>&& deletor, VkFence m_Fence)
 	{
 		m_Deletors.push_back(deletor);
+		if (!m_Fence)
+		{
+			return;
+		}
+		if (m_FencesToWait.contains(deletor))
+		{
+			m_FencesToWait[deletor].push_back(m_Fence);
+		}
+		std::vector<VkFence> fences;
+		fences.push_back(m_Fence);
+		m_FencesToWait.insert({ deletor, fences });
 	}
 
-	VkResult DeletionQueue::Flush()
+	void DeletionQueue::Flush()
 	{
-		if (!m_FencesToWait.empty())
+		std::function<void()> deletor;
+		while (m_Deletors.try_pop_front(&deletor))
 		{
-			auto result = Vk->WaitForFences(m_FencesToWait.size(), m_FencesToWait.data(), VK_TRUE, 10000);
-			if (result != VK_SUCCESS)
+			if (m_FencesToWait.contains(deletor))
 			{
-				return result;
+				auto fences = m_FencesToWait[deletor];
+				while (Vk->WaitForFences(fences.size(), fences.data(), VK_TRUE, 10000) != VK_SUCCESS)
+				{
+
+				}
 			}
+			deletor();
 		}
+	}
 
-		for (auto deletor = m_Deletors.rbegin(); deletor != m_Deletors.rend(); ++deletor)
+	void DeletionQueue::Run()
+	{
+		while (m_ShouldRun)
 		{
-			(*deletor)();
+			Flush();
 		}
-
-		m_Deletors.clear();
-
-		return VK_SUCCESS;
 	}
 
 }
