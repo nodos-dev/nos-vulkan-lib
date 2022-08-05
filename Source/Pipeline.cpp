@@ -121,7 +121,7 @@ namespace mz::vk
         if (Vk->FallbackOptions.mzDynamicRenderingFallback)
         {
             VkAttachmentDescription colorAttachment{};
-            colorAttachment.format = VK_FORMAT_R8G8B8A8_UNORM;
+            colorAttachment.format = VK_FORMAT_R16G16B16A16_SFLOAT;
             colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
             colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
             colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -181,7 +181,7 @@ namespace mz::vk
 
         for (u32 i = fmt.size(); i <= Layout->RTCount; ++i)
         {
-            fmt.push_back(VK_FORMAT_R8G8B8A8_UNORM);
+            fmt.push_back(VK_FORMAT_R16G16B16A16_SFLOAT);
         }
 
         VkPipelineRenderingCreateInfo renderInfo = {
@@ -261,7 +261,7 @@ namespace mz::vk
         if (Vk->FallbackOptions.mzDynamicRenderingFallback)
         {
             VkAttachmentDescription colorAttachment{};
-            colorAttachment.format = VK_FORMAT_R8G8B8A8_UNORM;
+            colorAttachment.format = VK_FORMAT_R16G16B16A16_SFLOAT;
             colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
             colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
             colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;

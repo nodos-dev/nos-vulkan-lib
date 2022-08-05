@@ -151,8 +151,8 @@ Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo)
          .pNext                 = &resourceCreateInfo,
         .flags                 = createInfo.Flags,
         .imageType             = VK_IMAGE_TYPE_2D,
-        .format                = IsYCbCr(Format) ? VK_FORMAT_R8G8B8A8_UNORM : Format,
-        .extent                = {Extent.width / (IsYCbCr(Format) + 1), Extent.height, 1},
+        .format                = GetEffectiveFormat(),
+        .extent                = {GetEffectiveExtent().width, Extent.height, 1},
         .mipLevels             = 1,
         .arrayLayers           = 1,
         .samples               = VK_SAMPLE_COUNT_1_BIT,
@@ -211,7 +211,7 @@ void Image::Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src, u32 bufferRowLength, u
             .layerCount = 1,
         },
         .imageExtent = {
-            .width  = Extent.width / (IsYCbCr(Format) + 1),
+            .width  = GetEffectiveExtent().width,
             .height = Extent.height,
             .depth  = 1,
         },
@@ -256,7 +256,7 @@ rc<Image> Image::Copy(rc<CommandBuffer> Cmd, rc<Allocator> Allocator)
             .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
             .layerCount = 1,
         },
-        .extent = {Extent.width / (IsYCbCr(Format) + 1), Extent.height, 1},
+        .extent = {GetEffectiveExtent().width, Extent.height, 1},
     };
 
     Cmd->CopyImage(Handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, Img->Handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
@@ -294,7 +294,7 @@ void Image::Download(rc<CommandBuffer> Cmd, rc<Buffer> Buffer)
             .layerCount = 1,
         },
         .imageExtent = {
-            .width  = Extent.width / (IsYCbCr(Format) + 1),
+            .width  = GetEffectiveExtent().width,
             .height = Extent.height,
             .depth  = 1,
         },
@@ -376,7 +376,7 @@ void Image::CopyFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
             .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
             .layerCount = 1,
         },
-        .extent = {Extent.width / (IsYCbCr(Format) + 1), Extent.height, 1},
+        .extent = {GetEffectiveExtent().width, Extent.height, 1},
     };
 
     Cmd->CopyImage(Src->Handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, Dst->Handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
@@ -410,7 +410,7 @@ void Image::ResolveFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
             .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
             .layerCount = 1,
         },
-        .extent = {Extent.width / (IsYCbCr(Format) + 1), Extent.height, 1},
+        .extent = {GetEffectiveExtent().width, Extent.height, 1},
     };
 
     VkResolveImageInfo2 resolveInfo = {
