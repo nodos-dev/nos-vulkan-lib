@@ -18,34 +18,25 @@ namespace mz::vk
 	{
 		std::vector<VkFence> fences;
 		fences.push_back(m_Fence);
-		m_Deletors.push_back({ deletor, fences });
+		m_Queue.push_back({ deletor, fences });
 	}
 
 	void DeletionQueue::EnqueueDeletion(std::function<void()>&& deletor, std::vector<VkFence> m_Fences)
 	{
-		m_Deletors.push_back({ deletor, m_Fences });
+		m_Queue.push_back({ deletor, m_Fences });
 	}
 
-	void DeletionQueue::Flush()
+	void DeletionQueue::Consume(const std::pair<std::function<void()>, std::vector<VkFence>>& pair)
 	{
-		std::pair<std::function<void()>, std::vector<VkFence>> pair;
-		while (m_Deletors.try_pop_front(&pair))
+		auto fences = pair.second;
+		if (!fences.empty())
 		{
-			auto fences = pair.second;
 			while (Vk->WaitForFences(fences.size(), fences.data(), VK_TRUE, 10000) != VK_SUCCESS)
 			{
-
+				//wait until fence is successfull
 			}
-			pair.first();
 		}
-	}
-
-	void DeletionQueue::Run()
-	{
-		while (m_ShouldRun)
-		{
-			Flush();
-		}
+		pair.first();
 	}
 
 }
