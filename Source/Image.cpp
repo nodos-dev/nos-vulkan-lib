@@ -88,8 +88,7 @@ Image::~Image()
 
 ImageView::~ImageView()
 {
-    //Src->Views.erase(Hash()); //QUESTION: Is it necessary?
-    Vk->DestroyImageView(Handle, 0);
+    Src->GetDevice()->DestroyImageView(Handle, 0);
 }
 
 ImageView::ImageView(struct Image* Src, VkFormat Format, VkImageUsageFlags Usage) :
@@ -278,7 +277,7 @@ rc<Buffer> Image::Download(rc<CommandBuffer> Cmd, rc<Allocator> Allocator)
         .Size = (u32)Allocation.LocalSize(), 
         .Usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT, 
     });
-    
+
     Download(Cmd, StagingBuffer);
     return StagingBuffer;
 }

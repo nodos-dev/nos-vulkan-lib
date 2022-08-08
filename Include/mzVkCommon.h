@@ -74,8 +74,8 @@ struct MemoryExportInfo
 
 struct BufferCreateInfo
 {
-    u32 Size : 31;
-    u32 VRAM : 1;
+    u32 Size : 31 = 0;
+    u32 VRAM : 1 = 0;
     VkBufferUsageFlags Usage;
     VkExternalMemoryHandleTypeFlagBits Type = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
 

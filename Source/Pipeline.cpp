@@ -25,6 +25,8 @@ VertexShader *Pipeline::GetVS() const
 
 void Pipeline::Recreate(VkFormat fmt)
 {
+    this->Format = fmt;
+
     if (Handle)
     {
         Vk->DestroyPipeline(Handle, 0);
@@ -110,12 +112,18 @@ void Pipeline::Recreate(VkFormat fmt)
         MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateRenderPass(&renderPassInfo, nullptr, &RenderPass));
     }
 
-    VkDynamicState states[] = {VK_DYNAMIC_STATE_VIEWPORT};
+    VkDynamicState states[] = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
 
     VkPipelineDynamicStateCreateInfo dynamicState = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
         .dynamicStateCount = sizeof(states) / sizeof(states[0]),
         .pDynamicStates = states,
+    };
+
+    VkPipelineViewportStateCreateInfo  viewportState = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+        .viewportCount = 1,
+        .scissorCount = 1,
     };
 
     VkGraphicsPipelineCreateInfo info = {
@@ -125,6 +133,7 @@ void Pipeline::Recreate(VkFormat fmt)
         .pStages = shaderStages,
         .pVertexInputState = &inputLayout,
         .pInputAssemblyState = &inputAssembly,
+        .pViewportState = &viewportState,
         .pRasterizationState = &rasterizationState,
         .pMultisampleState = &multisampleState,
         .pColorBlendState = &colorBlendState,
@@ -144,7 +153,6 @@ Pipeline::Pipeline(Device *Vk, View<u8> src)
     : DeviceChild(Vk), PS(Shader::New(Vk, VK_SHADER_STAGE_FRAGMENT_BIT, src)), Layout(PipelineLayout::New(Vk, src))
 {
 }
-
 
 void Pipeline::BeginRendering(rc<CommandBuffer> Cmd, rc<ImageView> Image)
 {
@@ -174,7 +182,10 @@ void Pipeline::BeginRendering(rc<CommandBuffer> Cmd, rc<ImageView> Image)
         .maxDepth = 1.f,
     };
 
+    VkRect2D scissor = {.extent = extent};
+
     Cmd->SetViewport(0, 1, &viewport);
+    Cmd->SetScissor(0, 1, &scissor);
 
     if (Vk->FallbackOptions.mzDynamicRenderingFallback)
     {
@@ -187,7 +198,7 @@ void Pipeline::BeginRendering(rc<CommandBuffer> Cmd, rc<ImageView> Image)
             .height = extent.height,
             .layers = 1,
         };
-
+        
         MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateFramebuffer(&framebufferInfo, nullptr, &FrameBuffer));
 
         VkRenderPassBeginInfo renderPassInfo{

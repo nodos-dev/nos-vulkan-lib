@@ -31,7 +31,7 @@ public:
     Sampler Sampler;
     VkImageUsageFlags Usage;
     struct Image* Src;
-    ImageView(struct Image* Image, VkFormat Format = VK_FORMAT_UNDEFINED, VkImageUsageFlags Usage = 0);
+    ImageView(rc<struct Image> Image, VkFormat Format = VK_FORMAT_UNDEFINED, VkImageUsageFlags Usage = 0);
     ~ImageView();
     DescriptorResourceInfo GetDescriptorInfo() const;
 
@@ -50,7 +50,6 @@ private:
     VkExtent2D Extent;
     VkFormat Format;
 public:
-    std::mutex Mutex;
     Allocation Allocation;
     VkImage Handle;
     VkImageUsageFlags Usage;

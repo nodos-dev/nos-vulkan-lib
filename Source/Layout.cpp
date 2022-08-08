@@ -70,7 +70,7 @@ rc<DescriptorSet> DescriptorSet::Update(std::map<u32, Binding> const& Res)
 
         if (rc<ImageView> const* ppImg = std::get_if<rc<ImageView>>(&res.Resource))
         {
-            BindStates[(*ppImg)->Src] = ImageState{
+            BindStates[(*ppImg)->Src->shared_from_this()] = ImageState{
                                           .StageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                                           .AccessMask = res.AccessFlags,
                                           .Layout = infos.back().Image.imageLayout,
@@ -102,7 +102,7 @@ rc<DescriptorSet> DescriptorSet::Update(View<Binding> Res)
         });
         if (rc<ImageView> const* ppImg = std::get_if<rc<ImageView>>(&res.Resource))
         {
-            BindStates[(*ppImg)->Src] = ImageState{
+            BindStates[(*ppImg)->Src->shared_from_this()] = ImageState{
                                           .StageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                                           .AccessMask = res.AccessFlags,
                                           .Layout = infos.back().Image.imageLayout,

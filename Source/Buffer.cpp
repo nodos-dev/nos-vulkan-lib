@@ -35,12 +35,12 @@ Buffer::Buffer(Allocator* Allocator, BufferCreateInfo const& info)
 
     MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateBuffer(&createInfo, 0, &Handle));
 
-    Allocation = Allocator->AllocateResourceMemory(Handle, VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT, info.VRAM);
+    Allocation = Allocator->AllocateResourceMemory(Handle, VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT, !info.VRAM, info.Imported);
     Allocation.BindResource(Handle);
 
     if(info.Data)
     {
-        Copy(info.Data, info.Size);
+        Copy(info.Size, info.Data);
         Allocation.Flush();
     }
 }
@@ -110,7 +110,7 @@ void Buffer::Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src, const VkBufferCopy* R
 
 void Buffer::Copy(size_t len, void* pp, size_t offset)
 {
-    assert(offset + len < Allocation.LocalSize());
+    assert(offset + len <= Allocation.LocalSize());
     memcpy(Allocation.Map() + offset, pp, len);
 }
 
