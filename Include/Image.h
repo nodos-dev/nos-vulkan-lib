@@ -31,7 +31,7 @@ public:
     Sampler Sampler;
     VkImageUsageFlags Usage;
     struct Image* Src;
-    ImageView(rc<struct Image> Image, VkFormat Format = VK_FORMAT_UNDEFINED, VkImageUsageFlags Usage = 0);
+    ImageView(struct Image* Image, VkFormat Format = VK_FORMAT_UNDEFINED, VkImageUsageFlags Usage = 0);
     ~ImageView();
     DescriptorResourceInfo GetDescriptorInfo() const;
 
@@ -86,7 +86,7 @@ public:
         {
             return it->second;
         }
-        return Views[hash] = ImageView::New( this, Format, Usage);
+        return Views[hash] = ImageView::New(this, Format, Usage);
     }
 
     rc<ImageView> GetView(VkFormat fmt) 
