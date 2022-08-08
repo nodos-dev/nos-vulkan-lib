@@ -8,42 +8,41 @@
 namespace mz::vk
 {
 
-Buffer::Buffer(Allocator* Allocator, u64 size, VkBufferUsageFlags usage, Heap heap)
-    : DeviceChild(Allocator->Vk), Usage(usage)
+Buffer::Buffer(Device* Vk, BufferCreateInfo const& info) 
+    : Buffer(Vk->ImmAllocator.get(), info)
 {
-    if(size == 0)
+}
+
+Buffer::Buffer(Allocator* Allocator, BufferCreateInfo const& info)
+    : DeviceChild(Allocator->GetDevice()), Usage(info.Usage)
+{
+    if(0 == info.Size)
     {
         UNREACHABLE;
     }
 
     VkExternalMemoryBufferCreateInfo resourceCreateInfo = {
         .sType       = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_BUFFER_CREATE_INFO,
-        .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT,
+        .handleTypes = (VkFlags)info.Type,
     };
 
-    VkBufferCreateInfo info = {
+    VkBufferCreateInfo createInfo = {
         .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
         .pNext = &resourceCreateInfo,
-        .size  = size,
-        .usage = usage,
+        .size  = info.Size,
+        .usage = info.Usage,
     };
 
-    MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateBuffer(&info, 0, &Handle));
+    MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateBuffer(&createInfo, 0, &Handle));
 
-    Allocation = Allocator->AllocateResourceMemory(Handle, VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT, heap == CPU);
+    Allocation = Allocator->AllocateResourceMemory(Handle, VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT, info.VRAM);
     Allocation.BindResource(Handle);
-}
 
-Buffer::Buffer(Device* Vk, u64 size, VkBufferUsageFlags usage, Heap heap)
-    : Buffer(Vk->ImmAllocator.get(), size, usage, heap)
-{
-}
-
-Buffer::Buffer(Allocator* Allocator, u8* data, u64 size, VkBufferUsageFlags usage)
-    : Buffer(Allocator, size, usage, CPU)
-{
-    memcpy(Map(), data, size);
-    Allocation.Flush();
+    if(info.Data)
+    {
+        Copy(info.Data, info.Size);
+        Allocation.Flush();
+    }
 }
 
 void Buffer::Bind(VkDescriptorType type, u32 bind, VkDescriptorSet set)

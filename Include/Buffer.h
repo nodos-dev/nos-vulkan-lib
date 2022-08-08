@@ -10,7 +10,7 @@ struct mzVulkan_API Buffer : SharedFactory<Buffer>, DeviceChild
     Allocation Allocation;
     VkBuffer Handle;
     VkBufferUsageFlags Usage;
-
+    
     void Copy(size_t len, void* pp, size_t offset = 0);
 
     template <class T>
@@ -25,15 +25,8 @@ struct mzVulkan_API Buffer : SharedFactory<Buffer>, DeviceChild
     void Bind(VkDescriptorType type, u32 bind, VkDescriptorSet set);
     DescriptorResourceInfo GetDescriptorInfo() const;
 
-    enum Heap
-    {
-        GPU,
-        CPU,
-    };
-
-    Buffer(Device* Vk, u64 size, VkBufferUsageFlags usage, Heap heap);
-    Buffer(Allocator* Allocator, u64 size, VkBufferUsageFlags usage, Heap heap);
-    Buffer(Allocator* Allocator, u8* data, u64 size, VkBufferUsageFlags usage);
+    Buffer(Device* Vk, BufferCreateInfo const& info);
+    Buffer(Allocator* Vk, BufferCreateInfo const& info);
 
     ~Buffer();
 

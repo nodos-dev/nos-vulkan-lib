@@ -1,5 +1,6 @@
 #pragma once
 
+#include "vulkan/vulkan_core.h"
 #include <vkl.h>
 
 #include <mzCommon.h>
@@ -69,6 +70,17 @@ struct MemoryExportInfo
     HANDLE Memory;
     VkExternalMemoryHandleTypeFlagBits Type;
     VkDeviceSize Offset;
+};
+
+struct BufferCreateInfo
+{
+    u32 Size : 31;
+    u32 VRAM : 1;
+    VkBufferUsageFlags Usage;
+    VkExternalMemoryHandleTypeFlagBits Type = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+
+    void* Data = 0;
+    const MemoryExportInfo* Imported = 0;
 };
 
 struct ImageCreateInfo

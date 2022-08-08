@@ -274,7 +274,11 @@ rc<Buffer> Image::Download(rc<CommandBuffer> Cmd, rc<Allocator> Allocator)
         Allocator = Vk->ImmAllocator;
     }
 
-    rc<Buffer> StagingBuffer = Buffer::New(Allocator.get(), Allocation.LocalSize(), VK_BUFFER_USAGE_TRANSFER_DST_BIT, Buffer::Heap::CPU);
+    rc<Buffer> StagingBuffer = Buffer::New(Allocator.get(), BufferCreateInfo { 
+        .Size = (u32)Allocation.LocalSize(), 
+        .Usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT, 
+    });
+    
     Download(Cmd, StagingBuffer);
     return StagingBuffer;
 }
