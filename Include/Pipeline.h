@@ -14,18 +14,16 @@ namespace mz::vk
         rc<Shader> PS;
         rc<PipelineLayout> Layout;
         VkPipeline Handle = 0;
-
-        rc<ImageView> RenderTarget;
+        VkFormat Format = VK_FORMAT_UNDEFINED;
         
         std::vector<rc<DescriptorSet>> DescriptorSets;
 
         Pipeline(Device* Vk, View<u8> src);
-        Pipeline(Device* Vk, VkExtent2D extent, View<u8> src, std::vector<VkFormat> fmt = {});
         ~Pipeline();
 
         VertexShader* GetVS() const;
-        void ChangeTarget(rc<ImageView> Image);
-        void CreateWithImage(rc<ImageView> Image);
+
+        void Recreate(VkFormat fmt);
 
         void BeginRendering(rc<CommandBuffer> Cmd, rc<ImageView> Image = 0);
         void EndRendering(rc<CommandBuffer> Cmd);

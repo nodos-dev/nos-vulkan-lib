@@ -92,8 +92,8 @@ ImageView::~ImageView()
     Vk->DestroyImageView(Handle, 0);
 }
 
-ImageView::ImageView(Device* Vk, struct Image* Src, VkFormat Format, VkImageUsageFlags Usage) :
-    DeviceChild(Vk), Src(Src), Format(Format ? Format : Src->GetFormat()), Usage(Usage ? Usage : Src->Usage), Sampler(Src->GetDevice(), Src->GetFormat())
+ImageView::ImageView(struct Image* Src, VkFormat Format, VkImageUsageFlags Usage) :
+    DeviceChild(Src->GetDevice()), Src(Src), Format(Format ? Format : Src->GetFormat()), Usage(Usage ? Usage : Src->Usage), Sampler(Src->GetDevice(), Src->GetFormat())
 {
     VkSamplerYcbcrConversionInfo ycbcrInfo = {
         .sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO,
