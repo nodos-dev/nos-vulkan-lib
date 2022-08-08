@@ -21,7 +21,7 @@ struct mzVulkan_API Sampler
     operator VkSampler() const { return Handle; }
 };
 
-struct mzVulkan_API ImageView  : private SharedFactory<ImageView>
+struct mzVulkan_API ImageView  : private SharedFactory<ImageView>, DeviceChild
 {
     friend struct Image;
     VkImageView Handle;
@@ -30,8 +30,8 @@ private:
 public:
     Sampler Sampler;
     VkImageUsageFlags Usage;
-    rc<struct Image> Src;
-    ImageView(rc<struct Image> Image, VkFormat Format = VK_FORMAT_UNDEFINED, VkImageUsageFlags Usage = 0);
+    struct Image* Src;
+    ImageView(Device* Vk, struct Image* Image, VkFormat Format = VK_FORMAT_UNDEFINED, VkImageUsageFlags Usage = 0);
     ~ImageView();
     DescriptorResourceInfo GetDescriptorInfo() const;
 
@@ -87,7 +87,7 @@ public:
         {
             return it->second;
         }
-        return Views[hash] = ImageView::New(shared_from_this(), Format, Usage);
+        return Views[hash] = ImageView::New(Vk, this, Format, Usage);
     }
 
     rc<ImageView> GetView(VkFormat fmt) 

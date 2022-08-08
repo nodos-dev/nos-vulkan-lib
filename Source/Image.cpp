@@ -88,12 +88,12 @@ Image::~Image()
 
 ImageView::~ImageView()
 {
-    Src->Views.erase(Hash());
-    Src->GetDevice()->DestroyImageView(Handle, 0);
+    //Src->Views.erase(Hash()); //QUESTION: Is it necessary?
+    Vk->DestroyImageView(Handle, 0);
 }
 
-ImageView::ImageView(rc<struct Image> Src, VkFormat Format, VkImageUsageFlags Usage) : 
-    Src(Src), Format(Format ? Format : Src->GetFormat()), Usage(Usage ? Usage : Src->Usage), Sampler(Src->GetDevice(), Src->GetFormat())
+ImageView::ImageView(Device* Vk, struct Image* Src, VkFormat Format, VkImageUsageFlags Usage) :
+    DeviceChild(Vk), Src(Src), Format(Format ? Format : Src->GetFormat()), Usage(Usage ? Usage : Src->Usage), Sampler(Src->GetDevice(), Src->GetFormat())
 {
     VkSamplerYcbcrConversionInfo ycbcrInfo = {
         .sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO,

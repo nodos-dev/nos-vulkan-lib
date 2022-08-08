@@ -47,7 +47,7 @@ struct mzVulkan_API DescriptorSet : SharedFactory<DescriptorSet>
     DescriptorLayout* Layout;
     u32 Index;
     VkDescriptorSet Handle;
-    std::unordered_map<rc<Image>, ImageState> BindStates;
+    std::unordered_map<Image*, ImageState> BindStates;
     DescriptorSet(DescriptorPool*, u32);
     ~DescriptorSet();
     VkDescriptorType GetType(u32 Binding);
