@@ -49,7 +49,18 @@ struct mzVulkan_API Image : SharedFactory<Image>, DeviceChild
 private:
     VkExtent2D Extent;
     VkFormat Format;
+    std::mutex Mutex;
 public:
+    void Lock()   
+    { 
+        Mutex.lock(); 
+    }
+    
+    void Unlock() 
+    { 
+        Mutex.unlock(); 
+    }
+
     Allocation Allocation;
     VkImage Handle;
     VkImageUsageFlags Usage;

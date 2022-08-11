@@ -1,3 +1,4 @@
+#include "mzDefines.h"
 #include "vulkan/vulkan_core.h"
 #include <Image.h>
 #include <Device.h>
@@ -309,7 +310,13 @@ void Image::Download(rc<CommandBuffer> Cmd, rc<Buffer> Buffer)
 
 void Image::BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
 {
+    
     Image* Dst = this;
+
+    if(Src.get() == Dst)
+    {
+        UNREACHABLE;
+    }
 
     Src->Transition(Cmd, ImageState{
                              .StageMask  = VK_PIPELINE_STAGE_TRANSFER_BIT,
@@ -368,11 +375,18 @@ void Image::BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
 
         Cmd->BlitImage2(&blitInfo);
     }
+
 }
 
 void Image::CopyFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
 {
+    if(this == Src.get())
+    {
+        UNREACHABLE;
+    }
+
     Image* Dst = this;
+
     assert(
         (Dst->Extent.width == Src->Extent.width && Dst->Extent.height == Src->Extent.height) ||
         Dst->Allocation.LocalSize() >= Src->Allocation.LocalSize()
@@ -403,6 +417,7 @@ void Image::CopyFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
     };
 
     Cmd->CopyImage(Src->Handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, Dst->Handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+
 }
 
 void Image::ResolveFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
@@ -410,7 +425,7 @@ void Image::ResolveFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
     Image* Dst = this;
     
     assert(Dst->Extent.width == Src->Extent.width && Dst->Extent.height == Src->Extent.height);
-
+    
     Src->Transition(Cmd, ImageState{
                              .StageMask  = VK_PIPELINE_STAGE_TRANSFER_BIT,
                              .AccessMask = VK_ACCESS_TRANSFER_READ_BIT,
