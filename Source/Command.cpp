@@ -62,7 +62,7 @@ CommandBuffer::~CommandBuffer()
     Callbacks.clear();
     WaitGroup.clear();
     SignalGroup.clear();
-
+    
     GetDevice()->DestroyFence(Fence, 0);
     MZ_VULKAN_ASSERT_SUCCESS(Reset(VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT));
 }

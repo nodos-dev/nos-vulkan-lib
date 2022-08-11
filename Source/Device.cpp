@@ -9,7 +9,7 @@
 #include <dynalo/dynalo.hpp>
 
 static std::vector<const char*> layers = {
-    "VK_LAYER_KHRONOS_validation",
+    // "VK_LAYER_KHRONOS_validation",
     "VK_LAYER_KHRONOS_synchronization2",
 };
 
