@@ -8,10 +8,12 @@ namespace mz::vk
 struct mzVulkan_API Renderpass : SharedFactory<Renderpass>, DeviceChild
 {
     VkFramebuffer FrameBuffer = 0;
+    rc<ImageView> m_ImageView;
     rc<Pipeline> PL;
     std::vector<rc<DescriptorSet>> DescriptorSets;
     Renderpass(rc<Pipeline> PL);
     Renderpass(Device* Vk, View<u8> src);
+    ~Renderpass();
     
     void Begin(rc<CommandBuffer> Cmd, rc<ImageView> Image);
     void End(rc<CommandBuffer> Cmd);

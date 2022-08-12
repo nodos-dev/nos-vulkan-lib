@@ -89,7 +89,7 @@ Image::~Image()
 
 ImageView::~ImageView()
 {
-    Src->GetDevice()->DestroyImageView(Handle, 0);
+    Vk->DestroyImageView(Handle, 0);
 }
 
 ImageView::ImageView(struct Image* Src, VkFormat Format, VkImageUsageFlags Usage) :

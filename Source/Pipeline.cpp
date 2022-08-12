@@ -94,7 +94,7 @@ void Pipeline::Recreate(VkFormat fmt)
     if (Vk->FallbackOptions.mzDynamicRenderingFallback)
     {
         VkAttachmentDescription colorAttachment{};
-        colorAttachment.format = VK_FORMAT_R16G16B16A16_SFLOAT;
+        colorAttachment.format = fmt;
         colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
         colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;

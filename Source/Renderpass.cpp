@@ -7,7 +7,7 @@ namespace mz::vk
 
 Renderpass::Renderpass(Device* Vk, View<u8> src) :  DeviceChild(Vk), PL(Pipeline::New(Vk, src))
 {
-
+    
 }
 
 Renderpass::Renderpass(rc<Pipeline> PL) : DeviceChild(PL->GetDevice()), PL(PL)
@@ -47,19 +47,29 @@ void Renderpass::Begin(rc<CommandBuffer> Cmd, rc<ImageView> Image)
 
     if (Vk->FallbackOptions.mzDynamicRenderingFallback)
     {
-        VkRenderPass rp =  PL->Handles[Image->GetEffectiveFormat()].rp;
+        VkRenderPass rp = PL->Handles[Image->GetEffectiveFormat()].rp;
 
-        VkFramebufferCreateInfo framebufferInfo{
-            .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
-            .renderPass = rp,
-            .attachmentCount = 1,
-            .pAttachments = &Image->Handle,
-            .width = extent.width,
-            .height = extent.height,
-            .layers = 1,
-        };
-        
-        MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateFramebuffer(&framebufferInfo, nullptr, &FrameBuffer));
+        if (m_ImageView != Image)
+        {
+            m_ImageView = Image;
+            if (FrameBuffer)
+            {
+                Vk->DestroyFramebuffer(FrameBuffer, 0);
+            }
+
+            
+            VkFramebufferCreateInfo framebufferInfo{
+                .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+                .renderPass = rp,
+                .attachmentCount = 1,
+                .pAttachments = &Image->Handle,
+                .width = extent.width,
+                .height = extent.height,
+                .layers = 1,
+            };
+
+            MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateFramebuffer(&framebufferInfo, nullptr, &FrameBuffer));
+        }
 
         VkRenderPassBeginInfo renderPassInfo{
             .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
@@ -145,5 +155,15 @@ bool Renderpass::BindResources(std::unordered_map<std::string, Binding::Type> co
     return true;
 }
 
+Renderpass::~Renderpass()
+{
+    if (Vk->FallbackOptions.mzDynamicRenderingFallback)
+    {
+        if (FrameBuffer)
+        {
+            Vk->DestroyFramebuffer(FrameBuffer, 0);
+        }
+    }
+}
 
 }
