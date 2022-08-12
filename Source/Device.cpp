@@ -193,11 +193,19 @@ std::string Device::GetName() const
     return vk::GetName(PhysicalDevice);
 }
 
+rc<CommandPool> Device::GetPool()
+{
+    auto& Pool = ImmPools[std::this_thread::get_id()];
+    if (!Pool)
+    {
+        Pool = CommandPool::New(this);
+    }
+    return Pool;
+}
+
 Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, mzFallbackOptions FallbackOptions)
     : Instance(Instance), PhysicalDevice(PhysicalDevice), FallbackOptions(FallbackOptions)
 {
-    
-
     u32 count;
 
     MZ_VULKAN_ASSERT_SUCCESS(vkEnumerateDeviceExtensionProperties(PhysicalDevice, 0, &count, 0));
@@ -301,7 +309,6 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, mzFallbackO
 
     Queue        = Queue::New(this, family, 0);
     ImmAllocator = Allocator::New(this);
-    ImmCmdPool   = CommandPool::New(this);
 }
 
 void Context::OrderDevices()
@@ -330,7 +337,7 @@ Device::~Device()
     }
 
     ImmAllocator.reset();
-    ImmCmdPool.reset();
+    GetPool().reset();
     DestroyDevice(0);
 }
 

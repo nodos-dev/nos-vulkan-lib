@@ -1,18 +1,74 @@
-#include "Pipeline.h"
 #include <Renderpass.h>
+#include <Buffer.h>
 
 
 namespace mz::vk
 {
 
-Renderpass::Renderpass(Device* Vk, View<u8> src) :  DeviceChild(Vk), PL(Pipeline::New(Vk, src))
+Renderpass::Renderpass(Device* Vk, View<u8> src) :  Renderpass(Pipeline::New(Vk, src))
 {
     
 }
 
 Renderpass::Renderpass(rc<Pipeline> PL) : DeviceChild(PL->GetDevice()), PL(PL)
 {
+    if(PL->Layout->UniformSize)
+    {
+        UniformBuffer = vk::Buffer::New(GetDevice(), vk::BufferCreateInfo {
+            .Size = PL->Layout->UniformSize,
+            .Usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+        });
+    }
+}
 
+
+void Renderpass::Bind(std::string const& name, void* data, u32 size, rc<ImageView> (Import)(void*))
+{
+    if (!PL->Layout->BindingsByName.contains(name))
+    {
+        return;
+    }
+    
+    auto idx = PL->Layout->BindingsByName[name];
+    u32 baseOffset = PL->Layout->OffsetMap[((u64)idx.set << 32ull) | idx.binding];
+    u32 offset = baseOffset + idx.offset;
+    auto type = PL->Layout->DescriptorLayouts[idx.set]->Bindings[idx.binding].Type;
+
+    if (type->Tag == vk::SVType::Image)
+    {
+        Bindings[idx.set][idx.binding] = vk::Binding(Import(data), idx.binding);
+        return;
+    }
+
+    Bindings[idx.set][idx.binding] = vk::Binding(UniformBuffer, idx.binding, baseOffset);
+    memcpy(UniformBuffer->Map() + offset, data, size);
+}
+
+
+void Renderpass::Exec(rc<vk::CommandBuffer> Cmd, rc<vk::ImageView> Output)
+{
+    BindResources(Bindings);
+    Output->Src->Lock();
+    for(auto set : DescriptorSets)
+    {
+        for(auto& [img, _] : set->BindStates)
+        {
+            img->Lock();
+        }
+    }
+    
+    Begin(Cmd, Output);
+    Cmd->Draw(6, 1, 0, 0);
+    End(Cmd);
+    
+    Output->Src->Unlock();
+    for(auto set : DescriptorSets)
+    {
+        for(auto& [img, _] : set->BindStates)
+        {
+            img->Unlock();
+        }
+    }
 }
 
 void Renderpass::Begin(rc<CommandBuffer> Cmd, rc<ImageView> Image)
@@ -56,7 +112,6 @@ void Renderpass::Begin(rc<CommandBuffer> Cmd, rc<ImageView> Image)
             {
                 Vk->DestroyFramebuffer(FrameBuffer, 0);
             }
-
             
             VkFramebufferCreateInfo framebufferInfo{
                 .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,

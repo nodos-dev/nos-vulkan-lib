@@ -21,7 +21,7 @@ struct mzVulkan_API Pipeline : SharedFactory<Pipeline>, DeviceChild
     };
     
     std::map<VkFormat, PerFormat> Handles;
-    
+
     Pipeline(Device* Vk, View<u8> src);
     ~Pipeline();
 

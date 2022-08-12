@@ -41,8 +41,12 @@ struct mzVulkan_API Device : SharedFactory<Device>,
 
     VkInstance Instance;
     VkPhysicalDevice PhysicalDevice;
+
     rc<Allocator> ImmAllocator;
-    rc<CommandPool> ImmCmdPool;
+
+    std::map<std::thread::id, rc<CommandPool>> ImmPools;
+    rc<CommandPool> GetPool();
+    
     rc<Queue> Queue;
     mzFallbackOptions FallbackOptions;
     std::unordered_map<std::string, Global> Globals;

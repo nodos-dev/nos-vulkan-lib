@@ -124,7 +124,7 @@ void DescriptorSet::Bind(rc<CommandBuffer> Cmd)
 }
 
 DescriptorSet::DescriptorSet(DescriptorPool* pool, u32 Index)
-    : Pool(pool), Layout(pool->Layout->DescriptorSets[Index].get()), Index(Index)
+    : Pool(pool), Layout(pool->Layout->DescriptorLayouts[Index].get()), Index(Index)
 {
     VkDescriptorSetAllocateInfo info = {
         .sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
@@ -150,7 +150,7 @@ static std::vector<VkDescriptorPoolSize> GetPoolSizes(PipelineLayout* Layout)
 {
     std::map<VkDescriptorType, u32> counter;
 
-    for (auto& [_, set] : Layout->DescriptorSets)
+    for (auto& [_, set] : Layout->DescriptorLayouts)
     {
         for (auto& [_, binding] : set->Bindings)
         {
@@ -177,11 +177,10 @@ DescriptorPool::DescriptorPool(PipelineLayout* Layout)
 DescriptorPool::DescriptorPool(PipelineLayout* Layout, std::vector<VkDescriptorPoolSize> sizes)
     : Layout(Layout), Sizes(std::move(sizes))
 {
-
     VkDescriptorPoolCreateInfo poolInfo = {
         .sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
         .flags         = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
-        .maxSets       = (u32)Layout->DescriptorSets.size() * 2048u,
+        .maxSets       = (u32)Layout->DescriptorLayouts.size() * 2u * 2048u,
         .poolSizeCount = (u32)Sizes.size(),
         .pPoolSizes    = Sizes.data(),
     };
@@ -221,7 +220,21 @@ PipelineLayout::PipelineLayout(Device* Vk, ShaderLayout layout)
 
         auto layout = DescriptorLayout::New(Vk, std::move(set));
         handles.push_back(layout->Handle);
-        DescriptorSets[idx] = layout;
+        DescriptorLayouts[idx] = layout;
+    }
+
+   for (auto& [set, layout] : *this)
+    {
+        for (auto& [binding, dsl] : *layout)
+        {
+            u32 shift = UniformSize % dsl.Type->Alignment;
+            if (shift)
+            {
+                UniformSize += dsl.Type->Alignment - shift;
+            }
+            OffsetMap[((u64)set << 32ull) | binding] = UniformSize;
+            UniformSize += dsl.Type->Size;
+        }
     }
 
     VkPipelineLayoutCreateInfo layoutInfo = {
@@ -234,7 +247,7 @@ PipelineLayout::PipelineLayout(Device* Vk, ShaderLayout layout)
 
     MZ_VULKAN_ASSERT_SUCCESS(Vk->CreatePipelineLayout(&layoutInfo, 0, &Handle));
 
-    if (!DescriptorSets.empty())
+    if (!DescriptorLayouts.empty())
     {
         Pool = DescriptorPool::New(this);
     }
@@ -242,7 +255,7 @@ PipelineLayout::PipelineLayout(Device* Vk, ShaderLayout layout)
 
 void PipelineLayout::Dump()
 {
-    for (auto& [set, layout] : DescriptorSets)
+    for (auto& [set, layout] : DescriptorLayouts)
     {
         printf("Set %u:\n", set);
         for (auto& [_, binding] : layout->Bindings)
@@ -254,7 +267,7 @@ void PipelineLayout::Dump()
 
 DescriptorLayout const& PipelineLayout::operator[](u32 set) const
 {
-    return *DescriptorSets.at(set);
+    return *DescriptorLayouts.at(set);
 }
 
 PipelineLayout::~PipelineLayout()

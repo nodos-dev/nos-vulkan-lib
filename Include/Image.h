@@ -53,12 +53,12 @@ private:
 public:
     void Lock()   
     { 
-        Mutex.lock(); 
+        //Mutex.lock(); 
     }
     
     void Unlock() 
     { 
-        Mutex.unlock(); 
+        //Mutex.unlock(); 
     }
 
     Allocation Allocation;

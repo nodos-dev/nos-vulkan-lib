@@ -61,9 +61,13 @@ struct mzVulkan_API PipelineLayout : SharedFactory<PipelineLayout>, DeviceChild
     VkPipelineLayout Handle;
     
     rc<DescriptorPool> Pool;
-    u32 PushConstantSize;
-    u32 RTCount;
-    std::map<u32, rc<DescriptorLayout>> DescriptorSets;
+
+    u32 PushConstantSize = 0;
+    u32 RTCount = 1;
+    u32 UniformSize = 0;
+
+    std::map<u64, u32> OffsetMap;
+    std::map<u32, rc<DescriptorLayout>> DescriptorLayouts;
     std::unordered_map<std::string, ShaderLayout::Index> BindingsByName;
     DescriptorLayout const& operator[](u32 set) const;
     PipelineLayout(Device* Vk, View<u8> src);
@@ -73,12 +77,12 @@ struct mzVulkan_API PipelineLayout : SharedFactory<PipelineLayout>, DeviceChild
 
     auto begin() const
     {
-        return DescriptorSets.begin();
+        return DescriptorLayouts.begin();
     }
 
     auto end() const
     {
-        return DescriptorSets.end();
+        return DescriptorLayouts.end();
     }
   private:
     PipelineLayout(Device* Vk, ShaderLayout layout);

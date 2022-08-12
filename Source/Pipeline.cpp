@@ -161,6 +161,7 @@ void Pipeline::Recreate(VkFormat fmt)
 Pipeline::Pipeline(Device *Vk, View<u8> src)
     : DeviceChild(Vk), PS(Shader::New(Vk, VK_SHADER_STAGE_FRAGMENT_BIT, src)), Layout(PipelineLayout::New(Vk, src))
 {
+ 
 }
 
 } // namespace mz::vk

@@ -5,12 +5,18 @@
 
 namespace mz::vk
 {
+
+struct Buffer;
+
 struct mzVulkan_API Renderpass : SharedFactory<Renderpass>, DeviceChild
 {
     VkFramebuffer FrameBuffer = 0;
     rc<ImageView> m_ImageView;
     rc<Pipeline> PL;
     std::vector<rc<DescriptorSet>> DescriptorSets;
+    std::map<u32, std::map<u32, vk::Binding>> Bindings;
+
+    rc<Buffer> UniformBuffer;
     
     Renderpass(rc<Pipeline> PL);
     Renderpass(Device* Vk, View<u8> src);
@@ -18,13 +24,16 @@ struct mzVulkan_API Renderpass : SharedFactory<Renderpass>, DeviceChild
     
     void Begin(rc<CommandBuffer> Cmd, rc<ImageView> Image);
     void End(rc<CommandBuffer> Cmd);
+    void Exec(rc<vk::CommandBuffer> Cmd, rc<vk::ImageView> Output);
+    
+    void Bind(std::string const& name, void* data, u32 size, rc<ImageView> (Import)(void*) = 0);
 
     void BindResources(std::map<u32, std::map<u32, Binding>> const &bindings);
     void BindResources(std::map<u32, std::vector<Binding>> const &bindings);
     bool BindResources(std::unordered_map<std::string, Binding::Type> const &resources);
 
-    template <class... Args>
-        requires(StringResourcePairPack<std::remove_cvref_t<Args>...>()) bool BindResources(Args&&... args)
+    template <class... Args> requires(StringResourcePairPack<std::remove_cvref_t<Args>...>()) 
+    bool BindResources(Args&&... args)
     {
         std::map<u32, std::vector<Binding>> bindings;
         if (!Insert(bindings, std::forward<Args>(args)...))
