@@ -9,7 +9,7 @@
 #include <dynalo/dynalo.hpp>
 
 static std::vector<const char*> layers = {
-    // "VK_LAYER_KHRONOS_validation",
+    "VK_LAYER_KHRONOS_validation",
     "VK_LAYER_KHRONOS_synchronization2",
 };
 
@@ -161,10 +161,7 @@ bool Device::GetFallbackOptionsForDevice(VkPhysicalDevice PhysicalDevice, mzFall
         vk12features.timelineSemaphore;
 
     u32 instanceVersion = VK_API_VERSION_1_0;
-    auto FN_vkEnumerateInstanceVersion = PFN_vkEnumerateInstanceVersion(vkGetInstanceProcAddr(nullptr, "vkEnumerateInstanceVersion"));
-    if (vkEnumerateInstanceVersion) {
-        vkEnumerateInstanceVersion(&instanceVersion);
-    }
+    MZ_VULKAN_ASSERT_SUCCESS(vkEnumerateInstanceVersion(&instanceVersion));
     uint32_t minorVulkanVersion = VK_VERSION_MINOR(instanceVersion);
     
     if (minorVulkanVersion < 3)

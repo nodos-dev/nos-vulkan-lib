@@ -44,7 +44,7 @@ void Renderpass::Begin(rc<CommandBuffer> Cmd, rc<ImageView> Image)
 
     Cmd->SetViewport(0, 1, &viewport);
     Cmd->SetScissor(0, 1, &scissor);
-
+    
     if (Vk->FallbackOptions.mzDynamicRenderingFallback)
     {
         VkRenderPass rp = PL->Handles[Image->GetEffectiveFormat()].rp;
