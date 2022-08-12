@@ -19,7 +19,6 @@ struct mzVulkan_API PixelShader : Shader
     PixelShader(Device* Vk, View<u8> src);
 };
 
-
 struct mzVulkan_API VertexShader : Shader
 {
     VkVertexInputBindingDescription Binding;
