@@ -10,7 +10,7 @@
 
 static std::vector<const char*> layers = {
 #ifdef MZ_DEV_BUILD
-    "VK_LAYER_KHRONOS_validation",
+    // "VK_LAYER_KHRONOS_validation",
 #endif
     "VK_LAYER_KHRONOS_synchronization2",
 };

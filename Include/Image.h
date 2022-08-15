@@ -109,6 +109,7 @@ public:
     {
         return GetView(Format, usage); 
     }
+
 };
 
 }; // namespace mz::vk

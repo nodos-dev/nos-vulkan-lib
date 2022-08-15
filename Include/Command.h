@@ -65,7 +65,7 @@ struct mzVulkan_API CommandBuffer : SharedFactory<CommandBuffer>,
 
 struct mzVulkan_API CommandPool : SharedFactory<CommandPool>
 {
-    static constexpr u64 DefaultPoolSize = 64;
+    static constexpr u64 DefaultPoolSize = 128;
 
     VkCommandPool Handle;
     rc<Queue> Queue;
