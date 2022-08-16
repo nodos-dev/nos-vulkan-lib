@@ -77,23 +77,15 @@ struct MemoryBlock : SharedFactory<MemoryBlock>
     std::map<VkDeviceSize, VkDeviceSize> Chunks;
     std::map<VkDeviceSize, VkDeviceSize> FreeList;
 
-    MemoryBlock(Allocator* Alloc, VkDeviceMemory mem, VkMemoryPropertyFlags props, VkExternalMemoryHandleTypeFlagBits type, u64 offset, u64 size);
+    MemoryBlock(Allocator* Alloc, VkDeviceMemory mem, u64 typeIndex, VkMemoryPropertyFlags props, VkExternalMemoryHandleTypeFlagBits type, u64 offset, u64 size);
     
     ~MemoryBlock()
     {
         std::unique_lock lock(Alloc->Mutex);
-        if (Alloc->Allocations.contains(TypeIndex))
+        Alloc->Allocations[TypeIndex].erase(this);
+        if (Alloc->Allocations[TypeIndex].empty())
         {
-            auto& container = Alloc->Allocations[TypeIndex];
-            auto it = std::find(container.begin(), container.end(), this);
-            if (it != container.end())
-            {
-                container.erase(it);
-            }
-            if (container.empty())
-            {
-                Alloc->Allocations.erase(TypeIndex);
-            }
+            Alloc->Allocations.erase(TypeIndex);
         }
 
         bool ok = PlatformCloseHandle(OSHandle);
@@ -337,7 +329,7 @@ Allocation Allocator::AllocateImageMemory(VkImage img, ImageCreateInfo const& in
 
     VkDeviceMemory mem;
     MZ_VULKAN_ASSERT_SUCCESS(Vk->AllocateMemory(&allocateInfo, 0, &mem));
-    auto Block = MemoryBlock::New(this, mem, actualProps, info.Type, offset, req.size);
+    auto Block = MemoryBlock::New(this, mem, typeIndex, actualProps, info.Type, offset, req.size);
     return Block->Allocate(req.size, req.alignment);
 }
 
@@ -388,7 +380,7 @@ Allocation Allocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> res
 
         VkDeviceMemory mem;
         MZ_VULKAN_ASSERT_SUCCESS(Vk->AllocateMemory(&info, 0, &mem));
-        auto Block = MemoryBlock::New(this, mem, actualProps, type, imported->Offset, Size);
+        auto Block = MemoryBlock::New(this, mem, typeIndex, actualProps, type, imported->Offset, Size);
         return Block->Allocate(req.size, req.alignment);
     }
 
@@ -431,14 +423,14 @@ Allocation Allocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> res
 
     VkDeviceMemory mem;
     MZ_VULKAN_ASSERT_SUCCESS(Vk->AllocateMemory(&info, 0, &mem));
-    rc<MemoryBlock> block = MemoryBlock::New(this, mem, actualProps, type, 0, size);
-    Allocations[typeIndex].push_back(block.get());
+    rc<MemoryBlock> block = MemoryBlock::New(this, mem, typeIndex, actualProps, type, 0, size);
+    Allocations[typeIndex]. insert(block.get());
     Allocation allocation = block->Allocate(req.size, req.alignment);
     return allocation;
 }
 
-MemoryBlock::MemoryBlock(Allocator* Alloc, VkDeviceMemory mem, VkMemoryPropertyFlags props, VkExternalMemoryHandleTypeFlagBits type, u64 offset, u64 size)
-    : Alloc(Alloc), Memory(mem), Props(props), Type(type), Offset(offset), Size(size), InUse(0), Mapping(0), OSHandle(0)
+MemoryBlock::MemoryBlock(Allocator* Alloc, VkDeviceMemory mem, u64 typeIndex, VkMemoryPropertyFlags props, VkExternalMemoryHandleTypeFlagBits type, u64 offset, u64 size)
+    : Alloc(Alloc), Memory(mem), Props(props), Type(type), TypeIndex(typeIndex), Offset(offset), Size(size), InUse(0), Mapping(0), OSHandle(0)
 {
     FreeList[0] = size;
 
