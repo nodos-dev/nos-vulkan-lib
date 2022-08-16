@@ -2,6 +2,7 @@
 #include "Shader.h"
 #include "vulkan/vulkan_core.h"
 #include <Pipeline.h>
+#include "GlobVS.vert.spv.dat"
 
 #include <Image.h>
 
@@ -27,7 +28,7 @@ VertexShader *Pipeline::GetVS() const
 {
     if (!VS)
     {
-        std::vector<u8> GlobalVSSPV = ReadSpirv(MZ_SHADER_PATH "/GlobVS.vert.spv");
+        std::vector<u8> GlobalVSSPV(std::begin(GlobVS_vert_spv), std::end(GlobVS_vert_spv));
         VS = Vk->RegisterGlobal<VertexShader>("GlobVS", Vk, GlobalVSSPV);
     }
     return VS;
