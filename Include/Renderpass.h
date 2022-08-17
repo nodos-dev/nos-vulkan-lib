@@ -13,6 +13,8 @@ struct mzVulkan_API Renderpass : SharedFactory<Renderpass>, DeviceChild
     VkFramebuffer FrameBuffer = 0;
     rc<ImageView> m_ImageView;
     rc<Pipeline> PL;
+    
+    rc<DescriptorPool> DescriptorPool;
     std::vector<rc<DescriptorSet>> DescriptorSets;
     std::map<u32, std::map<u32, vk::Binding>> Bindings;
 

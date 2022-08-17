@@ -119,7 +119,6 @@ void DescriptorSet::Bind(rc<CommandBuffer> Cmd)
     {
         img->Transition(Cmd, state);
     }
-    Cmd->AddDependency(shared_from_this());
     Cmd->BindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, Pool->Layout->Handle, Index, 1, &Handle, 0, 0);
 }
 
@@ -202,7 +201,7 @@ PipelineLayout::PipelineLayout(Device* Vk, View<u8> src)
 }
 
 PipelineLayout::PipelineLayout(Device* Vk, ShaderLayout layout)
-    : DeviceChild(Vk), PushConstantSize(layout.PushConstantSize), RTCount(layout.RTCount), Pool(0), BindingsByName(std::move(layout.BindingsByName))
+    : DeviceChild(Vk), PushConstantSize(layout.PushConstantSize), RTCount(layout.RTCount), BindingsByName(std::move(layout.BindingsByName))
 {
     std::vector<VkDescriptorSetLayout> handles;
 
@@ -246,11 +245,6 @@ PipelineLayout::PipelineLayout(Device* Vk, ShaderLayout layout)
     };
 
     MZ_VULKAN_ASSERT_SUCCESS(Vk->CreatePipelineLayout(&layoutInfo, 0, &Handle));
-
-    if (!DescriptorLayouts.empty())
-    {
-        Pool = DescriptorPool::New(this);
-    }
 }
 
 void PipelineLayout::Dump()
@@ -275,9 +269,14 @@ PipelineLayout::~PipelineLayout()
     Vk->DestroyPipelineLayout(Handle, 0);
 }
 
-rc<DescriptorSet> PipelineLayout::AllocateSet(u32 set)
+rc<DescriptorPool> PipelineLayout::CreatePool()
 {
-    return DescriptorSet::New(Pool.get(), set);
+    return DescriptorPool::New(this);
+}
+
+rc<DescriptorSet> DescriptorPool::AllocateSet(u32 set)
+{
+    return DescriptorSet::New(this, set);
 }
 
 } // namespace mz::vk

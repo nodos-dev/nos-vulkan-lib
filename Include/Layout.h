@@ -39,6 +39,7 @@ struct mzVulkan_API DescriptorPool : SharedFactory<DescriptorPool>
     DescriptorPool(PipelineLayout* Layout);
     DescriptorPool(PipelineLayout* Layout, std::vector<VkDescriptorPoolSize> Sizes);
     ~DescriptorPool();
+    rc<struct DescriptorSet> AllocateSet(u32 set);
 };
 
 struct mzVulkan_API DescriptorSet : SharedFactory<DescriptorSet>
@@ -60,8 +61,6 @@ struct mzVulkan_API PipelineLayout : SharedFactory<PipelineLayout>, DeviceChild
 {
     VkPipelineLayout Handle;
     
-    rc<DescriptorPool> Pool;
-
     u32 PushConstantSize = 0;
     u32 RTCount = 1;
     u32 UniformSize = 0;
@@ -72,7 +71,9 @@ struct mzVulkan_API PipelineLayout : SharedFactory<PipelineLayout>, DeviceChild
     DescriptorLayout const& operator[](u32 set) const;
     PipelineLayout(Device* Vk, View<u8> src);
     ~PipelineLayout();
-    rc<DescriptorSet> AllocateSet(u32 set);
+    
+    rc<DescriptorPool> CreatePool();
+
     void Dump();
 
     auto begin() const

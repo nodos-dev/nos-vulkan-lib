@@ -10,7 +10,7 @@ Renderpass::Renderpass(Device* Vk, View<u8> src) :  Renderpass(Pipeline::New(Vk,
     
 }
 
-Renderpass::Renderpass(rc<Pipeline> PL) : DeviceChild(PL->GetDevice()), PL(PL)
+Renderpass::Renderpass(rc<Pipeline> PL) : DeviceChild(PL->GetDevice()), PL(PL), DescriptorPool(PL->Layout->CreatePool())
 {
     if(PL->Layout->UniformSize)
     {
@@ -178,7 +178,7 @@ void Renderpass::BindResources(std::map<u32, std::vector<Binding>> const &bindin
     DescriptorSets.clear();
     for (auto &[idx, set] : bindings)
     {
-        DescriptorSets.push_back(PL->Layout->AllocateSet(idx)->Update(set));
+        DescriptorSets.push_back(DescriptorPool->AllocateSet(idx)->Update(set));
     }
 }
 
@@ -187,7 +187,7 @@ void Renderpass::BindResources(std::map<u32, std::map<u32, Binding>> const &bind
     DescriptorSets.clear();
     for (auto &[idx, set] : bindings)
     {
-        DescriptorSets.push_back(PL->Layout->AllocateSet(idx)->Update(set));
+        DescriptorSets.push_back(DescriptorPool->AllocateSet(idx)->Update(set));
     }
 }
 
