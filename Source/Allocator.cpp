@@ -60,8 +60,8 @@ namespace mz::vk
 
 struct MemoryBlock : SharedFactory<MemoryBlock>
 {
+    std::mutex Mutex;
     Allocator* Alloc;
-
     VkDeviceMemory Memory;
     VkMemoryPropertyFlags Props;
     VkExternalMemoryHandleTypeFlagBits Type;
@@ -87,7 +87,6 @@ struct MemoryBlock : SharedFactory<MemoryBlock>
         {
             Alloc->Allocations.erase(TypeIndex);
         }
-
         bool ok = PlatformCloseHandle(OSHandle);
         assert(ok);
         Alloc->Vk->FreeMemory(Memory, 0);
@@ -95,6 +94,7 @@ struct MemoryBlock : SharedFactory<MemoryBlock>
 
     Allocation Allocate(VkDeviceSize reqSize, VkDeviceSize alignment)
     {
+        std::unique_lock lock(Mutex);
         if (InUse + reqSize > Size)
         {
             return Allocation{};
@@ -144,7 +144,7 @@ struct MemoryBlock : SharedFactory<MemoryBlock>
         {
             return;
         }
-
+        std::unique_lock lock(Mutex);
         if (auto it = Chunks.find(alloc.Offset); it != Chunks.end())
         {
             Chunks.erase(it);
@@ -160,8 +160,13 @@ struct MemoryBlock : SharedFactory<MemoryBlock>
         {
             // merge backwards
             auto prev = it;
-            while (prev-- != FreeList.begin() && prev->first + prev->second == it->first)
+            while (prev != FreeList.begin() && prev != FreeList.end())
             {
+                --prev;
+                if (prev->first + prev->second != it->first)
+                {
+                    break;
+                }
                 prev->second += it->second;
                 FreeList.erase(it);
                 it = prev;
