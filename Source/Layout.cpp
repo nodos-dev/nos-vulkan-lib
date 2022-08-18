@@ -56,7 +56,6 @@ rc<DescriptorSet> DescriptorSet::Update(std::map<u32, Binding> const& Res)
 
     for (auto [_,res] : Res)
     {
-
         infos.push_back(res.GetDescriptorInfo(GetType(res.Idx)));
         writes.push_back(VkWriteDescriptorSet{
             .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
@@ -119,6 +118,7 @@ void DescriptorSet::Bind(rc<CommandBuffer> Cmd)
     {
         img->Transition(Cmd, state);
     }
+    Cmd->AddDependency(shared_from_this());
     Cmd->BindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, Pool->Layout->Handle, Index, 1, &Handle, 0, 0);
 }
 
@@ -138,6 +138,11 @@ DescriptorSet::DescriptorSet(DescriptorPool* pool, u32 Index)
 DescriptorSet::~DescriptorSet()
 {
     Pool->Layout->Vk->FreeDescriptorSets(Pool->Handle, 1, &Handle);
+    Pool->InUse--;
+    if (Pool->Prev && !Pool->InUse)
+    {
+        Pool->Prev->Next = Pool->Next;
+    }
 }
 
 VkDescriptorType DescriptorSet::GetType(u32 Binding)
@@ -174,12 +179,12 @@ DescriptorPool::DescriptorPool(PipelineLayout* Layout)
 }
 
 DescriptorPool::DescriptorPool(PipelineLayout* Layout, std::vector<VkDescriptorPoolSize> sizes)
-    : Layout(Layout), Sizes(std::move(sizes))
+    : Layout(Layout), Sizes(std::move(sizes)), MaxSets((u32)Layout->DescriptorLayouts.size() * 1024u)
 {
     VkDescriptorPoolCreateInfo poolInfo = {
         .sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
         .flags         = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
-        .maxSets       = (u32)Layout->DescriptorLayouts.size() * 2u * 2048u,
+        .maxSets       = MaxSets.load(),
         .poolSizeCount = (u32)Sizes.size(),
         .pPoolSizes    = Sizes.data(),
     };
@@ -276,6 +281,16 @@ rc<DescriptorPool> PipelineLayout::CreatePool()
 
 rc<DescriptorSet> DescriptorPool::AllocateSet(u32 set)
 {
+    if (MaxSets == InUse)
+    {
+        if (!Next)
+        {
+            Next = DescriptorPool::New(Layout);
+            Next->Prev = this;
+        }
+        return Next->AllocateSet(set);
+    }
+    InUse++;
     return DescriptorSet::New(this, set);
 }
 

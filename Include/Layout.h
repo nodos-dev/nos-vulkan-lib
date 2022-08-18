@@ -36,9 +36,13 @@ struct mzVulkan_API DescriptorPool : SharedFactory<DescriptorPool>
     struct PipelineLayout* Layout;
     VkDescriptorPool Handle;
     std::vector<VkDescriptorPoolSize> Sizes;
+    std::atomic_uint InUse = 0;
+    std::atomic_uint MaxSets = 0;
     DescriptorPool(PipelineLayout* Layout);
     DescriptorPool(PipelineLayout* Layout, std::vector<VkDescriptorPoolSize> Sizes);
     ~DescriptorPool();
+    rc<DescriptorPool> Next = 0;
+    DescriptorPool* Prev = 0;
     rc<struct DescriptorSet> AllocateSet(u32 set);
 };
 
