@@ -21,7 +21,7 @@ namespace mz::vk
 		
 
 		protected:
-			void Consume(const std::pair<std::function<void()>, std::vector<VkFence>>& pair) override;
+			void Consume(const std::pair<std::function<void()>, std::vector<VkFence>>& pair) ;
 			
 	};
 
