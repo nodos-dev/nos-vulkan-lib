@@ -28,8 +28,8 @@ void EndResourceDependency(rc<T> Resource)
 {
     if constexpr (std::same_as<T, Image>)
     {
-        Resource->State.AccessMask = VK_ACCESS_NONE;
-        Resource->State.StageMask  = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        Resource->State.AccessMask = VK_ACCESS_MEMORY_WRITE_BIT | VK_ACCESS_MEMORY_READ_BIT;
+        Resource->State.StageMask  = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
     }
 }
 
