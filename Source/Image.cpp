@@ -1,10 +1,7 @@
-#include "mzDefines.h"
-#include "vulkan/vulkan_core.h"
 #include <Image.h>
 #include <Device.h>
 #include <Command.h>
 #include <Buffer.h>
-#include <unordered_map>
 
 namespace mz::vk
 {
@@ -73,7 +70,6 @@ Sampler::Sampler(Device* Vk, VkFormat Format) : SamplerYcbcrConversion(0)
 
     if(!sampler)
     {
-
         MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateSampler(&samplerInfo, 0, &sampler));
     }
 
@@ -123,7 +119,11 @@ ImageView::ImageView(struct Image* Src, VkFormat Format, VkImageUsageFlags Usage
     MZ_VULKAN_ASSERT_SUCCESS(Src->GetDevice()->CreateImageView(&viewInfo, 0, &Handle));
 }
 
-Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo)
+Image::Image(Device* Vk, ImageCreateInfo const& createInfo, VkResult* re) : Image(Vk->ImmAllocator.get(), createInfo, re) 
+{
+}
+
+Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo, VkResult* re)
     : DeviceChild(Allocator->Vk),
       Extent(createInfo.Extent),
       Format(createInfo.Format),
@@ -163,8 +163,16 @@ Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo)
         .pQueueFamilyIndices   = nullptr,
         .initialLayout         = VK_IMAGE_LAYOUT_UNDEFINED,
     };
-
-    MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateImage(&info, 0, &Handle));
+    
+    VkResult result = Vk->CreateImage(&info, 0, &Handle);
+    if(re) 
+    {
+        *re = result;
+    }
+    if(MZ_VULKAN_FAILED(result))
+    {
+        return;
+    }
     //if(SamplerYcbcrConversion) Allocation = Allocator->AllocateResourceMemory(Handle, true, createInfo.Imported); else 
     Allocation = Allocator->AllocateImageMemory(Handle, createInfo);
     Allocation.BindResource(Handle);
@@ -475,11 +483,6 @@ MemoryExportInfo Image::GetExportInfo() const
     };
 }
 
-Image::Image(Device* Vk, ImageCreateInfo const& createInfo)
-    : Image(Vk->ImmAllocator.get(), createInfo)
-{
-}
-
 DescriptorResourceInfo ImageView::GetDescriptorInfo() const
 {
     return DescriptorResourceInfo{
@@ -489,5 +492,19 @@ DescriptorResourceInfo ImageView::GetDescriptorInfo() const
             .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
         }};
 }
+
+rc<ImageView> Image::GetView(VkFormat Format, VkImageUsageFlags Usage)
+{ 
+    Format = (Format ? Format : this->Format);
+    Usage  = (Usage ? Usage : this->Usage);
+    const u64 hash = (((u64)Format << 32ull) | (u64)Usage);
+    auto it = Views.find(hash);
+    if (it != Views.end())
+    {
+        return it->second;
+    }
+    return Views[hash] = ImageView::New(this, Format, Usage);
+}
+
 
 } // namespace mz::vk

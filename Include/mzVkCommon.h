@@ -8,15 +8,17 @@
 #ifndef mzVulkan_API
 #define mzVulkan_API __declspec(dllimport)
 #endif
+#define MZ_VULKAN_FAILED(expr) (VK_SUCCESS != (expr))
+#define MZ_VULKAN_SUCCEEDED(expr) (!MZ_VULKAN_FAILED(expr))
 
-#define MZ_VULKAN_ASSERT_SUCCESS(expr)                                                                \
-    {                                                                                                 \
-        VkResult re = (expr);                                                                         \
-        while (VK_SUCCESS != re)                                                                      \
-        {                                                                                             \
-            printf("Error: %s %d\n %s:%d\n", ::mz::vk::vk_result_string(re), re, __FILE__, __LINE__); \
-            abort();                                                                                  \
-        }                                                                                             \
+#define MZ_VULKAN_ASSERT_SUCCESS(expr)                                                                                 \
+    {                                                                                                                  \
+        VkResult re = (expr);                                                                                          \
+        if (MZ_VULKAN_FAILED(re))                                                                                      \
+        {                                                                                                              \
+            printf("Error: %s %d\n %s:%d\n", ::mz::vk::vk_result_string(re), re, __FILE__, __LINE__);                  \
+            abort();                                                                                                   \
+        }                                                                                                              \
     }
 
 namespace mz::vk

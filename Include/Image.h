@@ -47,9 +47,9 @@ public:
 struct mzVulkan_API Image : SharedFactory<Image>, DeviceChild
 {
 private:
-    VkExtent2D Extent;
-    VkFormat Format;
-    std::mutex Mutex;
+    VkExtent2D Extent = {0, 0};
+    VkFormat Format = VK_FORMAT_UNDEFINED;
+    // std::mutex Mutex;
 public:
     void Lock()   
     { 
@@ -61,12 +61,15 @@ public:
         //Mutex.unlock(); 
     }
 
-    Allocation Allocation;
-    VkImage Handle;
-    VkImageUsageFlags Usage;
+    Allocation Allocation = {};
+    VkImage Handle = 0;
+    VkImageUsageFlags Usage = 0;
 
-    ImageState State;
+    ImageState State = {};
     std::map<u64, rc<ImageView>> Views;
+
+    Image(Allocator*, ImageCreateInfo const& createInfo, VkResult* re = 0);
+    Image(Device* Vk, ImageCreateInfo const& createInfo, VkResult* re = 0);
 
     MemoryExportInfo GetExportInfo() const;
     void Transition(rc<CommandBuffer> Cmd, ImageState Dst);
@@ -83,28 +86,16 @@ public:
     rc<Image> Copy(rc<CommandBuffer> Cmd, rc<Allocator> Allocator = 0);
     rc<Buffer> Download(rc<CommandBuffer> Cmd, rc<Allocator> Allocator = 0);
     void Download(rc<CommandBuffer> Cmd, rc<Buffer>);
-    Image(Allocator*, ImageCreateInfo const&);
-    Image(Device* Vk, ImageCreateInfo const& createInfo);
+
     ~Image();
 
-    rc<ImageView> GetView(VkFormat Format = VK_FORMAT_UNDEFINED, VkImageUsageFlags Usage = 0)
-    { 
-        Format = (Format ? Format : this->Format);
-        Usage  = (Usage ? Usage : this->Usage);
-        const u64 hash = (((u64)Format << 32ull) | (u64)Usage);
-        auto it = Views.find(hash);
-        if (it != Views.end())
-        {
-            return it->second;
-        }
-        return Views[hash] = ImageView::New(this, Format, Usage);
-    }
-
+    rc<ImageView> GetView(VkFormat Format = VK_FORMAT_UNDEFINED, VkImageUsageFlags Usage = 0);
     rc<ImageView> GetView(VkFormat fmt) 
     { 
         return GetView(fmt, Usage); 
     }
 
+    bool IsValid() const { return Handle; }
     rc<ImageView> GetView(VkImageUsageFlags usage)
     {
         return GetView(Format, usage); 
