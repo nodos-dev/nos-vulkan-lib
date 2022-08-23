@@ -16,6 +16,7 @@ struct mzVulkan_API Queue : SharedFactory<Queue>, VklQueueFunctions
     Queue(Device* Device, u32 Family, u32 Index);
     Device* GetDevice();
     VkResult Submit(uint32_t submitCount, const VkSubmitInfo* pSubmits, VkFence fence);
+    VkResult Submit(std::vector<rc<CommandBuffer>> const& cmd);
     void Wait() 
     {
         std::unique_lock lock(Mutex);

@@ -155,7 +155,7 @@ void Renderpass::Begin(rc<CommandBuffer> Cmd, rc<ImageView> Image)
 
         Cmd->BeginRendering(&renderInfo);
     }
-
+    
     Cmd->BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, PL->Handles[Image->GetEffectiveFormat()].pl);
 
     Cmd->AddDependency(shared_from_this());
