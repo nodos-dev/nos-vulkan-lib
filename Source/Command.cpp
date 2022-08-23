@@ -15,12 +15,11 @@ VkResult Queue::Submit(uint32_t submitCount, const VkSubmitInfo* pSubmits, VkFen
     return VklQueueFunctions::Submit(submitCount, pSubmits, fence);
 }
 
-//VkResult Queue::Submit(std::vector<rc<CommandBuffer>> const& cmd)
-//{
-//    std::vector<VkSubmitInfo> infos(cmd.size());
-//
-//    return Submit(infos.size(), infos.data());
-//}
+VkResult Queue::Submit(std::vector<rc<CommandBuffer>> const& cmd)
+{
+   std::vector<VkSubmitInfo> infos(cmd.size());
+   return Submit(infos.size(), infos.data(), 0);
+}
 
 Queue::Queue(Device* Device, u32 Family, u32 Index)
     : VklQueueFunctions{Device}, Family(Family), Idx(Index)
