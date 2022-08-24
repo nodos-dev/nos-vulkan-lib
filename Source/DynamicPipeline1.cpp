@@ -102,55 +102,24 @@ static VkFormat MapSpvFormat(spv::ImageFormat format)
 
 static std::pair<VkFormat, u32> TypeAttributes(spirv_cross::SPIRType const& ty)
 {
-
-#define MKFORMATWT(w, t)                           \
-    {                                              \
-        VK_FORMAT_R##w##_##t,                      \
-            VK_FORMAT_R##w##G##w##_##t,            \
-            VK_FORMAT_R##w##G##w##B##w##_##t,      \
-            VK_FORMAT_R##w##G##w##B##w##A##w##_##t \
-    }
-
-#define MKFORMAT(t)            \
-    {                          \
-        MKFORMATWT(8, t),      \
-            MKFORMATWT(16, t), \
-            MKFORMATWT(32, t), \
-            MKFORMATWT(64, t)  \
-    }
-
-    constexpr VkFormat VK_FORMAT_R8_SFLOAT       = VK_FORMAT_UNDEFINED;
-    constexpr VkFormat VK_FORMAT_R8G8_SFLOAT     = VK_FORMAT_UNDEFINED;
-    constexpr VkFormat VK_FORMAT_R8G8B8_SFLOAT   = VK_FORMAT_UNDEFINED;
-    constexpr VkFormat VK_FORMAT_R8G8B8A8_SFLOAT = VK_FORMAT_UNDEFINED;
-
-    constexpr VkFormat SFLOAT[4][4] = MKFORMAT(SFLOAT);
-    constexpr VkFormat SINT[4][4]   = MKFORMAT(SINT);
-    constexpr VkFormat UINT[4][4]   = MKFORMAT(UINT);
-
-    const u32 BitIdx = (ty.width >> 3) - 1;
-
     VkFormat fmt = VK_FORMAT_UNDEFINED;
 
     switch (ty.basetype)
     {
-    case spirv_cross::SPIRType::Double:
-    case spirv_cross::SPIRType::Float:
-    case spirv_cross::SPIRType::Half:
-        fmt = SFLOAT[BitIdx][ty.vecsize];
-        break;
-    case spirv_cross::SPIRType::Int64:
-    case spirv_cross::SPIRType::Int:
-    case spirv_cross::SPIRType::Short:
-    case spirv_cross::SPIRType::SByte:
-        fmt = SINT[BitIdx][ty.vecsize];
-        break;
-    case spirv_cross::SPIRType::UInt64:
-    case spirv_cross::SPIRType::UInt:
-    case spirv_cross::SPIRType::UShort:
-    case spirv_cross::SPIRType::UByte:
-        fmt = UINT[BitIdx][ty.vecsize];
-        break;
+    case spirv_cross::SPIRType::Double: fmt = VK_FORMAT_R64G64B64A64_SFLOAT; break;
+    case spirv_cross::SPIRType::Float:  fmt = VK_FORMAT_R32G32B32A32_SFLOAT; break;
+    case spirv_cross::SPIRType::Half:   fmt = VK_FORMAT_R16G16B16A16_SFLOAT; break;
+    
+    case spirv_cross::SPIRType::Int64:  fmt = VK_FORMAT_R64G64B64A64_SINT; break;
+    case spirv_cross::SPIRType::Int:    fmt = VK_FORMAT_R32G32B32A32_SINT; break;
+    case spirv_cross::SPIRType::Short:  fmt = VK_FORMAT_R16G16B16A16_SINT; break;
+    case spirv_cross::SPIRType::SByte:  fmt = VK_FORMAT_R8G8B8A8_SINT; break;
+
+    case spirv_cross::SPIRType::UInt64: fmt = VK_FORMAT_R64G64B64A64_UINT; break;
+    case spirv_cross::SPIRType::UInt:   fmt = VK_FORMAT_R32G32B32A32_UINT; break;
+    case spirv_cross::SPIRType::UShort: fmt = VK_FORMAT_R16G16B16A16_UINT; break;
+    case spirv_cross::SPIRType::UByte:  fmt = VK_FORMAT_R8G8B8A8_UINT; break;
+    
     default:
         break;
     }

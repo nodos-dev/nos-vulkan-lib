@@ -18,6 +18,7 @@ struct mzVulkan_API Pipeline : SharedFactory<Pipeline>, DeviceChild
     struct PerFormat
     {
         VkPipeline pl;
+        VkPipeline wpl;
         VkRenderPass rp;
     };
     

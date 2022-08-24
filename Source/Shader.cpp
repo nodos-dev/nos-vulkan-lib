@@ -24,7 +24,7 @@ Shader::~Shader()
 
 bool Shader::GetInputLayout(VkPipelineVertexInputStateCreateInfo* info) const
 {
-    if(VK_SHADER_STAGE_VERTEX_BIT != Stage || !info)
+    if(!((VK_SHADER_STAGE_VERTEX_BIT & Stage) && info))
     {
         return false;
     }
@@ -34,6 +34,7 @@ bool Shader::GetInputLayout(VkPipelineVertexInputStateCreateInfo* info) const
         .vertexAttributeDescriptionCount = (u32)Attributes.size(),
         .pVertexAttributeDescriptions    = Attributes.data(),
     };
+
 
     if (!Attributes.empty())
     {

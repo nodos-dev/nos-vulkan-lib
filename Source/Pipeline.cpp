@@ -15,6 +15,10 @@ Pipeline::~Pipeline()
         {
             Vk->DestroyPipeline(handl.pl, 0);
         }
+        if(handl.wpl)
+        {
+            Vk->DestroyPipeline(handl.wpl, 0);
+        }
         if(handl.rp)
         {
             Vk->DestroyRenderPass(handl.rp, 0);
@@ -34,7 +38,7 @@ rc<Shader> Pipeline::GetVS()
     {
         if (!GlobVS)
         {
-            std::vector<u8> GlobalVSSPV(std::begin(GlobVS_vert_spv), std::end(GlobVS_vert_spv));
+            std::vector<u8> GlobalVSSPV(GlobVS_vert_spv, GlobVS_vert_spv + (sizeof(GlobVS_vert_spv) & ~3));
             GlobVS = *Vk->RegisterGlobal<rc<Shader>>("GlobVS", MakeShared<Shader>(Vk, GlobalVSSPV));
         }
         VS = GlobVS;
@@ -56,7 +60,7 @@ void Pipeline::Recreate(VkFormat fmt)
         .pColorAttachmentFormats = &fmt,
     };
 
-    VkPipelineVertexInputStateCreateInfo inputLayout;
+    VkPipelineVertexInputStateCreateInfo inputLayout = {};
     VS->GetInputLayout(&inputLayout);
 
     VkPipelineShaderStageCreateInfo shaderStages[2] = {{
@@ -80,7 +84,7 @@ void Pipeline::Recreate(VkFormat fmt)
     VkPipelineRasterizationStateCreateInfo rasterizationState = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
         .polygonMode = VK_POLYGON_MODE_FILL,
-        .cullMode = VK_CULL_MODE_BACK_BIT,
+        .cullMode = VK_CULL_MODE_NONE,
         .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
         .lineWidth = 1.f,
     };
@@ -165,6 +169,8 @@ void Pipeline::Recreate(VkFormat fmt)
     }
 
     MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateGraphicsPipelines(0, 1, &info, 0, &Handles[fmt].pl));
+    rasterizationState.polygonMode = VK_POLYGON_MODE_LINE;
+    MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateGraphicsPipelines(0, 1, &info, 0, &Handles[fmt].wpl));
 }
 
 Pipeline::Pipeline(Device* Vk, rc<Shader> PS, rc<Shader> VS) 

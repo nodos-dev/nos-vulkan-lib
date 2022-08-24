@@ -57,7 +57,7 @@ void Renderpass::Exec(rc<vk::CommandBuffer> Cmd, rc<vk::ImageView> Output, const
         }
     }
     
-    Begin(Cmd, Output);
+    Begin(Cmd, Output, Verts && Verts->Wireframe);
     if(Verts)
     {
         Cmd->BindVertexBuffers(0, 1, &Verts->Buffer->Handle, &Verts->VertexOffset);
@@ -80,7 +80,7 @@ void Renderpass::Exec(rc<vk::CommandBuffer> Cmd, rc<vk::ImageView> Output, const
     }
 }
 
-void Renderpass::Begin(rc<CommandBuffer> Cmd, rc<ImageView> Image)
+void Renderpass::Begin(rc<CommandBuffer> Cmd, rc<ImageView> Image, bool wireframe)
 {
     assert(Image);
 
@@ -150,7 +150,7 @@ void Renderpass::Begin(rc<CommandBuffer> Cmd, rc<ImageView> Image)
             .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
             .imageView = Image->Handle,
             .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-            .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
             .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
         };
 
@@ -164,8 +164,8 @@ void Renderpass::Begin(rc<CommandBuffer> Cmd, rc<ImageView> Image)
 
         Cmd->BeginRendering(&renderInfo);
     }
-    
-    Cmd->BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, PL->Handles[Image->GetEffectiveFormat()].pl);
+    auto& handle = PL->Handles[Image->GetEffectiveFormat()];
+    Cmd->BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, wireframe ? handle.wpl : handle.pl);
 
     Cmd->AddDependency(shared_from_this());
 }

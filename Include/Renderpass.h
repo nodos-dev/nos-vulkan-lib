@@ -15,6 +15,7 @@ struct VertexData
     u64 VertexOffset;
     u64 IndexOffset;
     u64 NumIndices;
+    bool Wireframe = false;
 };
 
 struct mzVulkan_API Renderpass : SharedFactory<Renderpass>, DeviceChild
@@ -33,7 +34,7 @@ struct mzVulkan_API Renderpass : SharedFactory<Renderpass>, DeviceChild
     Renderpass(Device* Vk, View<u8> src);
     ~Renderpass();
     
-    void Begin(rc<CommandBuffer> Cmd, rc<ImageView> Image);
+    void Begin(rc<CommandBuffer> Cmd, rc<ImageView> Image, bool wireframe = false);
     void End(rc<CommandBuffer> Cmd);
     void Exec(rc<vk::CommandBuffer> Cmd, rc<vk::ImageView> Output, const VertexData* = 0);
     
