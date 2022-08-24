@@ -32,8 +32,12 @@ rc<Shader> Pipeline::GetVS()
 {
     if (!VS)
     {
-        std::vector<u8> GlobalVSSPV(std::begin(GlobVS_vert_spv), std::end(GlobVS_vert_spv));
-        VS = *Vk->RegisterGlobal<rc<Shader>>("GlobVS", MakeShared<Shader>(Vk, GlobalVSSPV));
+        if (!GlobVS)
+        {
+            std::vector<u8> GlobalVSSPV(std::begin(GlobVS_vert_spv), std::end(GlobVS_vert_spv));
+            GlobVS = *Vk->RegisterGlobal<rc<Shader>>("GlobVS", MakeShared<Shader>(Vk, GlobalVSSPV));
+        }
+        VS = GlobVS;
     }
     return VS;
 }

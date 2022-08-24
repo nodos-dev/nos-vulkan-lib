@@ -10,6 +10,7 @@ namespace mz::vk
 
 struct mzVulkan_API Pipeline : SharedFactory<Pipeline>, DeviceChild
 {
+    inline static rc<Shader> GlobVS;
     rc<Shader> VS = nullptr;
     rc<Shader> PS;
     rc<PipelineLayout> Layout;

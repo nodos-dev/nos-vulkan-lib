@@ -5,8 +5,10 @@ namespace mz::vk
 {
 
 Shader::Shader(Device* Vk, View<u8> src)
-    : DeviceChild(Vk), Layout(GetShaderLayouts(src, Stage, Binding, Attributes))
+    : DeviceChild(Vk)
 {
+    Layout = GetShaderLayouts(src, Stage, Binding, Attributes);
+    
     VkShaderModuleCreateInfo info = {
         .sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
         .codeSize = src.size(),
