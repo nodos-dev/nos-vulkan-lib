@@ -5,7 +5,8 @@
 namespace mz::vk
 {
 
-Renderpass::Renderpass(Device* Vk, View<u8> src) :  Renderpass(Pipeline::New(Vk, src))
+Renderpass::Renderpass(Device* Vk, View<u8> src) : 
+    Renderpass(Pipeline::New(Vk, MakeShared<Shader>(Vk, VK_SHADER_STAGE_FRAGMENT_BIT, src)))
 {
     
 }

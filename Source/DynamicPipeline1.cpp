@@ -344,4 +344,25 @@ ShaderLayout GetShaderLayouts(View<u8> src)
 
     return layout;
 }
+
+ShaderLayout ShaderLayout::Merge(ShaderLayout const& rhs) const
+{
+    ShaderLayout re = *this;
+    re.RTCount = std::max(RTCount, rhs.RTCount);
+    re.PushConstantSize = std::max(PushConstantSize, rhs.PushConstantSize);
+    for(auto& [s, b] : rhs.BindingsByName)
+    {
+        re.BindingsByName[s] = b;
+    }
+    for(auto& [set, b] : rhs.DescriptorSets)
+    {
+        auto& desc = re.DescriptorSets[set];
+        for(auto& [binding, dsl] : b)
+        {
+            desc[binding] = dsl;
+        }
+    }
+    return re;
+}
+
 } // namespace mz::vk

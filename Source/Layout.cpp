@@ -1,5 +1,4 @@
 
-#include "vulkan/vulkan_core.h"
 #include <Layout.h>
 #include <Command.h>
 #include <Image.h>
@@ -200,11 +199,6 @@ DescriptorPool::~DescriptorPool()
     }
 }
 
-PipelineLayout::PipelineLayout(Device* Vk, View<u8> src)
-    : PipelineLayout(Vk, GetShaderLayouts(src))
-{
-}
-
 PipelineLayout::PipelineLayout(Device* Vk, ShaderLayout layout)
     : DeviceChild(Vk), PushConstantSize(layout.PushConstantSize), RTCount(layout.RTCount), BindingsByName(std::move(layout.BindingsByName))
 {
@@ -212,7 +206,7 @@ PipelineLayout::PipelineLayout(Device* Vk, ShaderLayout layout)
 
     VkPushConstantRange pushConstantRange = {
         .offset = 0,
-        .size   = layout.PushConstantSize,
+        .size   = PushConstantSize,
     };
 
     for (auto& [idx, set] : layout.DescriptorSets)

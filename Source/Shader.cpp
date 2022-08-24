@@ -5,7 +5,7 @@ namespace mz::vk
 {
 
 Shader::Shader(Device* Vk, VkShaderStageFlags stage, View<u8> src)
-    : DeviceChild(Vk), Stage(stage)
+    : DeviceChild(Vk), Stage(stage), Layout(GetShaderLayouts(src))
 {
     VkShaderModuleCreateInfo info = {
         .sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
@@ -18,12 +18,6 @@ Shader::Shader(Device* Vk, VkShaderStageFlags stage, View<u8> src)
 Shader::~Shader()
 {
     Vk->DestroyShaderModule(Module, 0);
-}
-
-PixelShader::PixelShader(Device* Vk, View<u8> src)
-    : Shader(Vk, VK_SHADER_STAGE_FRAGMENT_BIT, src)
-{
-
 }
 
 VertexShader::VertexShader(Device* Vk, View<u8> src)
