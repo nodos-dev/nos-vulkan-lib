@@ -1,10 +1,7 @@
 list(APPEND DEPENDENCIES mzCommon vkl spirv-cross-core d3d12 d3d11 dxgi mzUtil)
 list(APPEND INCLUDEFOLDERS ${CMAKE_CURRENT_SOURCE_DIR}/Include ${DYNALO_INCLUDE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/..)
 
-execute_process(COMMAND ${SHADER_COMPILER_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/GlobVS.vert -c -o ${MZ_SHADER_PATH}/GlobVS.vert.spv)
 add_folder_as_project(mzVulkan SHARED "${DEPENDENCIES}" "${INCLUDEFOLDERS}")
-
-# execute_process(COMMAND ${SHADER_COMPILER_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/GlobVS.vert -c -o ${MZ_SHADER_PATH}/GlobVS.vert.spv)
 
 # add_library(mzVulkanCore SHARED 
 #   "${CMAKE_CURRENT_SOURCE_DIR}/Source/Allocator.cpp"
