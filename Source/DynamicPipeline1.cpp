@@ -1,3 +1,4 @@
+
 #include <Pipeline.h>
 
 #include <spirv_cross.hpp>
@@ -157,10 +158,9 @@ static std::pair<VkFormat, u32> TypeAttributes(spirv_cross::SPIRType const& ty)
     return std::make_pair(fmt, ty.vecsize * ty.width / 8);
 }
 
-void ReadInputLayout(View<u8> bin, VkVertexInputBindingDescription& binding, std::vector<VkVertexInputAttributeDescription>& attributes)
+void ReadInputLayout(spirv_cross::Compiler& cc, VkVertexInputBindingDescription& binding, std::vector<VkVertexInputAttributeDescription>& attributes)
 {
     using namespace spirv_cross;
-    Compiler cc((u32*)bin.data(), bin.size() / 4);
     ShaderResources resources = cc.get_shader_resources();
 
     binding = {.inputRate = VK_VERTEX_INPUT_RATE_VERTEX};
@@ -279,7 +279,7 @@ static rc<SVType> GetType(spirv_cross::Compiler const& cc, u32 typeId, std::map<
     return ty;
 } // namespace mz::vk
 
-ShaderLayout GetShaderLayouts(View<u8> src)
+ShaderLayout GetShaderLayouts(View<u8> src, VkShaderStageFlags& stage, VkVertexInputBindingDescription& binding, std::vector<VkVertexInputAttributeDescription>& attributes)
 {
     ShaderLayout layout = {};
 
@@ -289,7 +289,12 @@ ShaderLayout GetShaderLayouts(View<u8> src)
     ShaderResources resources = cc.get_shader_resources();
     EntryPoint entry          = cc.get_entry_points_and_stages()[0];
 
-    VkShaderStageFlags stage = VkShaderStageFlagBits(1 << (u32)entry.execution_model);
+    stage = VkShaderStageFlagBits(1 << (u32)entry.execution_model);
+    
+    if(VK_SHADER_STAGE_VERTEX_BIT & stage)
+    {
+        ReadInputLayout(cc, binding, attributes);
+    }
 
     layout.RTCount = resources.stage_outputs.size();
 

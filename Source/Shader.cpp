@@ -4,8 +4,8 @@
 namespace mz::vk
 {
 
-Shader::Shader(Device* Vk, VkShaderStageFlags stage, View<u8> src)
-    : DeviceChild(Vk), Stage(stage), Layout(GetShaderLayouts(src))
+Shader::Shader(Device* Vk, View<u8> src)
+    : DeviceChild(Vk), Layout(GetShaderLayouts(src, Stage, Binding, Attributes))
 {
     VkShaderModuleCreateInfo info = {
         .sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
@@ -20,15 +20,14 @@ Shader::~Shader()
     Vk->DestroyShaderModule(Module, 0);
 }
 
-VertexShader::VertexShader(Device* Vk, View<u8> src)
-    : Shader(Vk, VK_SHADER_STAGE_VERTEX_BIT, src)
+bool Shader::GetInputLayout(VkPipelineVertexInputStateCreateInfo* info) const
 {
-    ReadInputLayout(src, Binding, Attributes);
-}
+    if(VK_SHADER_STAGE_VERTEX_BIT != Stage || !info)
+    {
+        return false;
+    }
 
-VkPipelineVertexInputStateCreateInfo VertexShader::GetInputLayout() const
-{
-    VkPipelineVertexInputStateCreateInfo InputLayout = {
+    *info = {
         .sType                           = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
         .vertexAttributeDescriptionCount = (u32)Attributes.size(),
         .pVertexAttributeDescriptions    = Attributes.data(),
@@ -36,11 +35,11 @@ VkPipelineVertexInputStateCreateInfo VertexShader::GetInputLayout() const
 
     if (!Attributes.empty())
     {
-        InputLayout.vertexBindingDescriptionCount = 1;
-        InputLayout.pVertexBindingDescriptions    = &Binding;
+        info->vertexBindingDescriptionCount = 1;
+        info->pVertexBindingDescriptions    = &Binding;
     }
 
-    return InputLayout;
+    return true;
 }
 
 } // namespace mz::vk

@@ -8,6 +8,15 @@ namespace mz::vk
 
 struct Buffer;
 
+
+struct VertexData
+{
+    rc<vk::Buffer> Buffer;
+    u64 VertexOffset;
+    u64 IndexOffset;
+    u64 NumIndices;
+};
+
 struct mzVulkan_API Renderpass : SharedFactory<Renderpass>, DeviceChild
 {
     VkFramebuffer FrameBuffer = 0;
@@ -26,7 +35,7 @@ struct mzVulkan_API Renderpass : SharedFactory<Renderpass>, DeviceChild
     
     void Begin(rc<CommandBuffer> Cmd, rc<ImageView> Image);
     void End(rc<CommandBuffer> Cmd);
-    void Exec(rc<vk::CommandBuffer> Cmd, rc<vk::ImageView> Output);
+    void Exec(rc<vk::CommandBuffer> Cmd, rc<vk::ImageView> Output, const VertexData* = 0);
     
     void Bind(std::string const& name, void* data, u32 size, rc<ImageView> (Import)(void*) = 0);
 

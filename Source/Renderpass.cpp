@@ -6,7 +6,7 @@ namespace mz::vk
 {
 
 Renderpass::Renderpass(Device* Vk, View<u8> src) : 
-    Renderpass(Pipeline::New(Vk, MakeShared<Shader>(Vk, VK_SHADER_STAGE_FRAGMENT_BIT, src)))
+    Renderpass(Pipeline::New(Vk, MakeShared<Shader>(Vk, src)))
 {
     
 }
@@ -45,8 +45,7 @@ void Renderpass::Bind(std::string const& name, void* data, u32 size, rc<ImageVie
     memcpy(UniformBuffer->Map() + offset, data, size);
 }
 
-
-void Renderpass::Exec(rc<vk::CommandBuffer> Cmd, rc<vk::ImageView> Output)
+void Renderpass::Exec(rc<vk::CommandBuffer> Cmd, rc<vk::ImageView> Output, const VertexData* Verts)
 {
     BindResources(Bindings);
     Output->Src->Lock();
@@ -59,7 +58,16 @@ void Renderpass::Exec(rc<vk::CommandBuffer> Cmd, rc<vk::ImageView> Output)
     }
     
     Begin(Cmd, Output);
-    Cmd->Draw(6, 1, 0, 0);
+    if(Verts)
+    {
+        Cmd->BindVertexBuffers(0, 1, &Verts->Buffer->Handle, &Verts->VertexOffset);
+        Cmd->BindIndexBuffer(Verts->Buffer->Handle, Verts->IndexOffset, VK_INDEX_TYPE_UINT32);
+        Cmd->DrawIndexed(Verts->NumIndices, 1, 0, 0, 0);
+    }
+    else
+    {
+        Cmd->Draw(6, 1, 0, 0);
+    }
     End(Cmd);
     
     Output->Src->Unlock();

@@ -1,5 +1,4 @@
 
-#include "Shader.h"
 #include <Pipeline.h>
 #include "GlobVS.vert.spv.dat"
 
@@ -24,17 +23,17 @@ Pipeline::~Pipeline()
 }
 
 Pipeline::Pipeline(Device* Vk, View<u8> src) :
-    Pipeline(Vk, Shader::New(Vk, VK_SHADER_STAGE_FRAGMENT_BIT, src))
+    Pipeline(Vk, Shader::New(Vk, src))
 {
 
 }
 
-rc<VertexShader> Pipeline::GetVS()
+rc<Shader> Pipeline::GetVS()
 {
     if (!VS)
     {
         std::vector<u8> GlobalVSSPV(std::begin(GlobVS_vert_spv), std::end(GlobVS_vert_spv));
-        VS = *Vk->RegisterGlobal<rc<VertexShader>>("GlobVS", MakeShared<VertexShader>(Vk, GlobalVSSPV));
+        VS = *Vk->RegisterGlobal<rc<Shader>>("GlobVS", MakeShared<Shader>(Vk, GlobalVSSPV));
     }
     return VS;
 }
@@ -46,7 +45,6 @@ void Pipeline::Recreate(VkFormat fmt)
         return;
     }
 
-    rc<VertexShader> VS = GetVS();
 
     VkPipelineRenderingCreateInfo renderInfo = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
@@ -54,7 +52,8 @@ void Pipeline::Recreate(VkFormat fmt)
         .pColorAttachmentFormats = &fmt,
     };
 
-    VkPipelineVertexInputStateCreateInfo inputLayout = VS->GetInputLayout();
+    VkPipelineVertexInputStateCreateInfo inputLayout;
+    VS->GetInputLayout(&inputLayout);
 
     VkPipelineShaderStageCreateInfo shaderStages[2] = {{
                                                            .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
@@ -164,10 +163,9 @@ void Pipeline::Recreate(VkFormat fmt)
     MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateGraphicsPipelines(0, 1, &info, 0, &Handles[fmt].pl));
 }
 
-Pipeline::Pipeline(Device* Vk, rc<Shader> PS, rc<VertexShader> VS) 
+Pipeline::Pipeline(Device* Vk, rc<Shader> PS, rc<Shader> VS) 
     : DeviceChild(Vk), PS(PS), VS(VS), Layout(PipelineLayout::New(Vk, PS->Layout.Merge(GetVS()->Layout)))
 {
-
 }
 
 } // namespace mz::vk

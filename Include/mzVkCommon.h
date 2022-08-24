@@ -151,14 +151,10 @@ struct mzVulkan_API ShaderLayout
     u32 PushConstantSize;
     std::map<u32, std::map<u32, NamedDSLBinding>> DescriptorSets;
     std::unordered_map<std::string, Index> BindingsByName;
-
     ShaderLayout Merge(ShaderLayout const&) const;
 };
 
-mzVulkan_API void ReadInputLayout(View<u8> bin, VkVertexInputBindingDescription& binding, std::vector<VkVertexInputAttributeDescription>& attributes);
-
-mzVulkan_API ShaderLayout GetShaderLayouts(View<u8> bin);
-
+mzVulkan_API ShaderLayout GetShaderLayouts(View<u8> src, VkShaderStageFlags& stage, VkVertexInputBindingDescription& binding, std::vector<VkVertexInputAttributeDescription>& attributes);
 mzVulkan_API VkExternalMemoryProperties GetExportProperties(VkPhysicalDevice PhysicalDevice, VkFormat Format, VkImageUsageFlags Usage, VkExternalMemoryHandleTypeFlagBits Type);
 mzVulkan_API bool IsImportable(VkPhysicalDevice PhysicalDevice, VkFormat Format, VkImageUsageFlags Usage, VkExternalMemoryHandleTypeFlagBits Type);
 

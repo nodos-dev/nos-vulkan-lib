@@ -10,7 +10,7 @@ namespace mz::vk
 
 struct mzVulkan_API Pipeline : SharedFactory<Pipeline>, DeviceChild
 {
-    rc<VertexShader> VS = nullptr;
+    rc<Shader> VS = nullptr;
     rc<Shader> PS;
     rc<PipelineLayout> Layout;
     
@@ -23,10 +23,10 @@ struct mzVulkan_API Pipeline : SharedFactory<Pipeline>, DeviceChild
     std::map<VkFormat, PerFormat> Handles;
 
     Pipeline(Device* Vk, View<u8> src);
-    Pipeline(Device* Vk, rc<Shader> PS, rc<VertexShader> VS = 0);
+    Pipeline(Device* Vk, rc<Shader> PS, rc<Shader> VS = 0);
     ~Pipeline();
 
-    rc<VertexShader> GetVS();
+    rc<Shader> GetVS();
 
     void Recreate(VkFormat fmt);
 
