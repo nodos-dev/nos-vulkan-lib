@@ -1,7 +1,5 @@
 #pragma once
 
-#include "mzVkCommon.h"
-#include "vulkan/vulkan_core.h"
 #include <Allocator.h>
 
 namespace mz::vk
@@ -17,7 +15,7 @@ struct mzVulkan_API Sampler
     VkSampler Handle = 0;
     VkSamplerYcbcrConversion SamplerYcbcrConversion = 0;
     Sampler() = default;
-    Sampler(Device* Vk, VkFormat Format);
+    Sampler(Device* Vk, VkFormat Format, VkFilter Filter);
     operator VkSampler() const { return Handle; }
 };
 
@@ -64,6 +62,7 @@ public:
     Allocation Allocation = {};
     VkImage Handle = 0;
     VkImageUsageFlags Usage = 0;
+    VkFilter Filtering;
 
     ImageState State = {};
     std::map<u64, rc<ImageView>> Views;

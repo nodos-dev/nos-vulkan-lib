@@ -11,7 +11,8 @@
 static std::vector<const char*> layers = {
 #ifdef MZ_DEV_BUILD
 #pragma message("Development build: Enabling VK_LAYER_KHRONOS_validation")
-    // "VK_LAYER_KHRONOS_validation",
+    
+    "VK_LAYER_KHRONOS_validation",
 #endif
     "VK_LAYER_KHRONOS_synchronization2",
 };
@@ -292,6 +293,10 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, mzFallbackO
     VkPhysicalDeviceFeatures2 features = {
         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
         .pNext = &vk13features,
+        .features = { 
+            .fillModeNonSolid = 1,
+            .samplerAnisotropy = 1, 
+        },
     };
 
     VkDeviceCreateInfo info = {

@@ -88,6 +88,7 @@ struct ImageCreateInfo
     VkExtent2D Extent;
     VkFormat Format;
     VkImageUsageFlags Usage;
+    VkFilter Filtering = VK_FILTER_LINEAR;
     VkImageTiling Tiling = VK_IMAGE_TILING_OPTIMAL;
     VkImageCreateFlags Flags = VK_IMAGE_CREATE_ALIAS_BIT;
     VkExternalMemoryHandleTypeFlagBits Type = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
