@@ -85,6 +85,7 @@ public:
     rc<Image> Copy(rc<CommandBuffer> Cmd, rc<Allocator> Allocator = 0);
     rc<Buffer> Download(rc<CommandBuffer> Cmd, rc<Allocator> Allocator = 0);
     void Download(rc<CommandBuffer> Cmd, rc<Buffer>);
+    void Clear(rc<CommandBuffer> Cmd, VkClearColorValue value);
 
     ~Image();
 

@@ -204,6 +204,21 @@ void Image::Transition(
     State = Dst;
 }
 
+void Image::Clear(rc<CommandBuffer> Cmd, VkClearColorValue value)
+{
+    assert(Usage & VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+    Transition(Cmd, ImageState{
+                        .AccessMask = VK_ACCESS_MEMORY_WRITE_BIT,
+                        .Layout     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                    });
+    VkImageSubresourceRange range = {
+        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+        .levelCount = 1,
+        .layerCount = 1,
+    };
+    Cmd->ClearColorImage(Handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &value, 1, &range);
+}
+
 void Image::Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src, u32 bufferRowLength, u32 bufferImageHeight)
 {
     assert(Usage & VK_IMAGE_USAGE_TRANSFER_DST_BIT);
@@ -293,7 +308,7 @@ rc<Buffer> Image::Download(rc<CommandBuffer> Cmd, rc<Allocator> Allocator)
         .Size = (u32)Allocation.LocalSize(), 
         .Usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT, 
     });
-
+    
     Download(Cmd, StagingBuffer);
     return StagingBuffer;
 }
