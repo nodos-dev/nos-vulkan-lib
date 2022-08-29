@@ -104,25 +104,65 @@ static std::pair<VkFormat, u32> TypeAttributes(spirv_cross::SPIRType const& ty)
 {
     VkFormat fmt = VK_FORMAT_UNDEFINED;
 
-    switch (ty.basetype)
+    switch (ty.vecsize)
     {
-    case spirv_cross::SPIRType::Double: fmt = VK_FORMAT_R64G64B64A64_SFLOAT; break;
-    case spirv_cross::SPIRType::Float:  fmt = VK_FORMAT_R32G32B32A32_SFLOAT; break;
-    case spirv_cross::SPIRType::Half:   fmt = VK_FORMAT_R16G16B16A16_SFLOAT; break;
-    
-    case spirv_cross::SPIRType::Int64:  fmt = VK_FORMAT_R64G64B64A64_SINT; break;
-    case spirv_cross::SPIRType::Int:    fmt = VK_FORMAT_R32G32B32A32_SINT; break;
-    case spirv_cross::SPIRType::Short:  fmt = VK_FORMAT_R16G16B16A16_SINT; break;
-    case spirv_cross::SPIRType::SByte:  fmt = VK_FORMAT_R8G8B8A8_SINT; break;
-
-    case spirv_cross::SPIRType::UInt64: fmt = VK_FORMAT_R64G64B64A64_UINT; break;
-    case spirv_cross::SPIRType::UInt:   fmt = VK_FORMAT_R32G32B32A32_UINT; break;
-    case spirv_cross::SPIRType::UShort: fmt = VK_FORMAT_R16G16B16A16_UINT; break;
-    case spirv_cross::SPIRType::UByte:  fmt = VK_FORMAT_R8G8B8A8_UINT; break;
-    
+    case 2:
+        switch (ty.basetype)
+        {
+        case spirv_cross::SPIRType::Double: fmt = VK_FORMAT_R64G64_SFLOAT; break;
+        case spirv_cross::SPIRType::Float:  fmt = VK_FORMAT_R32G32_SFLOAT; break;
+        case spirv_cross::SPIRType::Half:   fmt = VK_FORMAT_R16G16_SFLOAT; break;
+        case spirv_cross::SPIRType::Int64:  fmt = VK_FORMAT_R64G64_SINT; break;
+        case spirv_cross::SPIRType::Int:    fmt = VK_FORMAT_R32G32_SINT; break;
+        case spirv_cross::SPIRType::Short:  fmt = VK_FORMAT_R16G16_SINT; break;
+        case spirv_cross::SPIRType::SByte:  fmt = VK_FORMAT_R8G8_SINT; break;
+        case spirv_cross::SPIRType::UInt64: fmt = VK_FORMAT_R64G64_UINT; break;
+        case spirv_cross::SPIRType::UInt:   fmt = VK_FORMAT_R32G32_UINT; break;
+        case spirv_cross::SPIRType::UShort: fmt = VK_FORMAT_R16G16_UINT; break;
+        case spirv_cross::SPIRType::UByte:  fmt = VK_FORMAT_R8G8_UINT; break;
+        default:
+            break;
+        }
+        break;
+    case 3:
+        switch (ty.basetype)
+        {
+        case spirv_cross::SPIRType::Double: fmt = VK_FORMAT_R64G64B64_SFLOAT; break;
+        case spirv_cross::SPIRType::Float:  fmt = VK_FORMAT_R32G32B32_SFLOAT; break;
+        case spirv_cross::SPIRType::Half:   fmt = VK_FORMAT_R16G16B16_SFLOAT; break;
+        case spirv_cross::SPIRType::Int64:  fmt = VK_FORMAT_R64G64B64_SINT; break;
+        case spirv_cross::SPIRType::Int:    fmt = VK_FORMAT_R32G32B32_SINT; break;
+        case spirv_cross::SPIRType::Short:  fmt = VK_FORMAT_R16G16B16_SINT; break;
+        case spirv_cross::SPIRType::SByte:  fmt = VK_FORMAT_R8G8B8_SINT; break;
+        case spirv_cross::SPIRType::UInt64: fmt = VK_FORMAT_R64G64B64_UINT; break;
+        case spirv_cross::SPIRType::UInt:   fmt = VK_FORMAT_R32G32B32_UINT; break;
+        case spirv_cross::SPIRType::UShort: fmt = VK_FORMAT_R16G16B16_UINT; break;
+        case spirv_cross::SPIRType::UByte:  fmt = VK_FORMAT_R8G8B8_UINT; break;
+        default:
+            break;
+        }
+        break;
+    case 4:
+        switch (ty.basetype)
+        {
+        case spirv_cross::SPIRType::Double: fmt = VK_FORMAT_R64G64B64A64_SFLOAT; break;
+        case spirv_cross::SPIRType::Float:  fmt = VK_FORMAT_R32G32B32A32_SFLOAT; break;
+        case spirv_cross::SPIRType::Half:   fmt = VK_FORMAT_R16G16B16A16_SFLOAT; break;
+        case spirv_cross::SPIRType::Int64:  fmt = VK_FORMAT_R64G64B64A64_SINT; break;
+        case spirv_cross::SPIRType::Int:    fmt = VK_FORMAT_R32G32B32A32_SINT; break;
+        case spirv_cross::SPIRType::Short:  fmt = VK_FORMAT_R16G16B16A16_SINT; break;
+        case spirv_cross::SPIRType::SByte:  fmt = VK_FORMAT_R8G8B8A8_SINT; break;
+        case spirv_cross::SPIRType::UInt64: fmt = VK_FORMAT_R64G64B64A64_UINT; break;
+        case spirv_cross::SPIRType::UInt:   fmt = VK_FORMAT_R32G32B32A32_UINT; break;
+        case spirv_cross::SPIRType::UShort: fmt = VK_FORMAT_R16G16B16A16_UINT; break;
+        case spirv_cross::SPIRType::UByte:  fmt = VK_FORMAT_R8G8B8A8_UINT; break;
+        default:
+            break;
+        }
     default:
         break;
     }
+
 
     return std::make_pair(fmt, ty.vecsize * ty.width / 8);
 }
@@ -264,8 +304,10 @@ ShaderLayout GetShaderLayouts(View<u8> src, VkShaderStageFlags& stage, VkVertexI
     {
         ReadInputLayout(cc, binding, attributes);
     }
-
-    layout.RTCount = resources.stage_outputs.size();
+    if(VK_SHADER_STAGE_FRAGMENT_BIT & stage)
+    {
+        layout.RTCount = resources.stage_outputs.size();
+    }
 
     if (!resources.push_constant_buffers.empty())
     {
