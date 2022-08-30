@@ -1,3 +1,4 @@
+#include "mzVkCommon.h"
 #include <Renderpass.h>
 #include <Buffer.h>
 
@@ -70,6 +71,14 @@ void Renderpass::Exec(rc<vk::CommandBuffer> Cmd, rc<vk::ImageView> Output, const
     }
     End(Cmd);
     
+    if(UniformBuffer) // Get a new buffer so it's not overwritten by next pass
+    {
+        UniformBuffer = vk::Buffer::New(GetDevice(), vk::BufferCreateInfo {
+            .Size = PL->Layout->UniformSize,
+            .Usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+        });
+    }
+
     Output->Src->Unlock();
     for(auto set : DescriptorSets)
     {
