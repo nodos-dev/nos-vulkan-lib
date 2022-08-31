@@ -20,16 +20,20 @@
 extern "C" DXGI_FORMAT mzVulkan_API VkFormatToDxgiFormat(VkFormat fmt);
 extern "C" VkFormat mzVulkan_API DxgiFormatToVkFormat(DXGI_FORMAT fmt);
 
-#define MZ_D3D12_ASSERT_SUCCESS(expr)                                                                      \
-    {                                                                                                      \
-        HRESULT re = (expr);                                                                               \
-        while (FAILED(re))                                                                                 \
-        {                                                                                                  \
-            std::string __err = std::system_category().message(re);                                        \
-            char errbuf[1024];                                                                             \
+#define MZ_D3D12_ASSERT_SUCCESS(expr)                                                               \
+    {                                                                                               \
+        HRESULT re = (expr);                                                                        \
+        while (FAILED(re))                                                                          \
+        {                                                                                           \
+            std::string __err = std::system_category().message(re);                                 \
+            char errbuf[1024];                                                                      \
             std::snprintf(errbuf, 1024, "[%lx] %s (%s:%d)", re, __err.c_str(), __FILE__, __LINE__); \
-            mz::le() << errbuf;                                                                            \
-        }                                                                                                  \
+            if (MZ_DEV_BUILD)                                                                       \
+            {                                                                                       \
+                abort();                                                                            \
+            }                                                                                       \
+            mz::le() << errbuf;                                                                     \
+        }                                                                                           \
     }
 
 #define WIN32_ASSERT(expr)                                                                                        \
@@ -37,6 +41,10 @@ extern "C" VkFormat mzVulkan_API DxgiFormatToVkFormat(DXGI_FORMAT fmt);
     {                                                                                                             \
         char errbuf[1024];                                                                                        \
         std::snprintf(errbuf, 1024, "%s\t(%s:%d)", ::mz::vk::GetLastErrorAsString().c_str(), __FILE__, __LINE__); \
+        if (MZ_DEV_BUILD)                                                                                         \
+        {                                                                                                         \
+            abort();                                                                                              \
+        }                                                                                                         \
         mz::le() << errbuf;                                                                                       \
     }
 

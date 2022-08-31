@@ -16,15 +16,19 @@
 #define MZ_VULKAN_FAILED(expr) (VK_SUCCESS != (expr))
 #define MZ_VULKAN_SUCCEEDED(expr) (!MZ_VULKAN_FAILED(expr))
 
-#define MZ_VULKAN_ASSERT_SUCCESS(expr)                                                                                     \
-    {                                                                                                                      \
-        VkResult re = (expr);                                                                                              \
-        if (MZ_VULKAN_FAILED(re))                                                                                          \
-        {                                                                                                                  \
-            char errbuf[1024];                                                                                             \
+#define MZ_VULKAN_ASSERT_SUCCESS(expr)                                                                            \
+    {                                                                                                             \
+        VkResult re = (expr);                                                                                     \
+        if (MZ_VULKAN_FAILED(re))                                                                                 \
+        {                                                                                                         \
+            char errbuf[1024];                                                                                    \
             std::snprintf(errbuf, 1024, "%s %d (%s:%d)", ::mz::vk::vk_result_string(re), re, __FILE__, __LINE__); \
-            mz::le() << errbuf;                                                                                            \
-        }                                                                                                                  \
+            if (MZ_DEV_BUILD)                                                                                     \
+            {                                                                                                     \
+                abort();                                                                                          \
+            }                                                                                                     \
+            mz::le() << errbuf;                                                                                   \
+        }                                                                                                         \
     }
 
 namespace mz::vk
