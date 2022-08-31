@@ -1,11 +1,9 @@
 
-#include <NativeAPIDirectx.h>
+#include "mzVulkan/NativeAPIDirectx.h"
+#include "mzVulkan/Image.h"
+#include "mzVulkan/Device.h"
+#include "mzVulkan/Command.h"
 
-#include <Image.h>
-
-#include <Device.h>
-
-#include <Command.h>
 #include <handleapi.h>
 
 namespace mz::vk

@@ -1,10 +1,8 @@
 #pragma once
 
-#include <Binding.h>
-
-#include <Device.h>
-
-#include <Image.h>
+#include "Binding.h"
+#include "Device.h"
+#include "Image.h"
 
 namespace mz::vk
 {

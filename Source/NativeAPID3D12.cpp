@@ -1,8 +1,11 @@
 
-#include <NativeAPIDirectx.h>
+// External
 #include <combaseapi.h>
 #include <d3d11.h>
 #include <dxgiformat.h>
+
+// mzVulkan
+#include "mzVulkan/NativeAPIDirectx.h"
 
 namespace mz::vk
 {

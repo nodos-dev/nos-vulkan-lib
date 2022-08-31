@@ -11,7 +11,7 @@ add_folder_as_project(mzVulkan SHARED "${DEPENDENCIES}" "${INCLUDEFOLDERS}")
 #   "${CMAKE_CURRENT_SOURCE_DIR}/Source/Device.cpp"
 #   "${CMAKE_CURRENT_SOURCE_DIR}/Source/DXGIFormatMapping.c"
 #   "${CMAKE_CURRENT_SOURCE_DIR}/Source/Image.cpp"
-#   "${CMAKE_CURRENT_SOURCE_DIR}/Source/mzVkCommon.cpp"
+#   "${CMAKE_CURRENT_SOURCE_DIR}/Source/mzVulkan/Common.cpp"
 # )
 
 # add_library(mzVulkan SHARED 

@@ -1,6 +1,6 @@
-#include "Semaphore.h"
-#include "Device.h"
-#include <NativeAPIDirectx.h>
+#include "mzVulkan/Semaphore.h"
+#include "mzVulkan/Device.h"
+#include "mzVulkan/NativeAPIDirectx.h"
 
 #undef CreateSemaphore
 

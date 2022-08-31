@@ -1,9 +1,9 @@
 
-#include <Binding.h>
+#include <mzVulkan/Binding.h>
 
-#include <Image.h>
+#include <mzVulkan/Image.h>
 
-#include <Buffer.h>
+#include <mzVulkan/Buffer.h>
 
 namespace mz::vk
 {

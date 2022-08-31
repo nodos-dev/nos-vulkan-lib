@@ -1,16 +1,20 @@
 
 #pragma once
 
-#include <NativeAPI.h>
+// std
+#include <cstdio>
+#include <system_error>
 
+// External
 #include <d3d12.h>
 #include <d3d11.h>
 #include <d3d11_4.h>
 #include <dxgi.h>
 
-#include <cstdio>
-#include <system_error>
+// mzVulkan
+#include "NativeAPI.h"
 
+// Framework
 #include <mzUtil/Logger.h>
 
 extern "C" DXGI_FORMAT mzVulkan_API VkFormatToDxgiFormat(VkFormat fmt);

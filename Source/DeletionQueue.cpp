@@ -1,10 +1,14 @@
 
-#include "mzDefines.h"
-#include "mzVkCommon.h"
-#include "vulkan/vulkan_core.h"
-#include <Device.h>
+// External
+#include <vulkan/vulkan_core.h>
 
-#include <DeletionQueue.h>
+// Framework
+#include <mzDefines.h>
+
+// mzVulkan
+#include "mzVulkan/Common.h"
+#include "mzVulkan/Device.h"
+#include "mzVulkan/DeletionQueue.h"
 
 
 namespace mz::vk

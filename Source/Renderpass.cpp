@@ -1,6 +1,6 @@
-#include "mzVkCommon.h"
-#include <Renderpass.h>
-#include <Buffer.h>
+#include "mzVulkan/Common.h"
+#include "mzVulkan/Renderpass.h"
+#include "mzVulkan/Buffer.h"
 
 
 namespace mz::vk

@@ -1,15 +1,17 @@
 
-#include "NativeAPIDirectx.h"
-#include "mzDefines.h"
-#include "mzVkCommon.h"
-#include "vulkan/vulkan_core.h"
-#include <Allocator.h>
+// External
+#include <vulkan/vulkan_core.h>
 
-#include <Device.h>
+// Framework
+#include <mzDefines.h>
 
-#include <Image.h>
-
-#include <Buffer.h>
+// mzVulkan
+#include "mzVulkan/NativeAPIDirectx.h"
+#include "mzVulkan/Common.h"
+#include "mzVulkan/Allocator.h"
+#include "mzVulkan/Device.h"
+#include "mzVulkan/Image.h"
+#include "mzVulkan/Buffer.h"
 
 #define GENERIC_READ    (0x80000000L)
 #define GENERIC_WRITE   (0x40000000L)

@@ -1,8 +1,11 @@
 #pragma once
 
-#include <mzVkCommon.h>
+// std
 #include <string>
 #include <type_traits>
+
+// mzVulkan
+#include "Common.h"
 
 namespace mz::vk
 {

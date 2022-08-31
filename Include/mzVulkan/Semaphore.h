@@ -1,6 +1,6 @@
 #pragma once
 
-#include <mzVkCommon.h>
+#include "Common.h"
 
 namespace mz::vk {
 

@@ -1,9 +1,7 @@
 
-#include <Buffer.h>
-
-#include <Device.h>
-
-#include <Command.h>
+#include "mzVulkan/Buffer.h"
+#include "mzVulkan/Device.h"
+#include "mzVulkan/Command.h"
 
 namespace mz::vk
 {

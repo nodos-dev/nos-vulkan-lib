@@ -1,8 +1,7 @@
 
-#include <Pipeline.h>
+#include "mzVulkan/Pipeline.h"
+#include "mzVulkan/Image.h"
 #include "GlobVS.vert.spv.dat"
-
-#include <Image.h>
 
 namespace mz::vk
 {

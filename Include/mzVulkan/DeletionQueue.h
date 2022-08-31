@@ -1,6 +1,7 @@
 #pragma once
 
-#include <mzVkCommon.h>
+#include "Common.h"
+
 #include <mzUtil/Thread.h>
 #include <mzUtil/ThreadSafeQueue.h>
 

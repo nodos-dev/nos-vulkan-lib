@@ -1,12 +1,12 @@
 
-#include "vulkan/vulkan_core.h"
-#include <Device.h>
-
-#include <Allocator.h>
-
-#include <Command.h>
-
+// External
+#include <vulkan/vulkan_core.h>
 #include <dynalo/dynalo.hpp>
+
+// mzVulkan
+#include "mzVulkan/Device.h"
+#include "mzVulkan/Allocator.h"
+#include "mzVulkan/Command.h"
 
 static std::vector<const char*> layers = {
 #ifdef MZ_DEV_BUILD
