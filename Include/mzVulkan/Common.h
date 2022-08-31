@@ -23,10 +23,7 @@
         {                                                                                                         \
             char errbuf[1024];                                                                                    \
             std::snprintf(errbuf, 1024, "%s %d (%s:%d)", ::mz::vk::vk_result_string(re), re, __FILE__, __LINE__); \
-            if (MZ_DEV_BUILD)                                                                                     \
-            {                                                                                                     \
-                abort();                                                                                          \
-            }                                                                                                     \
+            MZ_ABORT;                                                                                         \
             mz::le() << errbuf;                                                                                   \
         }                                                                                                         \
     }
