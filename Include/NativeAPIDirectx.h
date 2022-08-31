@@ -8,27 +8,32 @@
 #include <d3d11_4.h>
 #include <dxgi.h>
 
+#include <cstdio>
 #include <system_error>
+
+#include <mzUtil/Logger.h>
 
 extern "C" DXGI_FORMAT mzVulkan_API VkFormatToDxgiFormat(VkFormat fmt);
 extern "C" VkFormat mzVulkan_API DxgiFormatToVkFormat(DXGI_FORMAT fmt);
 
-#define MZ_D3D12_ASSERT_SUCCESS(expr)                                                                              \
-    {                                                                                                              \
-        HRESULT re = (expr);                                                                                       \
-        while (FAILED(re))                                                                                         \
-        {                                                                                                          \
-            std::string __err = std::system_category().message(re);                                                \
-            printf("[%lx]Error: %s\n%s:%d\n", re, __err.c_str(), __FILE__, __LINE__);                              \
-            abort();                                                                                               \
-        }                                                                                                          \
+#define MZ_D3D12_ASSERT_SUCCESS(expr)                                                                      \
+    {                                                                                                      \
+        HRESULT re = (expr);                                                                               \
+        while (FAILED(re))                                                                                 \
+        {                                                                                                  \
+            std::string __err = std::system_category().message(re);                                        \
+            char errbuf[1024];                                                                             \
+            std::snprintf(errbuf, 1024, "[%lx] %s (%s:%d)", re, __err.c_str(), __FILE__, __LINE__); \
+            mz::le() << errbuf;                                                                            \
+        }                                                                                                  \
     }
 
-#define WIN32_ASSERT(expr)                                                                   \
-    if (!(expr))                                                                             \
-    {                                                                                        \
-        printf("%s\t%s:%d\n", ::mz::vk::GetLastErrorAsString().c_str(), __FILE__, __LINE__); \
-        abort();                                                                             \
+#define WIN32_ASSERT(expr)                                                                                        \
+    if (!(expr))                                                                                                  \
+    {                                                                                                             \
+        char errbuf[1024];                                                                                        \
+        std::snprintf(errbuf, 1024, "%s\t(%s:%d)", ::mz::vk::GetLastErrorAsString().c_str(), __FILE__, __LINE__); \
+        mz::le() << errbuf;                                                                                       \
     }
 
 namespace mz::vk
