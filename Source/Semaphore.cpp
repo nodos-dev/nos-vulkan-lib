@@ -6,7 +6,7 @@
 
 namespace mz::vk
 {
-    
+
 Semaphore::Semaphore(Device* Vk) : DeviceChild(Vk)
 {
     VkExportSemaphoreWin32HandleInfoKHR handleInfo = {
