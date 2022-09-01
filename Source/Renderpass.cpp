@@ -73,6 +73,7 @@ void Renderpass::Exec(rc<vk::CommandBuffer> Cmd, rc<vk::ImageView> Output, const
     
     if(UniformBuffer) // Get a new buffer so it's not overwritten by next pass
     {
+        Cmd->AddDependency(UniformBuffer);
         UniformBuffer = vk::Buffer::New(GetDevice(), vk::BufferCreateInfo {
             .Size = PL->Layout->UniformSize,
             .Usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
