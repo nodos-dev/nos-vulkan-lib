@@ -372,12 +372,16 @@ ShaderLayout ShaderLayout::Merge(ShaderLayout const& rhs) const
     {
         re.BindingsByName[s] = b;
     }
+
     for(auto& [set, b] : rhs.DescriptorSets)
     {
         auto& desc = re.DescriptorSets[set];
         for(auto& [binding, dsl] : b)
         {
-            desc[binding] = dsl;
+            auto& lhs = desc[binding];
+            VkShaderStageFlags mask = lhs.StageMask;
+            lhs = dsl;
+            lhs.StageMask |= mask;
         }
     }
     return re;
