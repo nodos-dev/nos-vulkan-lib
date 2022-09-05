@@ -179,11 +179,11 @@ mzVulkan_API std::pair<u32, VkMemoryPropertyFlags> MemoryTypeIndex(VkPhysicalDev
 mzVulkan_API void ImageLayoutTransition(VkImage Image,
                                         rc<CommandBuffer> Cmd,
                                         ImageState Src,
-                                        ImageState Dst);
+                                        ImageState Dst, VkImageAspectFlags Aspect);
 mzVulkan_API void ImageLayoutTransition2(VkImage Image,
                                         rc<CommandBuffer> Cmd,
                                         ImageState Src,
-                                        ImageState Dst);
+                                        ImageState Dst, VkImageAspectFlags Aspect);
 
 mzVulkan_API const char* vk_result_string(VkResult re);
 mzVulkan_API const char* descriptor_type_to_string(VkDescriptorType ty);
