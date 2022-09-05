@@ -2,7 +2,6 @@
 #include "mzVulkan/Pipeline.h"
 #include "mzVulkan/Image.h"
 #include "GlobVS.vert.spv.dat"
-#include "vulkan/vulkan_core.h"
 
 namespace mz::vk
 {
@@ -58,6 +57,7 @@ void Pipeline::Recreate(VkFormat fmt)
         .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
         .colorAttachmentCount = Layout->RTCount,
         .pColorAttachmentFormats = &fmt,
+        .depthAttachmentFormat = VK_FORMAT_D32_SFLOAT,
     };
 
     VkPipelineVertexInputStateCreateInfo inputLayout = {};
@@ -139,7 +139,7 @@ void Pipeline::Recreate(VkFormat fmt)
                                 VK_DYNAMIC_STATE_DEPTH_WRITE_ENABLE,
                                 VK_DYNAMIC_STATE_DEPTH_COMPARE_OP
                             };
-    
+
     VkPipelineDynamicStateCreateInfo dynamicState = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
         .dynamicStateCount = sizeof(states) / sizeof(states[0]),
@@ -154,9 +154,9 @@ void Pipeline::Recreate(VkFormat fmt)
 
     VkPipelineDepthStencilStateCreateInfo depthState = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
-        .depthWriteEnable      = 1,
-        .depthCompareOp        = VK_COMPARE_OP_LESS_OR_EQUAL,
-        .depthBoundsTestEnable = 1,
+        .depthWriteEnable      = 0,
+        .depthCompareOp        = VK_COMPARE_OP_NEVER,
+        .depthBoundsTestEnable = 0,
     };
 
     VkGraphicsPipelineCreateInfo info = {
@@ -169,11 +169,12 @@ void Pipeline::Recreate(VkFormat fmt)
         .pViewportState = &viewportState,
         .pRasterizationState = &rasterizationState,
         .pMultisampleState = &multisampleState,
+        .pDepthStencilState = &depthState,
         .pColorBlendState = &colorBlendState,
         .pDynamicState = &dynamicState,
         .layout = Layout->Handle,
     };
-
+    
     if (Vk->FallbackOptions.mzDynamicRenderingFallback)
     {
         info.renderPass = Handles[fmt].rp;

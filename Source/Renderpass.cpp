@@ -104,12 +104,32 @@ void Renderpass::Begin(rc<CommandBuffer> Cmd, rc<ImageView> Image, bool wirefram
                                            .Layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                                        });
 
+    auto extent = Image->Src->GetEffectiveExtent();
+    if(!DepthBuffer || (DepthBuffer->GetEffectiveExtent().width != extent.width || 
+                      DepthBuffer->GetEffectiveExtent().height != extent.height))
+    {
+        if (DepthBuffer)
+        {
+            Cmd->AddDependency(DepthBuffer);
+        }
+        DepthBuffer = vk::Image::New(GetDevice(), vk::ImageCreateInfo {
+            .Extent = extent,
+            .Format = VK_FORMAT_D32_SFLOAT,
+            .Usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+        });
+    }
+    
+    DepthBuffer->Transition(Cmd, ImageState{
+                                           .StageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+                                           .AccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+                                           .Layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                                       });
+
     for (auto &set : DescriptorSets)
     {
         set->Bind(Cmd);
     }
 
-    VkExtent2D extent = Image->Src->GetEffectiveExtent();
 
     VkViewport viewport = {
         .width = (f32)extent.width,
@@ -121,6 +141,10 @@ void Renderpass::Begin(rc<CommandBuffer> Cmd, rc<ImageView> Image, bool wirefram
 
     Cmd->SetViewport(0, 1, &viewport);
     Cmd->SetScissor(0, 1, &scissor);
+    Cmd->SetDepthTestEnable(false);
+    Cmd->SetDepthWriteEnable(false);
+    Cmd->SetDepthCompareOp(VK_COMPARE_OP_NEVER);
+
     if (Vk->FallbackOptions.mzDynamicRenderingFallback)
     {
         VkRenderPass rp = PL->Handles[Image->GetEffectiveFormat()].rp;
@@ -165,12 +189,22 @@ void Renderpass::Begin(rc<CommandBuffer> Cmd, rc<ImageView> Image, bool wirefram
             .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
         };
 
+        VkRenderingAttachmentInfo DepthAttachment = {
+            .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+            .imageView = DepthBuffer->GetView()->Handle,
+            .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+            .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+            .clearValue = {.depthStencil = { .depth = 1.f }},
+        };
+
         VkRenderingInfo renderInfo = {
             .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
             .renderArea = {.extent = extent},
             .layerCount = 1,
             .colorAttachmentCount = 1,
             .pColorAttachments = &Attachment,
+            .pDepthAttachment = &DepthAttachment,
         };
 
         Cmd->BeginRendering(&renderInfo);

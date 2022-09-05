@@ -110,7 +110,8 @@ bool IsImportable(VkPhysicalDevice PhysicalDevice, VkFormat Format, VkImageUsage
 void ImageLayoutTransition(VkImage Image,
                            rc<CommandBuffer> Cmd,
                            ImageState Src,
-                           ImageState Dst)
+                           ImageState Dst, 
+                           VkImageAspectFlags Aspect)
 {  
     
     VkImageMemoryBarrier imageMemoryBarrier = {
@@ -123,7 +124,7 @@ void ImageLayoutTransition(VkImage Image,
         // .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
         .image               = Image,
         .subresourceRange    = {
-               .aspectMask   = VK_IMAGE_ASPECT_COLOR_BIT,
+               .aspectMask   = Aspect,
                .baseMipLevel = 0,
                .levelCount   = 1,
                .layerCount   = 1,
@@ -138,7 +139,8 @@ void ImageLayoutTransition(VkImage Image,
 void ImageLayoutTransition2(VkImage Image,
     rc<CommandBuffer> Cmd,
     ImageState Src,
-    ImageState Dst)
+    ImageState Dst, 
+    VkImageAspectFlags Aspect)
 {
     // Create an image barrier object
     VkImageMemoryBarrier2 imageMemoryBarrier = {
@@ -155,7 +157,7 @@ void ImageLayoutTransition2(VkImage Image,
         // .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
         .image = Image,
         .subresourceRange = {
-               .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+               .aspectMask = Aspect,
                .baseMipLevel = 0,
                .levelCount = 1,
                .layerCount = 1,

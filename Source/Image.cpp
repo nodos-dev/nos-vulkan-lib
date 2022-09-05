@@ -116,7 +116,7 @@ ImageView::ImageView(struct Image* Src, VkFormat Format, VkImageUsageFlags Usage
         .format     = IsYCbCr(this->Format) ? VK_FORMAT_R8G8B8A8_UNORM : this->Format,
         .components = {},
         .subresourceRange = {
-            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .aspectMask = Src->GetAspect(),
             .levelCount = 1,
             .layerCount = 1,
         },
@@ -194,11 +194,11 @@ void Image::Transition(
     // Dst.StageMask  = 0;
     if (Vk->FallbackOptions.mzSync2Fallback)
     {
-        ImageLayoutTransition(this->Handle, Cmd, this->State, Dst);
+        ImageLayoutTransition(this->Handle, Cmd, this->State, Dst, GetAspect());
     }
     else 
     {
-        ImageLayoutTransition2(this->Handle, Cmd, this->State, Dst);
+        ImageLayoutTransition2(this->Handle, Cmd, this->State, Dst, GetAspect());
     }
     Cmd->AddDependency(shared_from_this());
     State = Dst;

@@ -23,7 +23,9 @@ struct VertexData
 struct mzVulkan_API Renderpass : SharedFactory<Renderpass>, DeviceChild
 {
     VkFramebuffer FrameBuffer = 0;
-    VkImage       DepthBuffer = 0;
+    // VkImage       DepthBuffer = 0;
+    // VkImageView   DepthView   = 0;
+    rc<Image> DepthBuffer;
 
     rc<ImageView> m_ImageView;
     rc<Pipeline> PL;
