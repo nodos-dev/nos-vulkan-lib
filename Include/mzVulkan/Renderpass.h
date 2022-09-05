@@ -11,15 +11,20 @@ struct Buffer;
 struct VertexData
 {
     rc<vk::Buffer> Buffer;
-    u64 VertexOffset;
-    u64 IndexOffset;
-    u64 NumIndices;
-    bool Wireframe = false;
+    u64 VertexOffset = 0;
+    u64 IndexOffset = 0;
+    u64 NumIndices = 0;
+    bool Wireframe  = false;
+    bool DepthWrite = false;
+    bool DepthTest  = false;
+    VkCompareOp DepthFunc  = VK_COMPARE_OP_NEVER;
 };
 
 struct mzVulkan_API Renderpass : SharedFactory<Renderpass>, DeviceChild
 {
     VkFramebuffer FrameBuffer = 0;
+    VkImage       DepthBuffer = 0;
+
     rc<ImageView> m_ImageView;
     rc<Pipeline> PL;
     
@@ -28,7 +33,7 @@ struct mzVulkan_API Renderpass : SharedFactory<Renderpass>, DeviceChild
     std::map<u32, std::map<u32, vk::Binding>> Bindings;
 
     rc<Buffer> UniformBuffer;
-    
+
     Renderpass(rc<Pipeline> PL);
     Renderpass(Device* Vk, View<u8> src);
     ~Renderpass();

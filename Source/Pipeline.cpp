@@ -2,6 +2,7 @@
 #include "mzVulkan/Pipeline.h"
 #include "mzVulkan/Image.h"
 #include "GlobVS.vert.spv.dat"
+#include "vulkan/vulkan_core.h"
 
 namespace mz::vk
 {
@@ -83,7 +84,7 @@ void Pipeline::Recreate(VkFormat fmt)
     VkPipelineRasterizationStateCreateInfo rasterizationState = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
         .polygonMode = VK_POLYGON_MODE_FILL,
-        .cullMode = VK_CULL_MODE_NONE,
+        .cullMode = VK_CULL_MODE_BACK_BIT,
         .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
         .lineWidth = 1.f,
     };
@@ -132,8 +133,13 @@ void Pipeline::Recreate(VkFormat fmt)
         MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateRenderPass(&renderPassInfo, nullptr, &Handles[fmt].rp));
     }
 
-    VkDynamicState states[] = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
-
+    VkDynamicState states[] = { VK_DYNAMIC_STATE_VIEWPORT, 
+                                VK_DYNAMIC_STATE_SCISSOR, 
+                                VK_DYNAMIC_STATE_DEPTH_TEST_ENABLE,
+                                VK_DYNAMIC_STATE_DEPTH_WRITE_ENABLE,
+                                VK_DYNAMIC_STATE_DEPTH_COMPARE_OP
+                            };
+    
     VkPipelineDynamicStateCreateInfo dynamicState = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
         .dynamicStateCount = sizeof(states) / sizeof(states[0]),
@@ -144,6 +150,13 @@ void Pipeline::Recreate(VkFormat fmt)
         .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
         .viewportCount = 1,
         .scissorCount = 1,
+    };
+
+    VkPipelineDepthStencilStateCreateInfo depthState = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+        .depthWriteEnable      = 1,
+        .depthCompareOp        = VK_COMPARE_OP_LESS_OR_EQUAL,
+        .depthBoundsTestEnable = 1,
     };
 
     VkGraphicsPipelineCreateInfo info = {

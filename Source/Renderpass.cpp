@@ -2,7 +2,6 @@
 #include "mzVulkan/Renderpass.h"
 #include "mzVulkan/Buffer.h"
 
-
 namespace mz::vk
 {
 
@@ -61,6 +60,9 @@ void Renderpass::Exec(rc<vk::CommandBuffer> Cmd, rc<vk::ImageView> Output, const
     Begin(Cmd, Output, Verts && Verts->Wireframe);
     if(Verts)
     {
+        Cmd->SetDepthWriteEnable(Verts->DepthWrite);
+        Cmd->SetDepthTestEnable(Verts->DepthTest);
+        Cmd->SetDepthCompareOp(Verts->DepthFunc);
         Cmd->BindVertexBuffers(0, 1, &Verts->Buffer->Handle, &Verts->VertexOffset);
         Cmd->BindIndexBuffer(Verts->Buffer->Handle, Verts->IndexOffset, VK_INDEX_TYPE_UINT32);
         Cmd->DrawIndexed(Verts->NumIndices, 1, 0, 0, 0);
@@ -119,7 +121,6 @@ void Renderpass::Begin(rc<CommandBuffer> Cmd, rc<ImageView> Image, bool wirefram
 
     Cmd->SetViewport(0, 1, &viewport);
     Cmd->SetScissor(0, 1, &scissor);
-    
     if (Vk->FallbackOptions.mzDynamicRenderingFallback)
     {
         VkRenderPass rp = PL->Handles[Image->GetEffectiveFormat()].rp;
