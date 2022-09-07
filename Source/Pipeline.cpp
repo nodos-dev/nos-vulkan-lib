@@ -2,6 +2,7 @@
 #include "mzVulkan/Pipeline.h"
 #include "mzVulkan/Image.h"
 #include "GlobVS.vert.spv.dat"
+#include "vulkan/vulkan_core.h"
 
 namespace mz::vk
 {
@@ -84,7 +85,7 @@ void Pipeline::Recreate(VkFormat fmt)
     VkPipelineRasterizationStateCreateInfo rasterizationState = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
         .polygonMode = VK_POLYGON_MODE_FILL,
-        .cullMode = VK_CULL_MODE_NONE,
+        .cullMode = VK_CULL_MODE_BACK_BIT,
         .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
         .lineWidth = 1.f,
     };
