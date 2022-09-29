@@ -115,15 +115,11 @@ rc<DescriptorSet> DescriptorSet::Update(View<Binding> Res)
 
 void DescriptorSet::Bind(rc<CommandBuffer> Cmd)
 {
-    for (auto [img, state] : BindStates)
-    {
-        img->Transition(Cmd, state);
-    }
     Cmd->AddDependency(shared_from_this());
     Cmd->BindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, Pool->Layout->Handle, Index, 1, &Handle, 0, 0);
 }
 
-DescriptorSet::DescriptorSet(DescriptorPool* pool, u32 Index)
+DescriptorSet::DescriptorSet(rc<DescriptorPool> pool, u32 Index)
     : Pool(pool), Layout(pool->Layout->DescriptorLayouts[Index].get()), Index(Index)
 {
     VkDescriptorSetAllocateInfo info = {
@@ -138,6 +134,7 @@ DescriptorSet::DescriptorSet(DescriptorPool* pool, u32 Index)
 
 DescriptorSet::~DescriptorSet()
 {
+    std::unique_lock lock(Pool->Mutex);
     Pool->Layout->Vk->FreeDescriptorSets(Pool->Handle, 1, &Handle);
     Pool->InUse--;
     if (Pool->Prev && !Pool->InUse)
@@ -174,12 +171,12 @@ static std::vector<VkDescriptorPoolSize> GetPoolSizes(PipelineLayout* Layout)
     return Sizes;
 }
 
-DescriptorPool::DescriptorPool(PipelineLayout* Layout)
-    : DescriptorPool(Layout, GetPoolSizes(Layout))
+DescriptorPool::DescriptorPool(rc<PipelineLayout> Layout)
+    : DescriptorPool(Layout, GetPoolSizes(Layout.get()))
 {
 }
 
-DescriptorPool::DescriptorPool(PipelineLayout* Layout, std::vector<VkDescriptorPoolSize> sizes)
+DescriptorPool::DescriptorPool(rc<PipelineLayout> Layout, std::vector<VkDescriptorPoolSize> sizes)
     : Layout(Layout), Sizes(std::move(sizes)), MaxSets((u32)Layout->DescriptorLayouts.size() * 1024u)
 {
     VkDescriptorPoolCreateInfo poolInfo = {
@@ -260,9 +257,19 @@ void PipelineLayout::Dump()
     }
 }
 
+NamedDSLBinding const& PipelineLayout::operator[](ShaderLayout::Index idx) const
+{
+    return (*this)[idx.set][idx.binding];
+}
+
 DescriptorLayout const& PipelineLayout::operator[](u32 set) const
 {
     return *DescriptorLayouts.at(set);
+}
+
+ ShaderLayout::Index PipelineLayout::operator[](std::string const& name) const
+{
+    return BindingsByName.at(name);
 }
 
 PipelineLayout::~PipelineLayout()
@@ -272,11 +279,12 @@ PipelineLayout::~PipelineLayout()
 
 rc<DescriptorPool> PipelineLayout::CreatePool()
 {
-    return DescriptorPool::New(this);
+    return DescriptorPool::New(shared_from_this());
 }
 
 rc<DescriptorSet> DescriptorPool::AllocateSet(u32 set)
 {
+    std::unique_lock lock(Mutex);
     if (MaxSets == InUse)
     {
         if (!Next)
@@ -287,7 +295,7 @@ rc<DescriptorSet> DescriptorPool::AllocateSet(u32 set)
         return Next->AllocateSet(set);
     }
     InUse++;
-    return DescriptorSet::New(this, set);
+    return DescriptorSet::New(shared_from_this(), set);
 }
 
 } // namespace mz::vk

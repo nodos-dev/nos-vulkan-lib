@@ -14,7 +14,8 @@ struct mzVulkan_API Pipeline : SharedFactory<Pipeline>, DeviceChild
     rc<Shader> VS = nullptr;
     rc<Shader> PS;
     rc<PipelineLayout> Layout;
-    
+    bool EnableBlending = false;
+
     struct PerFormat
     {
         VkPipeline pl;
@@ -24,8 +25,8 @@ struct mzVulkan_API Pipeline : SharedFactory<Pipeline>, DeviceChild
     
     std::map<VkFormat, PerFormat> Handles;
 
-    Pipeline(Device* Vk, View<u8> src);
-    Pipeline(Device* Vk, rc<Shader> PS, rc<Shader> VS = 0);
+    Pipeline(Device* Vk, View<u8> src, bool blend = false);
+    Pipeline(Device* Vk, rc<Shader> PS, rc<Shader> VS = 0, bool blend = false);
     ~Pipeline();
 
     rc<Shader> GetVS();

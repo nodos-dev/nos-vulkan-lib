@@ -31,13 +31,14 @@ struct mzVulkan_API DescriptorLayout : SharedFactory<DescriptorLayout>, DeviceCh
 
 struct mzVulkan_API DescriptorPool : SharedFactory<DescriptorPool>
 {
-    struct PipelineLayout* Layout;
+    std::mutex Mutex;
+    rc<struct PipelineLayout> Layout;
     VkDescriptorPool Handle;
     std::vector<VkDescriptorPoolSize> Sizes;
     std::atomic_uint InUse = 0;
     std::atomic_uint MaxSets = 0;
-    DescriptorPool(PipelineLayout* Layout);
-    DescriptorPool(PipelineLayout* Layout, std::vector<VkDescriptorPoolSize> Sizes);
+    DescriptorPool(rc<PipelineLayout> Layout);
+    DescriptorPool(rc<PipelineLayout> Layout, std::vector<VkDescriptorPoolSize> Sizes);
     ~DescriptorPool();
     rc<DescriptorPool> Next = 0;
     DescriptorPool* Prev = 0;
@@ -46,12 +47,12 @@ struct mzVulkan_API DescriptorPool : SharedFactory<DescriptorPool>
 
 struct mzVulkan_API DescriptorSet : SharedFactory<DescriptorSet>
 {
-    DescriptorPool* Pool;
+    rc<DescriptorPool> Pool;
     DescriptorLayout* Layout;
     u32 Index;
     VkDescriptorSet Handle;
     std::unordered_map<rc<Image>, ImageState> BindStates;
-    DescriptorSet(DescriptorPool*, u32);
+    DescriptorSet(rc<DescriptorPool>, u32);
     ~DescriptorSet();
     VkDescriptorType GetType(u32 Binding);
     rc<DescriptorSet> Update(View<Binding> Res);
@@ -70,13 +71,16 @@ struct mzVulkan_API PipelineLayout : SharedFactory<PipelineLayout>, DeviceChild
     std::map<u64, u32> OffsetMap;
     std::map<u32, rc<DescriptorLayout>> DescriptorLayouts;
     std::unordered_map<std::string, ShaderLayout::Index> BindingsByName;
-    DescriptorLayout const& operator[](u32 set) const;
     PipelineLayout(Device* Vk, ShaderLayout layout);
     ~PipelineLayout();
     
     rc<DescriptorPool> CreatePool();
 
     void Dump();
+
+    NamedDSLBinding const& operator[](ShaderLayout::Index) const;
+    DescriptorLayout const& operator[](u32 set) const;
+    ShaderLayout::Index operator[](std::string const& name) const;
 
     auto begin() const
     {

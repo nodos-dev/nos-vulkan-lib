@@ -1,5 +1,6 @@
 
 #include "mzVulkan/Pipeline.h"
+#include "mzVulkan/Common.h"
 #include "mzVulkan/Image.h"
 #include "GlobVS.vert.spv.dat"
 #include "vulkan/vulkan_core.h"
@@ -26,8 +27,8 @@ Pipeline::~Pipeline()
     }
 }
 
-Pipeline::Pipeline(Device* Vk, View<u8> src) :
-    Pipeline(Vk, Shader::New(Vk, src))
+Pipeline::Pipeline(Device* Vk, View<u8> src, bool blend) :
+    Pipeline(Vk, Shader::New(Vk, src), 0, blend)
 {
 
 }
@@ -53,12 +54,11 @@ void Pipeline::Recreate(VkFormat fmt)
         return;
     }
 
-
     VkPipelineRenderingCreateInfo renderInfo = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
         .colorAttachmentCount = Layout->RTCount,
         .pColorAttachmentFormats = &fmt,
-        .depthAttachmentFormat = VK_FORMAT_D32_SFLOAT,
+        // .depthAttachmentFormat = VK_FORMAT_D32_SFLOAT,
     };
 
     VkPipelineVertexInputStateCreateInfo inputLayout = {};
@@ -86,6 +86,7 @@ void Pipeline::Recreate(VkFormat fmt)
         .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
         .polygonMode = VK_POLYGON_MODE_FILL,
         .cullMode = VK_CULL_MODE_BACK_BIT,
+        // .cullMode = VK_CULL_MODE_NONE,
         .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
         .lineWidth = 1.f,
     };
@@ -95,9 +96,17 @@ void Pipeline::Recreate(VkFormat fmt)
         .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
     };
 
-    VkPipelineColorBlendAttachmentState attachment = {.colorWriteMask =
-                                                          VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
-                                                          VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT};
+    VkPipelineColorBlendAttachmentState attachment = {
+        .blendEnable = EnableBlending,
+        .srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
+        .dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+        .colorBlendOp = VK_BLEND_OP_ADD,
+        .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
+        .dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
+        .alphaBlendOp = VK_BLEND_OP_MAX,
+        .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
+                          VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT,
+    };
 
     VkPipelineColorBlendStateCreateInfo colorBlendState = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
@@ -138,7 +147,7 @@ void Pipeline::Recreate(VkFormat fmt)
                                 VK_DYNAMIC_STATE_SCISSOR, 
                                 VK_DYNAMIC_STATE_DEPTH_TEST_ENABLE,
                                 VK_DYNAMIC_STATE_DEPTH_WRITE_ENABLE,
-                                VK_DYNAMIC_STATE_DEPTH_COMPARE_OP
+                                VK_DYNAMIC_STATE_DEPTH_COMPARE_OP,
                             };
 
     VkPipelineDynamicStateCreateInfo dynamicState = {
@@ -155,6 +164,7 @@ void Pipeline::Recreate(VkFormat fmt)
 
     VkPipelineDepthStencilStateCreateInfo depthState = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+        .depthTestEnable       = 0,
         .depthWriteEnable      = 0,
         .depthCompareOp        = VK_COMPARE_OP_NEVER,
         .depthBoundsTestEnable = 0,
@@ -187,8 +197,8 @@ void Pipeline::Recreate(VkFormat fmt)
     MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateGraphicsPipelines(0, 1, &info, 0, &Handles[fmt].wpl));
 }
 
-Pipeline::Pipeline(Device* Vk, rc<Shader> PS, rc<Shader> VS) 
-    : DeviceChild(Vk), PS(PS), VS(VS), Layout(PipelineLayout::New(Vk, PS->Layout.Merge(GetVS()->Layout)))
+Pipeline::Pipeline(Device* Vk, rc<Shader> PS, rc<Shader> VS, bool blend) 
+    : DeviceChild(Vk), PS(PS), VS(VS), Layout(PipelineLayout::New(Vk, PS->Layout.Merge(GetVS()->Layout))), EnableBlending(blend)
 {
 }
 

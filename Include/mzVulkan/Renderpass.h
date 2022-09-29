@@ -35,16 +35,20 @@ struct mzVulkan_API Renderpass : SharedFactory<Renderpass>, DeviceChild
     std::map<u32, std::map<u32, vk::Binding>> Bindings;
 
     rc<Buffer> UniformBuffer;
-
+    bool BufferDirty = false;
     Renderpass(rc<Pipeline> PL);
     Renderpass(Device* Vk, View<u8> src);
     ~Renderpass();
     
-    void Begin(rc<CommandBuffer> Cmd, rc<ImageView> Image, bool wireframe = false);
+    void Begin(rc<CommandBuffer> Cmd, rc<ImageView> Image, bool wireframe = false, bool clear = true);
     void End(rc<CommandBuffer> Cmd);
-    void Exec(rc<vk::CommandBuffer> Cmd, rc<vk::ImageView> Output, const VertexData* = 0);
-    
+    void Exec(rc<vk::CommandBuffer> Cmd, rc<vk::ImageView> Output, const VertexData* = 0, bool clear = true);
+    void Draw(rc<vk::CommandBuffer> Cmd, const VertexData* Verts = 0);
     void Bind(std::string const& name, void* data, u32 size, rc<ImageView> (Import)(void*) = 0);
+    void TransitionInput(rc<vk::CommandBuffer> Cmd, std::string const& name, void* data, u32 size, rc<ImageView> (Import)(void*) = 0);
+
+    void RefreshBuffer(rc<vk::CommandBuffer> Cmd);
+    void BindResources(rc<vk::CommandBuffer> Cmd);
 
     void BindResources(std::map<u32, std::map<u32, Binding>> const &bindings);
     void BindResources(std::map<u32, std::vector<Binding>> const &bindings);
