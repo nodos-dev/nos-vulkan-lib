@@ -1,5 +1,5 @@
-list(APPEND DEPENDENCIES mzCommon vkl spirv-cross-core d3d12 d3d11 dxgi mzUtil)
-list(APPEND INCLUDEFOLDERS ${CMAKE_CURRENT_SOURCE_DIR}/Include ${DYNALO_INCLUDE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/..)
+list(APPEND DEPENDENCIES mzCommon vkl spirv-cross-core d3d12 d3d11 dxgi dynalo mzUtil)
+list(APPEND INCLUDEFOLDERS ${CMAKE_CURRENT_SOURCE_DIR}/Include ${CMAKE_CURRENT_SOURCE_DIR}/..)
 
 add_folder_as_project(mzVulkan SHARED "${DEPENDENCIES}" "${INCLUDEFOLDERS}")
 
