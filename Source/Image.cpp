@@ -1,3 +1,4 @@
+#include "vulkan/vulkan_core.h"
 #include <mzVulkan/Image.h>
 #include <mzVulkan/Device.h>
 #include <mzVulkan/Command.h>
@@ -172,6 +173,7 @@ Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo, VkResult* 
     };
     
     VkResult result = Vk->CreateImage(&info, 0, &Handle);
+
     if(re) 
     {
         *re = result;
