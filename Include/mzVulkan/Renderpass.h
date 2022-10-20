@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Pipeline.h"
+#include <mutex>
 
 namespace mz::vk
 {
@@ -22,9 +23,8 @@ struct VertexData
 
 struct mzVulkan_API Renderpass : SharedFactory<Renderpass>, DeviceChild
 {
+    std::mutex Mutex;
     VkFramebuffer FrameBuffer = 0;
-    // VkImage       DepthBuffer = 0;
-    // VkImageView   DepthView   = 0;
     rc<Image> DepthBuffer;
 
     rc<ImageView> m_ImageView;
@@ -39,6 +39,9 @@ struct mzVulkan_API Renderpass : SharedFactory<Renderpass>, DeviceChild
     Renderpass(rc<Pipeline> PL);
     Renderpass(Device* Vk, View<u8> src);
     ~Renderpass();
+    
+    void Lock() { Mutex.lock(); }
+    void Unlock() { Mutex.unlock(); }
     
     void Begin(rc<CommandBuffer> Cmd, rc<ImageView> Image, bool wireframe = false, bool clear = true);
     void End(rc<CommandBuffer> Cmd);
