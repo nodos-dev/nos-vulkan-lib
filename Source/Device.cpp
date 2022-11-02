@@ -9,10 +9,14 @@
 #include "mzVulkan/Command.h"
 
 static std::vector<const char*> layers = {
-#ifdef MZ_DEV_BUILD
-#pragma message("Development build: Enabling VK_LAYER_KHRONOS_validation")
-     // "VK_LAYER_KHRONOS_validation",
-#endif
+// TODO: Instead of commenting out these as we please, 
+//       we can accept a parameter to the engine to enable the validation layer.
+//       This can help us in times of need even in production builds.
+//
+// #ifdef MZ_DEV_BUILD
+// #pragma message("Development build: Enabling VK_LAYER_KHRONOS_validation")
+//     "VK_LAYER_KHRONOS_validation",
+// #endif
     "VK_LAYER_KHRONOS_synchronization2",
 };
 
@@ -342,7 +346,11 @@ Device::~Device()
     }
 
     ImmAllocator.reset();
-    GetPool().reset();
+    // Issue #490.
+    // Offending:
+    // GetPool().reset();
+    // Replaced with below line.
+    ImmPools.clear();
     DestroyDevice(0);
 }
 
