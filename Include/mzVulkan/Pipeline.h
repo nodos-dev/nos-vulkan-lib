@@ -36,7 +36,10 @@ struct mzVulkan_API Pipeline : SharedFactory<Pipeline>, DeviceChild
     template <class T>
     void PushConstants(rc<CommandBuffer> Cmd, T const& data)
     {
-        Cmd->PushConstants(Layout->Handle, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(T), &data);
+        if (Layout->PushConstantSize >= sizeof(T))
+        {
+            Cmd->PushConstants(Layout->Handle, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(T), &data);
+        }
     }
 
 };

@@ -240,6 +240,7 @@ void Renderpass::Begin(rc<CommandBuffer> Cmd, rc<ImageView> Image, bool wirefram
     }
     auto& handle = PL->Handles[Image->GetEffectiveFormat()];
     Cmd->BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, wireframe ? handle.wpl : handle.pl);
+    PL->PushConstants(Cmd, Image->Src->GetExtent());
     Cmd->AddDependency(shared_from_this());
 }
 
