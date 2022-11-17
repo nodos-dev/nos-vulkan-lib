@@ -14,10 +14,10 @@ static std::vector<const char*> layers = {
 //       This can help us in times of need even in production builds.
 //
 // #ifdef MZ_DEV_BUILD
-// #pragma message("Development build: Enabling VK_LAYER_KHRONOS_validation")
+// #pragma message("Development build: Enabling VK_LAYER_KHRONOS_validation, VK_LAYER_KHRONOS_synchronization2")
 //     "VK_LAYER_KHRONOS_validation",
+//      "VK_LAYER_KHRONOS_synchronization2",
 // #endif
-    "VK_LAYER_KHRONOS_synchronization2",
 };
 
 static std::vector<const char*> extensions = {
