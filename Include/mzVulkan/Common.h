@@ -10,9 +10,16 @@
 #include <mzCommon.h>
 #include <mzUtil/Logger.h>
 
-#ifndef mzVulkan_API
+#ifdef mzVulkan_SHARED
+#ifdef mzVulkan_EXPORTS
+#define mzVulkan_API __declspec(dllexport)
+#else
 #define mzVulkan_API __declspec(dllimport)
-#endif
+#endif // mzVulkan_EXPORTS
+#else
+#define mzVulkan_API
+#endif // mzVulkan_SHARED
+
 #define MZ_VULKAN_FAILED(expr) (VK_SUCCESS != (expr))
 #define MZ_VULKAN_SUCCEEDED(expr) (!MZ_VULKAN_FAILED(expr))
 
