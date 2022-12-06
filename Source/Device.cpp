@@ -13,11 +13,11 @@ static std::vector<const char*> layers = {
 //       we can accept a parameter to the engine to enable the validation layer.
 //       This can help us in times of need even in production builds.
 //
-// #ifdef MZ_DEV_BUILD
-// #pragma message("Development build: Enabling VK_LAYER_KHRONOS_validation, VK_LAYER_KHRONOS_synchronization2")
-//     "VK_LAYER_KHRONOS_validation",
-//      "VK_LAYER_KHRONOS_synchronization2",
-// #endif
+ #ifdef MZ_DEV_BUILD
+ #pragma message("Development build: Enabling VK_LAYER_KHRONOS_validation, VK_LAYER_KHRONOS_synchronization2")
+     "VK_LAYER_KHRONOS_validation",
+      "VK_LAYER_KHRONOS_synchronization2",
+ #endif
 };
 
 static std::vector<const char*> extensions = {
