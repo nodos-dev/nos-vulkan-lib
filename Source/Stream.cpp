@@ -1,3 +1,5 @@
+// // Copyright MediaZ AS. All Rights Reserved.
+
 
 // std
 #include <algorithm>

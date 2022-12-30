@@ -1,3 +1,5 @@
+// // Copyright MediaZ AS. All Rights Reserved.
+
 #include "mzVulkan/Semaphore.h"
 #include "mzVulkan/Device.h"
 #include "mzVulkan/NativeAPIDirectx.h"

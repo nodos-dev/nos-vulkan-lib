@@ -1,3 +1,5 @@
+// // Copyright MediaZ AS. All Rights Reserved.
+
 
 #include "mzVulkan/Buffer.h"
 #include "mzVulkan/Device.h"

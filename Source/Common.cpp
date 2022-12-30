@@ -1,3 +1,5 @@
+// // Copyright MediaZ AS. All Rights Reserved.
+
 
 #include "mzVulkan/NativeAPIDirectx.h"
 #include "mzVulkan/Image.h"

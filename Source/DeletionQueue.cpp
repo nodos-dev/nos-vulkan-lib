@@ -1,3 +1,5 @@
+// // Copyright MediaZ AS. All Rights Reserved.
+
 
 // External
 #include <vulkan/vulkan_core.h>

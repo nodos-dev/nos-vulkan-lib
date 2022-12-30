@@ -1,3 +1,5 @@
+// // Copyright MediaZ AS. All Rights Reserved.
+
 #include "mzVulkan/Command.h"
 #include "mzVulkan/Device.h"
 #include "mzVulkan/Image.h"
