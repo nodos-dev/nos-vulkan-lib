@@ -1,4 +1,4 @@
-// // Copyright MediaZ AS. All Rights Reserved.
+// Copyright MediaZ AS. All Rights Reserved.
 
 #include "vulkan/vulkan_core.h"
 #include <mzVulkan/Image.h>

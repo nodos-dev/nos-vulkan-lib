@@ -1,4 +1,4 @@
-# // Copyright MediaZ AS. All Rights Reserved.
+# Copyright MediaZ AS. All Rights Reserved.
 
 list(APPEND DEPENDENCIES mzCommon vkl spirv-cross-core d3d12 d3d11 dxgi dynalo mzUtil)
 list(APPEND INCLUDEFOLDERS ${CMAKE_CURRENT_SOURCE_DIR}/Include ${CMAKE_CURRENT_SOURCE_DIR}/..)

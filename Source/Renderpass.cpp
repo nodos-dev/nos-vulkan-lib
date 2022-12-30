@@ -1,4 +1,4 @@
-// // Copyright MediaZ AS. All Rights Reserved.
+// Copyright MediaZ AS. All Rights Reserved.
 
 #include "mzVulkan/Binding.h"
 #include "mzVulkan/Command.h"
