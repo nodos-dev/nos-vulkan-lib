@@ -25,32 +25,30 @@ struct VertexData
     VkCompareOp DepthFunc  = VK_COMPARE_OP_NEVER;
 };
 
-struct mzVulkan_API Renderpass : SharedFactory<Renderpass>, DeviceChild
+struct mzVulkan_API Basepass :  DeviceChild
 {
     std::mutex Mutex;
-    VkFramebuffer FrameBuffer = 0;
-    rc<Image> DepthBuffer;
-
-    rc<ImageView> m_ImageView;
     rc<Pipeline> PL;
-    
     rc<DescriptorPool> DescriptorPool;
     std::vector<rc<DescriptorSet>> DescriptorSets;
     std::map<u32, std::map<u32, vk::Binding>> Bindings;
-
     rc<Buffer> UniformBuffer;
     bool BufferDirty = false;
-    Renderpass(rc<Pipeline> PL);
-    Renderpass(Device* Vk, View<u8> src);
-    ~Renderpass();
-    
+
+    Basepass(rc<Pipeline> PL);
+    Basepass(Device* Vk, View<u8> src);
+
     void Lock() { Mutex.lock(); }
     void Unlock() { Mutex.unlock(); }
     
-    void Begin(rc<CommandBuffer> Cmd, rc<ImageView> Image, bool wireframe = false, bool clear = true);
-    void End(rc<CommandBuffer> Cmd);
-    void Exec(rc<vk::CommandBuffer> Cmd, rc<vk::ImageView> Output, const VertexData* = 0, bool clear = true);
-    void Draw(rc<vk::CommandBuffer> Cmd, const VertexData* Verts = 0);
+    VkPipelineStageFlagBits2 GetStage() const
+    {
+        auto re = VK_PIPELINE_STAGE_2_NONE;
+        if (VK_SHADER_STAGE_FRAGMENT_BIT & PL->MainShader->Stage) re |= VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+        if (VK_SHADER_STAGE_COMPUTE_BIT & PL->MainShader->Stage) re  |= VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+        return re;
+    }
+
     void Bind(std::string const& name, void* data, u32 size, rc<ImageView> (Import)(void*) = 0);
     void TransitionInput(rc<vk::CommandBuffer> Cmd, std::string const& name, void* data, u32 size, rc<ImageView> (Import)(void*) = 0);
 
@@ -105,5 +103,28 @@ struct mzVulkan_API Renderpass : SharedFactory<Renderpass>, DeviceChild
         }
         return false;
     }
+};
+
+struct mzVulkan_API Computepass : SharedFactory<Computepass>, Basepass
+{
+    Computepass(rc<ComputePipeline> PL) : Basepass(PL) {}
+
+    void Dispatch(rc<CommandBuffer> Cmd);
+};
+
+struct mzVulkan_API Renderpass : SharedFactory<Renderpass>, Basepass
+{
+    VkFramebuffer FrameBuffer = 0;
+    rc<Image> DepthBuffer;
+    rc<ImageView> m_ImageView;
+
+    Renderpass(rc<GraphicsPipeline> PL);
+    Renderpass(Device* Vk, View<u8> src);
+    ~Renderpass();
+
+    void Begin(rc<CommandBuffer> Cmd, rc<ImageView> Image, bool wireframe = false, bool clear = true);
+    void End(rc<CommandBuffer> Cmd);
+    void Exec(rc<vk::CommandBuffer> Cmd, rc<vk::ImageView> Output, const VertexData* = 0, bool clear = true);
+    void Draw(rc<vk::CommandBuffer> Cmd, const VertexData* Verts = 0);
 };
 }

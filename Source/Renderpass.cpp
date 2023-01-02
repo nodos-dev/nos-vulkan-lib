@@ -11,12 +11,20 @@ namespace mz::vk
 {
 
 Renderpass::Renderpass(Device* Vk, View<u8> src) : 
-    Renderpass(Pipeline::New(Vk, MakeShared<Shader>(Vk, src)))
+    Basepass(GraphicsPipeline::New(Vk, MakeShared<Shader>(Vk, src)))
 {
-    
 }
 
-Renderpass::Renderpass(rc<Pipeline> PL) : DeviceChild(PL->GetDevice()), PL(PL), DescriptorPool(PL->Layout->CreatePool())
+Renderpass::Renderpass(rc<GraphicsPipeline> PL) : Basepass(PL)
+{
+}
+
+Basepass::Basepass(Device* Vk, View<u8> src) :
+    Basepass(GraphicsPipeline::New(Vk, MakeShared<Shader>(Vk, src)))
+{
+}
+
+Basepass::Basepass(rc<Pipeline> PL) : DeviceChild(PL->GetDevice()), PL(PL), DescriptorPool(PL->Layout->CreatePool())
 {
     if(PL->Layout->UniformSize)
     {
@@ -27,7 +35,7 @@ Renderpass::Renderpass(rc<Pipeline> PL) : DeviceChild(PL->GetDevice()), PL(PL), 
     }
 }
 
-void Renderpass::TransitionInput(rc<vk::CommandBuffer> Cmd, std::string const& name, void* data, u32 size, rc<ImageView> (Import)(void*))
+void Basepass::TransitionInput(rc<vk::CommandBuffer> Cmd, std::string const& name, void* data, u32 size, rc<ImageView> (Import)(void*))
 {
     auto& layout = *PL->Layout;
 
@@ -44,7 +52,7 @@ void Renderpass::TransitionInput(rc<vk::CommandBuffer> Cmd, std::string const& n
         auto binding = vk::Binding(Import(data), idx.binding);
         auto info = binding.GetDescriptorInfo(dsl.DescriptorType);
         Import(data)->Src->Transition(Cmd, {
-            .StageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+            .StageMask = GetStage(),
             .AccessMask = binding.AccessFlags,
             .Layout = info.Image.imageLayout,
         });
@@ -52,7 +60,7 @@ void Renderpass::TransitionInput(rc<vk::CommandBuffer> Cmd, std::string const& n
     }
 }
 
-void Renderpass::Bind(std::string const& name, void* data, u32 size, rc<ImageView> (Import)(void*))
+void Basepass::Bind(std::string const& name, void* data, u32 size, rc<ImageView> (Import)(void*))
 {
     if (!PL->Layout->BindingsByName.contains(name))
     {
@@ -108,12 +116,12 @@ void Renderpass::Exec(rc<vk::CommandBuffer> Cmd, rc<vk::ImageView> Output, const
     }
 }
 
-void Renderpass::BindResources(rc<vk::CommandBuffer> Cmd)
+void Basepass::BindResources(rc<vk::CommandBuffer> Cmd)
 {
     BindResources(Bindings);
     for (auto &set : DescriptorSets)
     {
-        set->Bind(Cmd);
+        set->Bind(Cmd, PL->MainShader->Stage == VK_SHADER_STAGE_FRAGMENT_BIT ? VK_PIPELINE_BIND_POINT_GRAPHICS : VK_PIPELINE_BIND_POINT_COMPUTE);
     }
     RefreshBuffer(Cmd);
 }
@@ -121,6 +129,8 @@ void Renderpass::BindResources(rc<vk::CommandBuffer> Cmd)
 void Renderpass::Begin(rc<CommandBuffer> Cmd, rc<ImageView> Image, bool wireframe, bool clear)
 {
     assert(Image);
+    
+    auto PL = ((GraphicsPipeline*)this->PL.get());
 
     PL->Recreate(Image->GetEffectiveFormat());
 
@@ -240,6 +250,7 @@ void Renderpass::Begin(rc<CommandBuffer> Cmd, rc<ImageView> Image, bool wirefram
 
         Cmd->BeginRendering(&renderInfo);
     }
+    
     auto& handle = PL->Handles[Image->GetEffectiveFormat()];
     Cmd->BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, wireframe ? handle.wpl : handle.pl);
     PL->PushConstants(Cmd, Image->Src->GetExtent());
@@ -258,7 +269,7 @@ void Renderpass::End(rc<CommandBuffer> Cmd)
     }
 }
 
-void Renderpass::BindResources(std::map<u32, std::vector<Binding>> const &bindings)
+void Basepass::BindResources(std::map<u32, std::vector<Binding>> const &bindings)
 {
     DescriptorSets.clear();
     for (auto &[idx, set] : bindings)
@@ -267,7 +278,7 @@ void Renderpass::BindResources(std::map<u32, std::vector<Binding>> const &bindin
     }
 }
 
-void Renderpass::RefreshBuffer(rc<vk::CommandBuffer> Cmd)
+void Basepass::RefreshBuffer(rc<vk::CommandBuffer> Cmd)
 {
     if(UniformBuffer && BufferDirty) // Get a new buffer so it's not overwritten by next pass
     {
@@ -282,7 +293,7 @@ void Renderpass::RefreshBuffer(rc<vk::CommandBuffer> Cmd)
     }
 }
 
-void Renderpass::BindResources(std::map<u32, std::map<u32, Binding>> const &bindings)
+void Basepass::BindResources(std::map<u32, std::map<u32, Binding>> const &bindings)
 {
     DescriptorSets.clear();
     for (auto &[idx, set] : bindings)
@@ -291,7 +302,7 @@ void Renderpass::BindResources(std::map<u32, std::map<u32, Binding>> const &bind
     }
 }
 
-bool Renderpass::BindResources(std::unordered_map<std::string, Binding::Type> const &resources)
+bool Basepass::BindResources(std::unordered_map<std::string, Binding::Type> const &resources)
 {
     std::map<u32, std::map<u32, Binding>> Bindings;
 
@@ -319,6 +330,14 @@ Renderpass::~Renderpass()
             Vk->DestroyFramebuffer(FrameBuffer, 0);
         }
     }
+}
+
+void Computepass::Dispatch(rc<CommandBuffer> Cmd)
+{
+    auto PL = (ComputePipeline*)this->PL.get();
+    Cmd->BindPipeline(VK_PIPELINE_BIND_POINT_COMPUTE, PL->Handle);
+    Cmd->AddDependency(shared_from_this());
+    Cmd->Dispatch(8, 8, 1);
 }
 
 }

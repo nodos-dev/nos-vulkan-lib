@@ -115,10 +115,10 @@ rc<DescriptorSet> DescriptorSet::Update(View<Binding> Res)
     return shared_from_this();
 }
 
-void DescriptorSet::Bind(rc<CommandBuffer> Cmd)
+void DescriptorSet::Bind(rc<CommandBuffer> Cmd, VkPipelineBindPoint BindPoint)
 {
     Cmd->AddDependency(shared_from_this());
-    Cmd->BindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, Pool->Layout->Handle, Index, 1, &Handle, 0, 0);
+    Cmd->BindDescriptorSets(BindPoint, Pool->Layout->Handle, Index, 1, &Handle, 0, 0);
 }
 
 DescriptorSet::DescriptorSet(rc<DescriptorPool> pool, u32 Index)

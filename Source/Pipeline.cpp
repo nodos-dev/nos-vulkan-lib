@@ -10,7 +10,41 @@
 namespace mz::vk
 {
 
-Pipeline::~Pipeline()
+Pipeline::Pipeline(Device* Vk, View<u8> src)
+    : Pipeline(Vk, Shader::New(Vk, src))
+{
+}
+
+Pipeline::Pipeline(Device* Vk, rc<Shader> SS) 
+    : DeviceChild(Vk), MainShader(SS), Layout(PipelineLayout::New(Vk, SS->Layout))
+{
+}
+
+ComputePipeline::ComputePipeline(Device* Vk, View<u8> src)
+    : ComputePipeline(Vk, Shader::New(Vk, src))
+{
+
+}
+
+ComputePipeline::ComputePipeline(Device* Vk, rc<Shader> CS)
+    : Pipeline(Vk, CS)
+{
+    VkComputePipelineCreateInfo info = {
+        .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
+        .pNext = 0,
+        .stage = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+            .stage = VK_SHADER_STAGE_COMPUTE_BIT,
+            .module = MainShader->Module,
+            .pName = "main",
+        },
+        .layout = Layout->Handle,
+    };
+    MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateComputePipelines(0, 1, &info, 0, &Handle));
+}
+
+
+GraphicsPipeline::~GraphicsPipeline()
 {
     for(auto [_, handl]: Handles)
     {
@@ -29,13 +63,19 @@ Pipeline::~Pipeline()
     }
 }
 
-Pipeline::Pipeline(Device* Vk, View<u8> src, bool blend) :
-    Pipeline(Vk, Shader::New(Vk, src), 0, blend)
+GraphicsPipeline::GraphicsPipeline(Device* Vk, rc<Shader> PS, rc<Shader> VS, bool blend) 
+    : Pipeline(Vk, PS), VS(VS), EnableBlending(blend)
+{
+    Layout = PipelineLayout::New(Vk, PS->Layout.Merge(GetVS()->Layout));
+}
+
+GraphicsPipeline::GraphicsPipeline(Device* Vk, View<u8> src, bool blend) :
+    GraphicsPipeline(Vk, Shader::New(Vk, src), 0, blend)
 {
 
 }
 
-rc<Shader> Pipeline::GetVS()
+rc<Shader> GraphicsPipeline::GetVS()
 {
     if (!VS)
     {
@@ -49,7 +89,7 @@ rc<Shader> Pipeline::GetVS()
     return VS;
 }
 
-void Pipeline::Recreate(VkFormat fmt)
+void GraphicsPipeline::Recreate(VkFormat fmt)
 {
     if(Handles[fmt].pl)
     {
@@ -75,7 +115,7 @@ void Pipeline::Recreate(VkFormat fmt)
                                                        {
                                                            .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
                                                            .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
-                                                           .module = PS->Module,
+                                                           .module = MainShader->Module,
                                                            .pName = "main",
                                                        }};
 
@@ -199,9 +239,5 @@ void Pipeline::Recreate(VkFormat fmt)
     MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateGraphicsPipelines(0, 1, &info, 0, &Handles[fmt].wpl));
 }
 
-Pipeline::Pipeline(Device* Vk, rc<Shader> PS, rc<Shader> VS, bool blend) 
-    : DeviceChild(Vk), PS(PS), VS(VS), Layout(PipelineLayout::New(Vk, PS->Layout.Merge(GetVS()->Layout))), EnableBlending(blend)
-{
-}
 
 } // namespace mz::vk

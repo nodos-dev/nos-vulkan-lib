@@ -12,12 +12,33 @@
 namespace mz::vk
 {
 
-struct mzVulkan_API Pipeline : SharedFactory<Pipeline>, DeviceChild
+struct mzVulkan_API Pipeline : DeviceChild
+{
+    rc<Shader> MainShader;
+    rc<PipelineLayout> Layout;
+    Pipeline(Device* Vk, View<u8> src);
+    Pipeline(Device* Vk, rc<Shader> CS);
+    template <class T>
+    void PushConstants(rc<CommandBuffer> Cmd, T const& data)
+    {
+        if (Layout->PushConstantSize >= sizeof(T))
+        {
+            Cmd->PushConstants(Layout->Handle, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(T), &data);
+        }
+    }
+};
+
+struct mzVulkan_API ComputePipeline : SharedFactory<ComputePipeline>, Pipeline
+{
+    ComputePipeline(Device* Vk, View<u8> src);
+    ComputePipeline(Device* Vk, rc<Shader> CS);
+    VkPipeline Handle = 0;
+};
+
+struct mzVulkan_API GraphicsPipeline : SharedFactory<GraphicsPipeline>, Pipeline
 {
     inline static rc<Shader> GlobVS;
     rc<Shader> VS = nullptr;
-    rc<Shader> PS;
-    rc<PipelineLayout> Layout;
     bool EnableBlending = false;
 
     struct PerFormat
@@ -29,9 +50,9 @@ struct mzVulkan_API Pipeline : SharedFactory<Pipeline>, DeviceChild
     
     std::map<VkFormat, PerFormat> Handles;
 
-    Pipeline(Device* Vk, View<u8> src, bool blend = false);
-    Pipeline(Device* Vk, rc<Shader> PS, rc<Shader> VS = 0, bool blend = false);
-    ~Pipeline();
+    GraphicsPipeline(Device* Vk, View<u8> src, bool blend = false);
+    GraphicsPipeline(Device* Vk, rc<Shader> PS, rc<Shader> VS = 0, bool blend = false);
+    ~GraphicsPipeline();
 
     rc<Shader> GetVS();
 
@@ -45,7 +66,6 @@ struct mzVulkan_API Pipeline : SharedFactory<Pipeline>, DeviceChild
             Cmd->PushConstants(Layout->Handle, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(T), &data);
         }
     }
-
 };
 
 } // namespace mz::vk

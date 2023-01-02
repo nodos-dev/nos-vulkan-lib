@@ -139,7 +139,7 @@ Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo, VkResult* 
       Usage(createInfo.Usage),
       Filtering(createInfo.Filtering),
       State{
-          .StageMask  = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+          .StageMask  = VK_PIPELINE_STAGE_NONE,
           .AccessMask = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT,
           .Layout     = VK_IMAGE_LAYOUT_UNDEFINED,
       }

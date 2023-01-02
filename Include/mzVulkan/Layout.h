@@ -61,7 +61,7 @@ struct mzVulkan_API DescriptorSet : SharedFactory<DescriptorSet>
     VkDescriptorType GetType(u32 Binding);
     rc<DescriptorSet> Update(View<Binding> Res);
     rc<DescriptorSet> Update(std::map<u32, Binding> const& Res);
-    void Bind(rc<CommandBuffer> Cmd);
+    void Bind(rc<CommandBuffer> Cmd, VkPipelineBindPoint BindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS);
 };
 
 struct mzVulkan_API PipelineLayout : SharedFactory<PipelineLayout>, DeviceChild
