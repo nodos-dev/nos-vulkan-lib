@@ -332,12 +332,12 @@ Renderpass::~Renderpass()
     }
 }
 
-void Computepass::Dispatch(rc<CommandBuffer> Cmd)
+void Computepass::Dispatch(rc<CommandBuffer> Cmd, u32 x, u32 y, u32 z)
 {
     auto PL = (ComputePipeline*)this->PL.get();
     Cmd->BindPipeline(VK_PIPELINE_BIND_POINT_COMPUTE, PL->Handle);
     Cmd->AddDependency(shared_from_this());
-    Cmd->Dispatch(8, 8, 1);
+    Cmd->Dispatch(x, y, z);
 }
 
 }

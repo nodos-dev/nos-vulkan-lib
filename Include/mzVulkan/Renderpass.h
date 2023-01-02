@@ -109,7 +109,7 @@ struct mzVulkan_API Computepass : SharedFactory<Computepass>, Basepass
 {
     Computepass(rc<ComputePipeline> PL) : Basepass(PL) {}
 
-    void Dispatch(rc<CommandBuffer> Cmd);
+    void Dispatch(rc<CommandBuffer> Cmd, u32 x = 8, u32 y = 8, u32 z = 1);
 };
 
 struct mzVulkan_API Renderpass : SharedFactory<Renderpass>, Basepass
