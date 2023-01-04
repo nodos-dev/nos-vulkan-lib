@@ -156,6 +156,31 @@ Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo, VkResult* 
         .handleTypes = (VkFlags)createInfo.Type,
     };
 
+
+    VkFormatProperties props;
+    vkGetPhysicalDeviceFormatProperties(Vk->PhysicalDevice, GetEffectiveFormat(), &props);
+    
+
+    auto Ft = props.optimalTilingFeatures;
+    bool Opt = true;
+    VkImageTiling tiling = createInfo.Tiling;
+
+    if(tiling == VK_IMAGE_TILING_OPTIMAL)
+    {
+        if(
+        ((Usage & VK_IMAGE_USAGE_SAMPLED_BIT)                  && !(Ft & VK_FORMAT_FEATURE_2_SAMPLED_IMAGE_BIT)) ||
+        ((Usage & VK_IMAGE_USAGE_SAMPLED_BIT)                  && !(Ft & VK_FORMAT_FEATURE_2_SAMPLED_IMAGE_BIT)) ||
+        ((Usage & VK_IMAGE_USAGE_TRANSFER_SRC_BIT)             && !(Ft & VK_FORMAT_FEATURE_2_TRANSFER_SRC_BIT)) ||
+        ((Usage & VK_IMAGE_USAGE_TRANSFER_DST_BIT)             && !(Ft & VK_FORMAT_FEATURE_2_TRANSFER_DST_BIT)) ||
+        ((Usage & VK_IMAGE_USAGE_SAMPLED_BIT)                  && !(Ft & VK_FORMAT_FEATURE_2_SAMPLED_IMAGE_BIT)) ||
+        ((Usage & VK_IMAGE_USAGE_STORAGE_BIT)                  && !(Ft & VK_FORMAT_FEATURE_2_STORAGE_IMAGE_BIT)) ||
+        ((Usage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)         && !(Ft & VK_FORMAT_FEATURE_2_COLOR_ATTACHMENT_BIT)) ||
+        ((Usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) && !(Ft & VK_FORMAT_FEATURE_2_DEPTH_STENCIL_ATTACHMENT_BIT)))
+        {
+            tiling = VK_IMAGE_TILING_LINEAR;
+        }
+    }
+    
     VkImageCreateInfo info = {
         .sType                 = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
          .pNext                 = &resourceCreateInfo,
@@ -166,7 +191,7 @@ Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo, VkResult* 
         .mipLevels             = 1,
         .arrayLayers           = 1,
         .samples               = VK_SAMPLE_COUNT_1_BIT,
-        .tiling                = createInfo.Tiling, //IsYCbCr(Format) ? VK_IMAGE_TILING_LINEAR : createInfo.Tiling,
+        .tiling                = tiling,
         .usage                 = Usage,
         .sharingMode           = VK_SHARING_MODE_EXCLUSIVE,
         .queueFamilyIndexCount = 0,
