@@ -285,6 +285,8 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, mzFallbackO
     VkPhysicalDeviceVulkan12Features vk12features = {
         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
         .pNext = &vk11features,
+        .scalarBlockLayout = VK_TRUE,
+        .uniformBufferStandardLayout = VK_TRUE,
         .timelineSemaphore = VK_TRUE,
     };
 
