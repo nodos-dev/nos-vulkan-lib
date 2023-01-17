@@ -35,7 +35,7 @@ Basepass::Basepass(rc<Pipeline> PL) : DeviceChild(PL->GetDevice()), PL(PL), Desc
     }
 }
 
-void Basepass::TransitionInput(rc<vk::CommandBuffer> Cmd, std::string const& name, void* data, u32 size, rc<ImageView> (Import)(void*))
+void Basepass::TransitionInput(rc<vk::CommandBuffer> Cmd, std::string const& name, void* data, u32 size, rc<ImageView> (ImportImage)(void*), rc<Buffer>(ImportBuffer)(void*))
 {
     auto& layout = *PL->Layout;
 
@@ -49,9 +49,10 @@ void Basepass::TransitionInput(rc<vk::CommandBuffer> Cmd, std::string const& nam
 
     if (dsl.Type->Tag == vk::SVType::Image)
     {
-        auto binding = vk::Binding(Import(data), idx.binding);
+        auto view = ImportImage(data);
+        auto binding = vk::Binding(view, idx.binding);
         auto info = binding.GetDescriptorInfo(dsl.DescriptorType);
-        Import(data)->Src->Transition(Cmd, {
+        view->Src->Transition(Cmd, {
             .StageMask = GetStage(),
             .AccessMask = binding.AccessFlags,
             .Layout = info.Image.imageLayout,
@@ -60,7 +61,7 @@ void Basepass::TransitionInput(rc<vk::CommandBuffer> Cmd, std::string const& nam
     }
 }
 
-void Basepass::Bind(std::string const& name, void* data, u32 size, rc<ImageView> (Import)(void*))
+void Basepass::Bind(std::string const& name, void* data, u32 size, rc<ImageView>(ImportImage)(void*), rc<Buffer>(ImportBuffer)(void*))
 {
     if (!PL->Layout->BindingsByName.contains(name))
     {
@@ -68,10 +69,23 @@ void Basepass::Bind(std::string const& name, void* data, u32 size, rc<ImageView>
     }
     
     auto idx = PL->Layout->BindingsByName[name];
-    auto type = PL->Layout->DescriptorLayouts[idx.set]->Bindings[idx.binding].Type;
+    auto& binding = PL->Layout->DescriptorLayouts[idx.set]->Bindings[idx.binding];
+    auto type = binding.Type;
+
+    switch(binding.DescriptorType)
+    {
+    case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
+    case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+    case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
+        Bindings[idx.set][idx.binding] = vk::Binding(ImportBuffer(data), idx.binding);
+        return;
+    default:
+        break;
+    }
+
     if (type->Tag == vk::SVType::Image)
     {
-        Bindings[idx.set][idx.binding] = vk::Binding(Import(data), idx.binding);
+        Bindings[idx.set][idx.binding] = vk::Binding(ImportImage(data), idx.binding);
         return;
     }
     

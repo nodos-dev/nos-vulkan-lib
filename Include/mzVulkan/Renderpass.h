@@ -49,8 +49,8 @@ struct mzVulkan_API Basepass :  DeviceChild
         return re;
     }
 
-    void Bind(std::string const& name, void* data, u32 size, rc<ImageView> (Import)(void*) = 0);
-    void TransitionInput(rc<vk::CommandBuffer> Cmd, std::string const& name, void* data, u32 size, rc<ImageView> (Import)(void*) = 0);
+    void Bind(std::string const& name, void* data, u32 size, rc<ImageView> (ImportImage)(void*), rc<Buffer>(ImportBuffer)(void*));
+    void TransitionInput(rc<vk::CommandBuffer> Cmd, std::string const& name, void* data, u32 size, rc<ImageView> (ImportImage)(void*), rc<Buffer>(ImportBuffer)(void*));
 
     void RefreshBuffer(rc<vk::CommandBuffer> Cmd);
     void BindResources(rc<vk::CommandBuffer> Cmd);
