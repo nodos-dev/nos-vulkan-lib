@@ -288,7 +288,7 @@ Allocation Allocator::AllocateImageMemory(VkImage img, ImageCreateInfo const& in
     default: UNREACHABLE;
     case VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT:
     case VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT:
-        return AllocateResourceMemory(img, info.Type, false, info.Imported);
+        return AllocateResourceMemory(img, info.Type, false, true, info.Imported);
     case VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT:
         break;
     }
@@ -342,17 +342,19 @@ Allocation Allocator::AllocateImageMemory(VkImage img, ImageCreateInfo const& in
     return Block->Allocate(req.size, req.alignment);
 }
 
-Allocation Allocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> resource, VkExternalMemoryHandleTypeFlagBits type, bool map, const MemoryExportInfo* imported)
+
+Allocation Allocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> resource, VkExternalMemoryHandleTypeFlagBits type, bool map, bool vram, const MemoryExportInfo* imported)
 {
     std::lock_guard lock(Mutex);
     VkMemoryRequirements req;
-    VkMemoryPropertyFlags memProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    VkMemoryPropertyFlags memProps = 0;
+    if(vram) memProps |= VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
     if (auto buf = std::get_if<VkBuffer>(&resource))
     {
         if (map)
         {
-            memProps = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
+            memProps |= VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
         }
         Vk->GetBufferMemoryRequirements(*buf, &req);
     }

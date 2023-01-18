@@ -35,7 +35,7 @@ Buffer::Buffer(Allocator* Allocator, BufferCreateInfo const& info)
 
     MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateBuffer(&createInfo, 0, &Handle));
 
-    Allocation = Allocator->AllocateResourceMemory(Handle, VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT, !info.VRAM, info.Imported);
+    Allocation = Allocator->AllocateResourceMemory(Handle, VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT, info.Mapped, info.VRAM, info.Imported);
     Allocation.BindResource(Handle);
 
     if(info.Data)
