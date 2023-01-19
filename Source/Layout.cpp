@@ -226,6 +226,10 @@ PipelineLayout::PipelineLayout(Device* Vk, ShaderLayout layout)
     {
         for (auto& [binding, dsl] : *layout)
         {
+            if(dsl.SSBO()) 
+            {
+                continue;
+            }
             u32 shift = UniformSize % dsl.Type->Alignment;
             if (shift)
             {

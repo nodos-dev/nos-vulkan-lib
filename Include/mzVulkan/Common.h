@@ -164,6 +164,18 @@ struct mzVulkan_API NamedDSLBinding
     std::string Name;
     rc<SVType> Type;
     VkShaderStageFlags StageMask;
+    
+    bool SSBO() const
+    {
+        switch(DescriptorType)
+        {
+            case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
+            case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+            case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
+                return true;
+            default: return false;
+        }
+    }
 };
 
 struct mzVulkan_API ShaderLayout

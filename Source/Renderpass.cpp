@@ -72,15 +72,10 @@ void Basepass::Bind(std::string const& name, void* data, u32 size, rc<ImageView>
     auto& binding = PL->Layout->DescriptorLayouts[idx.set]->Bindings[idx.binding];
     auto type = binding.Type;
 
-    switch(binding.DescriptorType)
+    if(binding.SSBO())
     {
-    case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
-    case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
-    case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
         Bindings[idx.set][idx.binding] = vk::Binding(ImportBuffer(data), idx.binding);
         return;
-    default:
-        break;
     }
 
     if (type->Tag == vk::SVType::Image)
