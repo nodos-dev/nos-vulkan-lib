@@ -46,6 +46,7 @@ struct mzVulkan_API CommandBuffer : SharedFactory<CommandBuffer>,
     VkFence Fence;
 
     std::vector<std::function<void()>> Callbacks;
+    std::vector<std::function<void(rc<CommandBuffer>)>> PreSubmit;
     std::map<VkSemaphore, std::pair<uint64_t, VkPipelineStageFlags>> WaitGroup;
     std::map<VkSemaphore, uint64_t> SignalGroup;
 

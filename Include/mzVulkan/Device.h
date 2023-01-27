@@ -10,6 +10,7 @@
 
 // mzVulkan
 #include "Common.h"
+#include "vulkan/vulkan_core.h"
 
 namespace mz::vk
 {
@@ -52,7 +53,9 @@ struct mzVulkan_API Device : SharedFactory<Device>,
     rc<Allocator> ImmAllocator;
 
     std::map<std::thread::id, rc<CommandPool>> ImmPools;
+    std::map<std::thread::id, rc<QueryPool>> ImmQPools;
     rc<CommandPool> GetPool();
+    rc<QueryPool> GetQPool();
     
     rc<Queue> Queue;
     mzFallbackOptions FallbackOptions;

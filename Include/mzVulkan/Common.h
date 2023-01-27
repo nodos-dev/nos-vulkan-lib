@@ -32,10 +32,11 @@
         VkResult re = (expr);                                                                                     \
         if (MZ_VULKAN_FAILED(re))                                                                                 \
         {                                                                                                         \
-            char errbuf[1024];                                                                                    \
-            std::snprintf(errbuf, 1024, "%s %d (%s:%d)", ::mz::vk::vk_result_string(re), re, __FILE__, __LINE__); \
-            MZ_ABORT;                                                                                         \
+            char errbuf[4096];                                                                                    \
+            std::snprintf(errbuf, 4096, "%s %d (%s:%d)", ::mz::vk::vk_result_string(re), re, __FILE__, __LINE__); \
+            printf("%s\n", errbuf);                                                                               \
             mz::le() << errbuf;                                                                                   \
+            MZ_ABORT;                                                                                             \
         }                                                                                                         \
     }
 
@@ -51,6 +52,7 @@ struct ImageView;
 struct Buffer;
 struct CommandBuffer;
 struct CommandPool;
+struct QueryPool;
 
 struct DeviceChild
 {

@@ -73,6 +73,11 @@ CommandBuffer::~CommandBuffer()
 
 rc<CommandBuffer> CommandBuffer::Submit()
 {
+    auto self = shared_from_this();
+    for(auto& f : PreSubmit)
+    {
+        f(self);
+    }
     std::vector<VkSemaphore> Signal;
     std::vector<VkSemaphore> Wait;
     std::vector<VkPipelineStageFlags> Stages;
@@ -122,7 +127,7 @@ rc<CommandBuffer> CommandBuffer::Submit()
     MZ_VULKAN_ASSERT_SUCCESS(End());
     MZ_VULKAN_ASSERT_SUCCESS(Pool->Submit(1, &submitInfo, Fence));
 
-    return shared_from_this();
+    return self;
 }
 
 bool CommandBuffer::Ready()

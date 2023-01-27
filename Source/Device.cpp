@@ -6,9 +6,11 @@
 #include <dynalo/dynalo.hpp>
 
 // mzVulkan
+#include "mzVulkan/Common.h"
 #include "mzVulkan/Device.h"
 #include "mzVulkan/Allocator.h"
 #include "mzVulkan/Command.h"
+#include "mzVulkan/QueryPool.h"
 
 static std::vector<const char*> layers = {
 // TODO: Instead of commenting out these as we please, 
@@ -210,6 +212,16 @@ rc<CommandPool> Device::GetPool()
     return Pool;
 }
 
+rc<QueryPool> Device::GetQPool()
+{
+    auto& Pool = ImmQPools[std::this_thread::get_id()];
+    if (!Pool)
+    {
+        Pool = QueryPool::New(this);
+    }
+    return Pool;
+}
+
 Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, mzFallbackOptions FallbackOptions)
     : Instance(Instance), PhysicalDevice(PhysicalDevice), FallbackOptions(FallbackOptions)
 {
@@ -279,6 +291,7 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, mzFallbackO
 
     VkPhysicalDeviceVulkan11Features vk11features = {
         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
+        .storageBuffer16BitAccess = VK_TRUE,
         .samplerYcbcrConversion = VK_TRUE,
     };
 
