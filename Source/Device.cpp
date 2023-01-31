@@ -38,6 +38,7 @@ static std::vector<const char*> deviceExtensions = {
     "VK_KHR_synchronization2",
     "VK_KHR_dynamic_rendering",
     "VK_KHR_copy_commands2",
+    "VK_EXT_host_query_reset",
 };
 
 namespace mz::vk
@@ -300,6 +301,7 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, mzFallbackO
         .pNext = &vk11features,
         .scalarBlockLayout = VK_TRUE,
         .uniformBufferStandardLayout = VK_TRUE,
+        .hostQueryReset = VK_TRUE,
         .timelineSemaphore = VK_TRUE,
     };
 

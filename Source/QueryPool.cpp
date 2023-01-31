@@ -18,8 +18,6 @@ QueryPool::QueryPool(Device* Vk) : DeviceChild(Vk)
 void QueryPool::Begin(rc<CommandBuffer> Cmd)
 {
     this->Cmd = Cmd;
-    Cmd->ResetQueryPool(Handle, 0, Queries);
-    Queries = 0;
 }
 
 void QueryPool::End()
@@ -29,6 +27,8 @@ void QueryPool::End()
         buf.resize(Queries);
         MZ_VULKAN_ASSERT_SUCCESS(GetDevice()->GetQueryPoolResults(Handle, 0, Queries, buf.size() * 8, buf.data(), 8, VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT));
         Results.insert(Results.end(), buf.begin(), buf.end());
+        GetDevice()->ResetQueryPool(Handle, 0, 1<<16);
+        Queries = 0;
     });
 }
 
