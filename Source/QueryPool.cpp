@@ -1,11 +1,24 @@
 #include "mzVulkan/QueryPool.h"
 #include "mzVulkan/Device.h"
 #include "mzVulkan/Command.h"
+#include "mzVulkan/Buffer.h"
+#include <chrono>
+#include <numeric>
 
 namespace mz::vk
 {
 
-QueryPool::QueryPool(Device* Vk) : DeviceChild(Vk)
+static f64 GetPeriod(Device* Vk)
+{
+    VkPhysicalDeviceProperties props;
+    vkGetPhysicalDeviceProperties(Vk->PhysicalDevice, &props);
+    return props.limits.timestampPeriod;
+}
+
+QueryPool::QueryPool(Device* Vk) : DeviceChild(Vk), Results(Buffer::New(Vk, BufferCreateInfo {
+        .Size = (1<<16)*8,
+        .Usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+    })), Period(GetPeriod(Vk)), Queries(1<<16)
 {
     VkQueryPoolCreateInfo info = {
         .sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO,
@@ -13,28 +26,32 @@ QueryPool::QueryPool(Device* Vk) : DeviceChild(Vk)
         .queryCount = 1<<16,
     };
     MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateQueryPool(&info, 0, &Handle));
+    Vk->ResetQueryPool(Handle, 0, 1<<16);
 }
 
-void QueryPool::Begin(rc<CommandBuffer> Cmd)
+std::optional<std::chrono::nanoseconds>  QueryPool::PerfScope(u64 frames,std::string const& key, rc<CommandBuffer> Cmd, std::function<void(rc<CommandBuffer>)>&& f)
 {
-    this->Cmd = Cmd;
-}
-
-void QueryPool::End()
-{
-    Cmd->Callbacks.push_back([this] {
-        std::vector<u64> buf;
-        buf.resize(Queries);
-        MZ_VULKAN_ASSERT_SUCCESS(GetDevice()->GetQueryPoolResults(Handle, 0, Queries, buf.size() * 8, buf.data(), 8, VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT));
-        Results.insert(Results.end(), buf.begin(), buf.end());
-        GetDevice()->ResetQueryPool(Handle, 0, 1<<16);
-        Queries = 0;
-    });
-}
-
-void QueryPool::Timestamp()
-{
+    const u64 idx = Queries;
     Cmd->WriteTimestamp(VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, Handle, Queries++);
+    f(Cmd);
+    Cmd->WriteTimestamp(VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, Handle, Queries++);
+    Cmd->CopyQueryPoolResults(Handle, idx, 2, Results->Handle, idx * 8, 8, VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT);
+    Cmd->ResetQueryPool(Handle, idx, 2);
+    Cmd->Callbacks.push_back([this, idx, key] {
+        u64* ptr = (u64*)Results->Map();
+        ReadyQueries[key].push_back(std::chrono::nanoseconds(u64((ptr[idx+1]-ptr[idx]) * Period + 0.5)));
+        ptr[idx+1] = 0;
+        ptr[idx+0] = 0;
+    });
+    
+    auto& q = ReadyQueries[key];
+    if(q.size() >= frames)
+    {
+        const auto sum = std::accumulate(q.begin(), q.end(), std::chrono::nanoseconds(0));
+        q.clear();
+        return sum / frames;
+    }
+    return {};
 }
 
 }
