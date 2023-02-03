@@ -32,9 +32,9 @@ QueryPool::QueryPool(Device* Vk) : DeviceChild(Vk), Results(Buffer::New(Vk, Buff
 std::optional<std::chrono::nanoseconds>  QueryPool::PerfScope(u64 frames,std::string const& key, rc<CommandBuffer> Cmd, std::function<void(rc<CommandBuffer>)>&& f)
 {
     const u64 idx = Queries;
-    Cmd->WriteTimestamp(VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, Handle, Queries++);
+    Cmd->WriteTimestamp(VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, Handle, Queries++);
     f(Cmd);
-    Cmd->WriteTimestamp(VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, Handle, Queries++);
+    Cmd->WriteTimestamp(VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, Handle, Queries++);
     Cmd->CopyQueryPoolResults(Handle, idx, 2, Results->Handle, idx * 8, 8, VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT);
     Cmd->ResetQueryPool(Handle, idx, 2);
     Cmd->Callbacks.push_back([this, idx, key] {

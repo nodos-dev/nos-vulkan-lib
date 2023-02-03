@@ -365,11 +365,8 @@ Device::~Device()
     }
 
     ImmAllocator.reset();
-    // Issue #490.
-    // Offending:
-    // GetPool().reset();
-    // Replaced with below line.
     ImmPools.clear();
+    ImmQPools.clear();
     DestroyDevice(0);
 }
 
