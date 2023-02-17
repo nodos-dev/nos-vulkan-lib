@@ -83,7 +83,7 @@ void Basepass::Bind(std::string const& name, void* data, u32 size, rc<ImageView>
         Bindings[idx.set][idx.binding] = vk::Binding(ImportImage(data), idx.binding);
         return;
     }
-    
+    // Table uniform buffers: Is it a possibility?
     BufferDirty = true;
     u32 baseOffset = PL->Layout->OffsetMap[((u64)idx.set << 32ull) | idx.binding];
     u32 offset = baseOffset + idx.offset;
