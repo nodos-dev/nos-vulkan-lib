@@ -124,7 +124,7 @@ struct mzVulkan_API Renderpass : SharedFactory<Renderpass>, Basepass
 
     void Begin(rc<CommandBuffer> Cmd, rc<ImageView> Image, bool wireframe = false, bool clear = true);
     void End(rc<CommandBuffer> Cmd);
-    void Exec(rc<vk::CommandBuffer> Cmd, rc<vk::ImageView> Output, const VertexData* = 0, bool clear = true);
+    void Exec(rc<vk::CommandBuffer> Cmd, rc<vk::Image> Output, const VertexData* = 0, bool clear = true);
     void Draw(rc<vk::CommandBuffer> Cmd, const VertexData* Verts = 0);
 };
 }

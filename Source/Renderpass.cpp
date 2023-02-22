@@ -108,16 +108,20 @@ void Renderpass::Draw(rc<vk::CommandBuffer> Cmd, const VertexData* Verts)
     }
 }
 
-void Renderpass::Exec(rc<vk::CommandBuffer> Cmd, rc<vk::ImageView> Output, const VertexData* Verts, bool clear)
+void Renderpass::Exec(rc<vk::CommandBuffer> cmd, rc<vk::Image> output, const VertexData* Verts, bool clear)
 {
     BindResources(Bindings);
-    Begin(Cmd, Output, Verts && Verts->Wireframe, clear);
-    Draw(Cmd, Verts);
-    End(Cmd);
+    Begin(cmd, output->GetView(), Verts && Verts->Wireframe, clear);
+    Draw(cmd, Verts);
+    End(cmd);
+
+	output->Transition(cmd, { .StageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+						      .AccessMask = VK_ACCESS_SHADER_READ_BIT,
+							  .Layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL });
     
     if(UniformBuffer) // Get a new buffer so it's not overwritten by next pass
     {
-        Cmd->AddDependency(UniformBuffer);
+        cmd->AddDependency(UniformBuffer);
         UniformBuffer = vk::Buffer::New(GetDevice(), vk::BufferCreateInfo {
             .Size = PL->Layout->UniformSize,
             .Usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
