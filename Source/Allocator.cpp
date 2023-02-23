@@ -51,7 +51,7 @@ static std::string MemPropsToString(VkMemoryPropertyFlags flags)
     if (flags & VK_MEMORY_PROPERTY_DEVICE_UNCACHED_BIT_AMD)
         re.push_back("DEVICE_UNCACHED_BIT");
     if (flags & VK_MEMORY_PROPERTY_RDMA_CAPABLE_BIT_NV)
-        re.push_back("RDMA_CAPABLE_BI");
+        re.push_back("RDMA_CAPABLE_BIT_NV");
 
     if (re.empty())
         return "NONE";
@@ -354,7 +354,7 @@ Allocation Allocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> res
     {
         if (map)
         {
-            memProps |= VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
+            memProps |= VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
         }
         Vk->GetBufferMemoryRequirements(*buf, &req);
     }

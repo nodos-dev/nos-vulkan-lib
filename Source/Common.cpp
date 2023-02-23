@@ -180,7 +180,6 @@ void ImageLayoutTransition2(VkImage Image,
 
 std::pair<u32, VkMemoryPropertyFlags> MemoryTypeIndex(VkPhysicalDevice physicalDevice, u32 memoryTypeBits, VkMemoryPropertyFlags requestedProps)
 {
-
     VkPhysicalDeviceMemoryProperties props;
     vkGetPhysicalDeviceMemoryProperties(physicalDevice, &props);
 
