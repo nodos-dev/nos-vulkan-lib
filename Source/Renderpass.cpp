@@ -35,7 +35,16 @@ Basepass::Basepass(rc<Pipeline> PL) : DeviceChild(PL->GetDevice()), PL(PL), Desc
     }
 }
 
-void Basepass::TransitionInput(rc<vk::CommandBuffer> Cmd, std::string const& name, void* data, u32 size, rc<ImageView> (ImportImage)(void*), rc<Buffer>(ImportBuffer)(void*))
+
+void Test(VkDescriptorType ty)
+{
+    switch (ty)
+    {
+
+    }
+}
+
+void Basepass::TransitionInput(rc<vk::CommandBuffer> Cmd, std::string const& name, void* data, u32 size, rc<Image> (ImportImage)(void*), rc<Buffer>(ImportBuffer)(void*))
 {
     auto& layout = *PL->Layout;
 
@@ -49,10 +58,10 @@ void Basepass::TransitionInput(rc<vk::CommandBuffer> Cmd, std::string const& nam
 
     if (dsl.Type->Tag == vk::SVType::Image)
     {
-        auto view = ImportImage(data);
-        auto binding = vk::Binding(view, idx.binding);
+        auto img = ImportImage(data);
+        auto binding = vk::Binding(img, idx.binding);
         auto info = binding.GetDescriptorInfo(dsl.DescriptorType);
-        view->Src->Transition(Cmd, {
+        img->Transition(Cmd, {
             .StageMask = GetStage(),
             .AccessMask = binding.AccessFlags,
             .Layout = info.Image.imageLayout,
@@ -61,7 +70,7 @@ void Basepass::TransitionInput(rc<vk::CommandBuffer> Cmd, std::string const& nam
     }
 }
 
-void Basepass::Bind(std::string const& name, void* data, u32 size, rc<ImageView>(ImportImage)(void*), rc<Buffer>(ImportBuffer)(void*))
+void Basepass::Bind(std::string const& name, void* data, u32 size, rc<Image>(ImportImage)(void*), rc<Buffer>(ImportBuffer)(void*))
 {
     if (!PL->Layout->BindingsByName.contains(name))
     {
@@ -111,7 +120,7 @@ void Renderpass::Draw(rc<vk::CommandBuffer> Cmd, const VertexData* Verts)
 void Renderpass::Exec(rc<vk::CommandBuffer> cmd, rc<vk::Image> output, const VertexData* Verts, bool clear)
 {
     BindResources(Bindings);
-    Begin(cmd, output->GetView(), Verts && Verts->Wireframe, clear);
+    Begin(cmd, output, Verts && Verts->Wireframe, clear);
     Draw(cmd, Verts);
     End(cmd);
 
@@ -139,10 +148,12 @@ void Basepass::BindResources(rc<vk::CommandBuffer> Cmd)
     RefreshBuffer(Cmd);
 }
 
-void Renderpass::Begin(rc<CommandBuffer> Cmd, rc<ImageView> Image, bool wireframe, bool clear)
+void Renderpass::Begin(rc<CommandBuffer> Cmd, rc<Image> SrcImage, bool wireframe, bool clear)
 {
-    assert(Image);
+    assert(SrcImage);
     
+    rc<ImageView> Image = SrcImage->GetView(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
+
     auto PL = ((GraphicsPipeline*)this->PL.get());
 
     PL->Recreate(Image->GetEffectiveFormat());

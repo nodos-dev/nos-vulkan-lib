@@ -66,13 +66,13 @@ rc<DescriptorSet> DescriptorSet::Update(std::map<u32, Binding> const& Res)
             .dstBinding      = res.Idx,
             .descriptorCount = 1,
             .descriptorType  = GetType(res.Idx),
-            .pImageInfo      = (std::get_if<rc<ImageView>>(&res.Resource) ? &infos.back().Image : 0),
+            .pImageInfo      = (std::get_if<rc<Image>>(&res.Resource) ? &infos.back().Image : 0),
             .pBufferInfo     = (std::get_if<rc<Buffer>>(&res.Resource) ? &infos.back().Buffer : 0),
         });
 
-        if (rc<ImageView> const* ppImg = std::get_if<rc<ImageView>>(&res.Resource))
+        if (rc<Image> const* ppImg = std::get_if<rc<Image>>(&res.Resource))
         {
-            BindStates[(*ppImg)->Src->shared_from_this()] = ImageState{
+            BindStates[(*ppImg)->shared_from_this()] = ImageState{
                                           .StageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                                           .AccessMask = res.AccessFlags,
                                           .Layout = infos.back().Image.imageLayout,
@@ -99,12 +99,12 @@ rc<DescriptorSet> DescriptorSet::Update(View<Binding> Res)
             .dstBinding      = res.Idx,
             .descriptorCount = 1,
             .descriptorType  = GetType(res.Idx),
-            .pImageInfo      = (std::get_if<rc<ImageView>>(&res.Resource) ? &infos.back().Image : 0),
+            .pImageInfo      = (std::get_if<rc<Image>>(&res.Resource) ? &infos.back().Image : 0),
             .pBufferInfo     = (std::get_if<rc<Buffer>>(&res.Resource) ? &infos.back().Buffer : 0),
         });
-        if (rc<ImageView> const* ppImg = std::get_if<rc<ImageView>>(&res.Resource))
+        if (rc<Image> const* ppImg = std::get_if<rc<Image>>(&res.Resource))
         {
-            BindStates[(*ppImg)->Src->shared_from_this()] = ImageState{
+            BindStates[(*ppImg)->shared_from_this()] = ImageState{
                                           .StageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                                           .AccessMask = res.AccessFlags,
                                           .Layout = infos.back().Image.imageLayout,

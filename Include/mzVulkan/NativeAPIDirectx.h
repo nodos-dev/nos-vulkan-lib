@@ -19,7 +19,7 @@
 #include "NativeAPI.h"
 
 // Framework
-#include <mzUtil/Logger.h>
+
 
 extern "C" DXGI_FORMAT mzVulkan_API VkFormatToDxgiFormat(VkFormat fmt);
 extern "C" VkFormat mzVulkan_API DxgiFormatToVkFormat(DXGI_FORMAT fmt);
@@ -33,7 +33,6 @@ extern "C" VkFormat mzVulkan_API DxgiFormatToVkFormat(DXGI_FORMAT fmt);
             char errbuf[1024];                                                                      \
             std::snprintf(errbuf, 1024, "[%lx] %s (%s:%d)", re, __err.c_str(), __FILE__, __LINE__); \
             MZ_ABORT;                                                                           \
-            mz::le() << errbuf;                                                                     \
         }                                                                                           \
     }
 
@@ -43,7 +42,6 @@ extern "C" VkFormat mzVulkan_API DxgiFormatToVkFormat(DXGI_FORMAT fmt);
         char errbuf[1024];                                                                                        \
         std::snprintf(errbuf, 1024, "%s\t(%s:%d)", ::mz::vk::GetLastErrorAsString().c_str(), __FILE__, __LINE__); \
         MZ_ABORT;                                                                                             \
-        mz::le() << errbuf;                                                                                       \
     }
 
 namespace mz::vk

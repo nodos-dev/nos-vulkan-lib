@@ -49,8 +49,8 @@ struct mzVulkan_API Basepass :  DeviceChild
         return re;
     }
 
-    void Bind(std::string const& name, void* data, u32 size, rc<ImageView> (ImportImage)(void*), rc<Buffer>(ImportBuffer)(void*));
-    void TransitionInput(rc<vk::CommandBuffer> Cmd, std::string const& name, void* data, u32 size, rc<ImageView> (ImportImage)(void*), rc<Buffer>(ImportBuffer)(void*));
+    void Bind(std::string const& name, void* data, u32 size, rc<Image> (ImportImage)(void*), rc<Buffer>(ImportBuffer)(void*));
+    void TransitionInput(rc<vk::CommandBuffer> Cmd, std::string const& name, void* data, u32 size, rc<Image> (ImportImage)(void*), rc<Buffer>(ImportBuffer)(void*));
 
     void RefreshBuffer(rc<vk::CommandBuffer> Cmd);
     void BindResources(rc<vk::CommandBuffer> Cmd);
@@ -122,7 +122,7 @@ struct mzVulkan_API Renderpass : SharedFactory<Renderpass>, Basepass
     Renderpass(Device* Vk, View<u8> src);
     ~Renderpass();
 
-    void Begin(rc<CommandBuffer> Cmd, rc<ImageView> Image, bool wireframe = false, bool clear = true);
+    void Begin(rc<CommandBuffer> Cmd, rc<Image> Image, bool wireframe = false, bool clear = true);
     void End(rc<CommandBuffer> Cmd);
     void Exec(rc<vk::CommandBuffer> Cmd, rc<vk::Image> Output, const VertexData* = 0, bool clear = true);
     void Draw(rc<vk::CommandBuffer> Cmd, const VertexData* Verts = 0);

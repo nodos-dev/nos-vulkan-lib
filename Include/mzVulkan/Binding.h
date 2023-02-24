@@ -13,11 +13,14 @@ struct Image;
 struct Buffer;
 
 template <class T>
-concept TypeClassResource = std::same_as<T, rc<ImageView>> || std::same_as<T, rc<Buffer>>;
+concept TypeClassResource = std::same_as<T, rc<Image>> || std::same_as<T, rc<Buffer>>;
 
 struct mzVulkan_API Binding
 {
-    using Type = std::variant<rc<ImageView>, rc<Buffer>>;
+    static VkFlags MapTypeToUsage(VkDescriptorType type);
+    static VkImageLayout MapTypeToLayout(VkDescriptorType type);
+    static VkAccessFlags MapTypeToAccess(VkDescriptorType type);
+    using Type = std::variant<rc<Image>, rc<Buffer>>;
 
     Type Resource;
     u32 Idx;

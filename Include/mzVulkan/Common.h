@@ -12,7 +12,6 @@
 
 // Framework
 #include <mzCommon.h>
-#include <mzUtil/Logger.h>
 
 #ifdef mzVulkan_SHARED
 #ifdef mzVulkan_EXPORTS
@@ -35,7 +34,6 @@
             char errbuf[4096];                                                                                    \
             std::snprintf(errbuf, 4096, "%s %d (%s:%d)", ::mz::vk::vk_result_string(re), re, __FILE__, __LINE__); \
             printf("%s\n", errbuf);                                                                               \
-            mz::le() << errbuf;                                                                                   \
             MZ_ABORT;                                                                                             \
         }                                                                                                         \
     }
@@ -178,6 +176,7 @@ struct mzVulkan_API NamedDSLBinding
             default: return false;
         }
     }
+
 };
 
 struct mzVulkan_API ShaderLayout

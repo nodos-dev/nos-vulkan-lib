@@ -15,52 +15,83 @@ Binding::Binding(Type res, u32 binding, u32 bufferOffset)
 {
 }
 
-DescriptorResourceInfo Binding::GetDescriptorInfo(VkDescriptorType type) const
+VkFlags Binding::MapTypeToUsage(VkDescriptorType type)
 {
-    DescriptorResourceInfo Info = std::visit([](auto res) { return res->GetDescriptorInfo(); }, Resource);
-    if (BufferOffset)
-    {
-        assert(std::holds_alternative<rc<Buffer>>(Resource));
-        Info.Buffer.offset = BufferOffset;
-    }
-
     switch (type)
     {
     case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
     case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
-        assert(std::get<rc<ImageView>>(Resource)->Usage & VK_IMAGE_USAGE_SAMPLED_BIT);
-        Info.Image.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        AccessFlags            = VK_ACCESS_SHADER_READ_BIT;
-        break;
+        return VK_IMAGE_USAGE_SAMPLED_BIT;
     case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
-        assert(std::get<rc<ImageView>>(Resource)->Usage & VK_IMAGE_USAGE_STORAGE_BIT);
-        Info.Image.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-        AccessFlags            = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-        break;
+        return VK_IMAGE_USAGE_STORAGE_BIT;
     case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
-        assert(std::get<rc<ImageView>>(Resource)->Usage & VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT);
-        Info.Image.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        AccessFlags            = VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
-        break;
+        return VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
     case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
-        assert(std::get<rc<Buffer>>(Resource)->Usage & VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT);
-        break;
+        return VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT;
     case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
-        assert(std::get<rc<Buffer>>(Resource)->Usage & VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT);
-        break;
+        return VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT;
     case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
     case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC:
     case VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK:
-        assert(std::get<rc<Buffer>>(Resource)->Usage & VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
-        break;
+        return VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
     case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
     case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
-        assert(std::get<rc<Buffer>>(Resource)->Usage & VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
-        break;
+        return VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
     default:
-        assert(0);
-        break;
+        return 0;
     }
+}
+
+VkImageLayout Binding::MapTypeToLayout(VkDescriptorType type)
+{
+    switch (type)
+    {
+    case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+    case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+        return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
+        return VK_IMAGE_LAYOUT_GENERAL;
+    case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
+        return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    default: return VK_IMAGE_LAYOUT_UNDEFINED;
+    }
+}
+
+VkAccessFlags Binding::MapTypeToAccess(VkDescriptorType type)
+{
+    switch (type)
+    {
+    case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+    case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+        return VK_ACCESS_SHADER_READ_BIT;
+    case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
+        return  VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+    case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
+        return  VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
+    default: return 0;
+    }
+}
+
+
+DescriptorResourceInfo Binding::GetDescriptorInfo(VkDescriptorType type) const
+{
+    VkFlags usage = MapTypeToUsage(type);
+    AccessFlags = MapTypeToAccess(type);
+    DescriptorResourceInfo Info = {};
+
+    if (auto img = std::get_if<rc<Image>>(&Resource))
+    {
+        Info = (*img)->GetView(usage)->GetDescriptorInfo();
+        Info.Image.imageLayout = MapTypeToLayout(type);
+    }
+    else 
+    {
+        auto buf = std::get<rc<Buffer>>(Resource);
+        Info = buf->GetDescriptorInfo();
+        Info.Buffer.offset = BufferOffset;
+        assert(!usage || (buf->Usage & usage));
+    }
+
     return Info;
 }
 } // namespace mz::vk
