@@ -106,15 +106,21 @@ struct mzVulkan_API Device : SharedFactory<Device>,
 
 struct mzVulkan_API Context : SharedFactory<Context>
 {
+    typedef VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(
+        VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+        VkDebugUtilsMessageTypeFlagsEXT messageType,
+        const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+        void* pUserData);
+
     void* Lib;
 
     VkInstance Instance;
-
+    VkDebugUtilsMessengerEXT Msger = 0;
     std::vector<rc<Device>> Devices;
 
     rc<Device> CreateDevice(u64 luid) const;
     void OrderDevices();
     ~Context();
-    Context();
+    Context(DebugCallback* = 0);
 };
 } // namespace mz::vk

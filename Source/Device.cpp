@@ -28,6 +28,7 @@ static std::vector<const char*> extensions = {
     "VK_KHR_surface",
     "VK_KHR_win32_surface",
     "VK_KHR_external_memory_capabilities",
+    "VK_EXT_debug_utils"
 };
 
 static std::vector<const char*> deviceExtensions = {
@@ -334,7 +335,6 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, mzFallbackO
 
     MZ_VULKAN_ASSERT_SUCCESS(vkCreateDevice(PhysicalDevice, &info, 0, &handle));
     vkl_load_device_functions(handle, this);
-
     Queue        = Queue::New(this, family, 0);
     ImmAllocator = Allocator::New(this);
 }
@@ -370,7 +370,20 @@ Device::~Device()
     DestroyDevice(0);
 }
 
-Context::Context()
+
+
+static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
+    VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+    VkDebugUtilsMessageTypeFlagsEXT messageType,
+    const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+    void* pUserData) {
+
+    std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
+
+    return VK_FALSE;
+}
+
+Context::Context(DebugCallback* debugCallback)
     : Lib(dynalo::open("vulkan-1.dll"))
 {
     MZ_VULKAN_ASSERT_SUCCESS(vkl_init(dynalo::get_function<decltype(vkGetInstanceProcAddr)>((dynalo::native::handle)Lib, "vkGetInstanceProcAddr")));
@@ -391,8 +404,25 @@ Context::Context()
     };
 
     MZ_VULKAN_ASSERT_SUCCESS(vkCreateInstance(&info, 0, &Instance));
-
     vkl_load_instance_functions(Instance);
+
+    if(debugCallback)
+    {
+        VkDebugUtilsMessengerCreateInfoEXT msgInfo = {
+            .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
+
+            .messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT
+                            | VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT
+                            | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
+                            | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT,
+            .messageType = 
+                            VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT
+                            | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
+                            | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
+            .pfnUserCallback = debugCallback,
+        };
+        MZ_VULKAN_ASSERT_SUCCESS(vkCreateDebugUtilsMessengerEXT(Instance, &msgInfo, 0, &Msger));
+    }
 
     MZ_VULKAN_ASSERT_SUCCESS(vkEnumerateInstanceLayerProperties(&count, 0));
     std::vector<VkLayerProperties> layerProps(count);
@@ -418,8 +448,6 @@ Context::Context()
 
     for (auto pdev : pdevices)
     {
-
-        
         if(Device::IsSupported(pdev))
         {
             mzFallbackOptions FallbackOptions{
@@ -462,6 +490,10 @@ Context::~Context()
 {
     Devices.clear();
 
+    if(Msger)
+    {
+        vkDestroyDebugUtilsMessengerEXT(Instance, Msger, 0);
+    }
     vkDestroyInstance(Instance, 0);
 
     dynalo::close((dynalo::native::handle)Lib);
