@@ -6,7 +6,7 @@
 namespace mz::vk
 {
 
-Shader::Shader(Device* Vk, View<u8> src)
+Shader::Shader(Device* Vk, std::vector<u8> const& src)
     : DeviceChild(Vk)
 {
     Layout = GetShaderLayouts(src, Stage, Binding, Attributes);

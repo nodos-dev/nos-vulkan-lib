@@ -15,7 +15,7 @@ struct mzVulkan_API Shader : SharedFactory<Shader>, DeviceChild
     VkShaderModule Module;
     VkShaderStageFlags Stage;
     ShaderLayout Layout;
-    Shader(Device* Vk, View<u8> src);
+    Shader(Device* Vk, std::vector<u8> const& src);
     ~Shader();
     VkVertexInputBindingDescription Binding;
     std::vector<VkVertexInputAttributeDescription> Attributes;

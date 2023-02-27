@@ -83,14 +83,14 @@ rc<DescriptorSet> DescriptorSet::Update(std::map<u32, Binding> const& Res)
     return shared_from_this();
 }
 
-rc<DescriptorSet> DescriptorSet::Update(View<Binding> Res)
+rc<DescriptorSet> DescriptorSet::Update(std::vector<Binding> const& Res)
 {
     BindStates.clear();
     std::vector<DescriptorResourceInfo> infos;
     std::vector<VkWriteDescriptorSet> writes;
     infos.reserve(Res.size());
     writes.reserve(Res.size());
-    for (auto res : Res)
+    for (auto& res : Res)
     {
         infos.push_back(res.GetDescriptorInfo(GetType(res.Idx)));
         writes.push_back(VkWriteDescriptorSet{

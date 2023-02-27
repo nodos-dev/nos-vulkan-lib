@@ -16,7 +16,7 @@ struct mzVulkan_API Pipeline : DeviceChild
 {
     rc<Shader> MainShader;
     rc<PipelineLayout> Layout;
-    Pipeline(Device* Vk, View<u8> src);
+    Pipeline(Device* Vk, std::vector<u8> const& src);
     Pipeline(Device* Vk, rc<Shader> CS);
     template <class T>
     void PushConstants(rc<CommandBuffer> Cmd, T const& data)
@@ -30,7 +30,7 @@ struct mzVulkan_API Pipeline : DeviceChild
 
 struct mzVulkan_API ComputePipeline : SharedFactory<ComputePipeline>, Pipeline
 {
-    ComputePipeline(Device* Vk, View<u8> src);
+    ComputePipeline(Device* Vk, std::vector<u8> const& src);
     ComputePipeline(Device* Vk, rc<Shader> CS);
     VkPipeline Handle = 0;
 };
@@ -50,7 +50,7 @@ struct mzVulkan_API GraphicsPipeline : SharedFactory<GraphicsPipeline>, Pipeline
     
     std::map<VkFormat, PerFormat> Handles;
 
-    GraphicsPipeline(Device* Vk, View<u8> src, bool blend = false);
+    GraphicsPipeline(Device* Vk, std::vector<u8> const&, bool blend = false);
     GraphicsPipeline(Device* Vk, rc<Shader> PS, rc<Shader> VS = 0, bool blend = false);
     ~GraphicsPipeline();
 

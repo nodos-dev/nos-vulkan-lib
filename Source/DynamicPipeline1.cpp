@@ -292,7 +292,7 @@ static rc<SVType> GetType(spirv_cross::Compiler const& cc, u32 typeId, std::map<
     return ty;
 } // namespace mz::vk
 
-ShaderLayout GetShaderLayouts(View<u8> src, VkShaderStageFlags& stage, VkVertexInputBindingDescription& binding, std::vector<VkVertexInputAttributeDescription>& attributes)
+ShaderLayout GetShaderLayouts(std::vector<u8> const& src, VkShaderStageFlags& stage, VkVertexInputBindingDescription& binding, std::vector<VkVertexInputAttributeDescription>& attributes)
 {
     ShaderLayout layout = {};
 

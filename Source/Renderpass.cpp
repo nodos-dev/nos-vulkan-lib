@@ -10,17 +10,12 @@
 namespace mz::vk
 {
 
-Renderpass::Renderpass(Device* Vk, View<u8> src) : 
+Renderpass::Renderpass(Device* Vk, std::vector<u8> const& src) : 
     Basepass(GraphicsPipeline::New(Vk, MakeShared<Shader>(Vk, src)))
 {
 }
 
 Renderpass::Renderpass(rc<GraphicsPipeline> PL) : Basepass(PL)
-{
-}
-
-Basepass::Basepass(Device* Vk, View<u8> src) :
-    Basepass(GraphicsPipeline::New(Vk, MakeShared<Shader>(Vk, src)))
 {
 }
 
@@ -32,15 +27,6 @@ Basepass::Basepass(rc<Pipeline> PL) : DeviceChild(PL->GetDevice()), PL(PL), Desc
             .Size = PL->Layout->UniformSize,
             .Usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
         });
-    }
-}
-
-
-void Test(VkDescriptorType ty)
-{
-    switch (ty)
-    {
-
     }
 }
 

@@ -10,7 +10,7 @@
 namespace mz::vk
 {
 
-Pipeline::Pipeline(Device* Vk, View<u8> src)
+Pipeline::Pipeline(Device* Vk, std::vector<u8> const& src)
     : Pipeline(Vk, Shader::New(Vk, src))
 {
 }
@@ -20,7 +20,7 @@ Pipeline::Pipeline(Device* Vk, rc<Shader> SS)
 {
 }
 
-ComputePipeline::ComputePipeline(Device* Vk, View<u8> src)
+ComputePipeline::ComputePipeline(Device* Vk, std::vector<u8> const& src)
     : ComputePipeline(Vk, Shader::New(Vk, src))
 {
 
@@ -69,7 +69,7 @@ GraphicsPipeline::GraphicsPipeline(Device* Vk, rc<Shader> PS, rc<Shader> VS, boo
     Layout = PipelineLayout::New(Vk, PS->Layout.Merge(GetVS()->Layout));
 }
 
-GraphicsPipeline::GraphicsPipeline(Device* Vk, View<u8> src, bool blend) :
+GraphicsPipeline::GraphicsPipeline(Device* Vk, std::vector<u8> const& src, bool blend) :
     GraphicsPipeline(Vk, Shader::New(Vk, src), 0, blend)
 {
 

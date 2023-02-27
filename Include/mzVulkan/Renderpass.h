@@ -36,7 +36,6 @@ struct mzVulkan_API Basepass :  DeviceChild
     bool BufferDirty = false;
 
     Basepass(rc<Pipeline> PL);
-    Basepass(Device* Vk, View<u8> src);
 
     void Lock() { Mutex.lock(); }
     void Unlock() { Mutex.unlock(); }
@@ -119,7 +118,7 @@ struct mzVulkan_API Renderpass : SharedFactory<Renderpass>, Basepass
     rc<ImageView> m_ImageView;
 
     Renderpass(rc<GraphicsPipeline> PL);
-    Renderpass(Device* Vk, View<u8> src);
+    Renderpass(Device* Vk, std::vector<u8> const& src);
     ~Renderpass();
 
     void Begin(rc<CommandBuffer> Cmd, rc<Image> Image, bool wireframe = false, bool clear = true);
