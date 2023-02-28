@@ -86,11 +86,16 @@ struct MemoryBlock : SharedFactory<MemoryBlock>
     ~MemoryBlock()
     {
         std::unique_lock lock(Alloc->Mutex);
-        Alloc->Allocations[TypeIndex].erase(this);
-        if (Alloc->Allocations[TypeIndex].empty())
+        auto& Set = Alloc->Allocations[TypeIndex];
+        if (1 == Set.size())
         {
             Alloc->Allocations.erase(TypeIndex);
+        } 
+        else
+        {
+            Set.erase(this);
         }
+
         bool ok = PlatformCloseHandle(OSHandle);
         assert(ok);
         Alloc->Vk->FreeMemory(Memory, 0);
@@ -435,7 +440,7 @@ Allocation Allocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> res
     VkDeviceMemory mem;
     MZ_VULKAN_ASSERT_SUCCESS(Vk->AllocateMemory(&info, 0, &mem));
     rc<MemoryBlock> block = MemoryBlock::New(this, mem, typeIndex, actualProps, type, 0, size);
-    Allocations[typeIndex]. insert(block.get());
+    Allocations[typeIndex].insert(block.get());
     Allocation allocation = block->Allocate(req.size, req.alignment);
     return allocation;
 }
