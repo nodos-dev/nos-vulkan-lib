@@ -122,5 +122,7 @@ struct mzVulkan_API Context : SharedFactory<Context>
     void OrderDevices();
     ~Context();
     Context(DebugCallback* = 0);
+
+    static void EnableValidationLayers(bool enable);
 };
 } // namespace mz::vk

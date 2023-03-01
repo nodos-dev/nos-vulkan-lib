@@ -63,13 +63,13 @@ Sampler::Sampler(Device* Vk, VkFormat Format, VkFilter Filter) : SamplerYcbcrCon
     //    }
     //    else
     //    {
-    //        MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateSamplerYcbcrConversion(&ycbcrCreateInfo, 0, &SamplerYcbcrConversion));
+    //        MZVK_ASSERT(Vk->CreateSamplerYcbcrConversion(&ycbcrCreateInfo, 0, &SamplerYcbcrConversion));
     //        VkSamplerYcbcrConversionInfo ycbcrInfo = {
     //            .sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO,
     //            .conversion = SamplerYcbcrConversion,
     //        };
     //        samplerInfo.pNext = &ycbcrInfo;
-    //        MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateSampler(&samplerInfo, 0, &Handle));
+    //        MZVK_ASSERT(Vk->CreateSampler(&samplerInfo, 0, &Handle));
     //        ycbr[Format] = { SamplerYcbcrConversion, Handle };
     //    }
     //    return;
@@ -79,7 +79,7 @@ Sampler::Sampler(Device* Vk, VkFormat Format, VkFilter Filter) : SamplerYcbcrCon
 
     if(!samplers[Filter])
     {
-        MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateSampler(&samplerInfo, 0, &samplers[Filter]));
+        MZVK_ASSERT(Vk->CreateSampler(&samplerInfo, 0, &samplers[Filter]));
     }
 
     Handle = samplers[Filter];
@@ -125,7 +125,7 @@ ImageView::ImageView(struct Image* Src, VkFormat Format, VkImageUsageFlags Usage
         },
     };
 
-    MZ_VULKAN_ASSERT_SUCCESS(Src->GetDevice()->CreateImageView(&viewInfo, 0, &Handle));
+    MZVK_ASSERT(Src->GetDevice()->CreateImageView(&viewInfo, 0, &Handle));
 }
 
 Image::Image(Device* Vk, ImageCreateInfo const& createInfo, VkResult* re) : Image(Vk->ImmAllocator.get(), createInfo, re) 

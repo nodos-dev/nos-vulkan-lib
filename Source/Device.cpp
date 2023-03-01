@@ -19,8 +19,8 @@ static std::vector<const char*> layers = {
 //
  #ifdef MZ_DEV_BUILD
  #pragma message("Development build: Enabling VK_LAYER_KHRONOS_validation, VK_LAYER_KHRONOS_synchronization2")
-     "VK_LAYER_KHRONOS_validation",
-      "VK_LAYER_KHRONOS_synchronization2",
+    "VK_LAYER_KHRONOS_validation",
+    "VK_LAYER_KHRONOS_synchronization2",
  #endif
 };
 
@@ -67,9 +67,9 @@ bool Device::IsSupported(VkPhysicalDevice PhysicalDevice)
     bool supported = true;
 
     u32 count;
-    MZ_VULKAN_ASSERT_SUCCESS(vkEnumerateDeviceExtensionProperties(PhysicalDevice, 0, &count, 0));
+    MZVK_ASSERT(vkEnumerateDeviceExtensionProperties(PhysicalDevice, 0, &count, 0));
     std::vector<VkExtensionProperties> extensionProps(count);
-    MZ_VULKAN_ASSERT_SUCCESS(vkEnumerateDeviceExtensionProperties(PhysicalDevice, 0, &count, extensionProps.data()));
+    MZVK_ASSERT(vkEnumerateDeviceExtensionProperties(PhysicalDevice, 0, &count, extensionProps.data()));
     
     VkPhysicalDeviceVulkan11Features vk11features = {
         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
@@ -144,9 +144,9 @@ bool Device::GetFallbackOptionsForDevice(VkPhysicalDevice PhysicalDevice, mzFall
     bool supported = true;
 
     u32 count;
-    MZ_VULKAN_ASSERT_SUCCESS(vkEnumerateDeviceExtensionProperties(PhysicalDevice, 0, &count, 0));
+    MZVK_ASSERT(vkEnumerateDeviceExtensionProperties(PhysicalDevice, 0, &count, 0));
     std::vector<VkExtensionProperties> extensionProps(count);
-    MZ_VULKAN_ASSERT_SUCCESS(vkEnumerateDeviceExtensionProperties(PhysicalDevice, 0, &count, extensionProps.data()));
+    MZVK_ASSERT(vkEnumerateDeviceExtensionProperties(PhysicalDevice, 0, &count, extensionProps.data()));
 
     VkPhysicalDeviceVulkan11Features vk11features = {
         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
@@ -174,7 +174,7 @@ bool Device::GetFallbackOptionsForDevice(VkPhysicalDevice PhysicalDevice, mzFall
         vk12features.timelineSemaphore;
 
     u32 instanceVersion = VK_API_VERSION_1_0;
-    MZ_VULKAN_ASSERT_SUCCESS(vkEnumerateInstanceVersion(&instanceVersion));
+    MZVK_ASSERT(vkEnumerateInstanceVersion(&instanceVersion));
     uint32_t minorVulkanVersion = VK_VERSION_MINOR(instanceVersion);
     
     if (minorVulkanVersion < 3)
@@ -229,9 +229,9 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, mzFallbackO
 {
     u32 count;
 
-    MZ_VULKAN_ASSERT_SUCCESS(vkEnumerateDeviceExtensionProperties(PhysicalDevice, 0, &count, 0));
+    MZVK_ASSERT(vkEnumerateDeviceExtensionProperties(PhysicalDevice, 0, &count, 0));
     std::vector<VkExtensionProperties> extensionProps(count);
-    MZ_VULKAN_ASSERT_SUCCESS(vkEnumerateDeviceExtensionProperties(PhysicalDevice, 0, &count, extensionProps.data()));
+    MZVK_ASSERT(vkEnumerateDeviceExtensionProperties(PhysicalDevice, 0, &count, extensionProps.data()));
 
     std::vector<const char*> deviceExtensionsToAsk;
 
@@ -333,7 +333,7 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, mzFallbackO
         .ppEnabledExtensionNames = deviceExtensionsToAsk.data(),
     };
 
-    MZ_VULKAN_ASSERT_SUCCESS(vkCreateDevice(PhysicalDevice, &info, 0, &handle));
+    MZVK_ASSERT(vkCreateDevice(PhysicalDevice, &info, 0, &handle));
     vkl_load_device_functions(handle, this);
     Queue        = Queue::New(this, family, 0);
     ImmAllocator = Allocator::New(this);
@@ -384,10 +384,23 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
     return VK_FALSE;
 }
 
+
+void Context::EnableValidationLayers(bool enable)
+{
+    #ifndef MZ_DEV_BUILD
+        return;
+    #endif
+    if(!enable) return layers.clear();
+    layers = {
+        "VK_LAYER_KHRONOS_validation",
+        "VK_LAYER_KHRONOS_synchronization2",
+    };
+}
+
 Context::Context(DebugCallback* debugCallback)
     : Lib(dynalo::open("vulkan-1.dll"))
 {
-    MZ_VULKAN_ASSERT_SUCCESS(vkl_init(dynalo::get_function<decltype(vkGetInstanceProcAddr)>((dynalo::native::handle)Lib, "vkGetInstanceProcAddr")));
+    MZVK_ASSERT(vkl_init(dynalo::get_function<decltype(vkGetInstanceProcAddr)>((dynalo::native::handle)Lib, "vkGetInstanceProcAddr")));
     u32 count;
 
     VkApplicationInfo app = {
@@ -404,7 +417,7 @@ Context::Context(DebugCallback* debugCallback)
         .ppEnabledExtensionNames = extensions.data(),
     };
 
-    MZ_VULKAN_ASSERT_SUCCESS(vkCreateInstance(&info, 0, &Instance));
+    MZVK_ASSERT(vkCreateInstance(&info, 0, &Instance));
     vkl_load_instance_functions(Instance);
 
     if(debugCallback)
@@ -422,12 +435,12 @@ Context::Context(DebugCallback* debugCallback)
                             | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
             .pfnUserCallback = debugCallback,
         };
-        MZ_VULKAN_ASSERT_SUCCESS(vkCreateDebugUtilsMessengerEXT(Instance, &msgInfo, 0, &Msger));
+        MZVK_ASSERT(vkCreateDebugUtilsMessengerEXT(Instance, &msgInfo, 0, &Msger));
     }
 
-    MZ_VULKAN_ASSERT_SUCCESS(vkEnumerateInstanceLayerProperties(&count, 0));
+    MZVK_ASSERT(vkEnumerateInstanceLayerProperties(&count, 0));
     std::vector<VkLayerProperties> layerProps(count);
-    MZ_VULKAN_ASSERT_SUCCESS(vkEnumerateInstanceLayerProperties(&count, layerProps.data()));
+    MZVK_ASSERT(vkEnumerateInstanceLayerProperties(&count, layerProps.data()));
 
     for (auto layer : layers)
     {
@@ -440,12 +453,12 @@ Context::Context(DebugCallback* debugCallback)
         }
     }
 
-    MZ_VULKAN_ASSERT_SUCCESS(vkEnumeratePhysicalDevices(Instance, &count, 0));
+    MZVK_ASSERT(vkEnumeratePhysicalDevices(Instance, &count, 0));
 
     std::vector<VkPhysicalDevice> pdevices(count);
     Devices.reserve(count);
 
-    MZ_VULKAN_ASSERT_SUCCESS(vkEnumeratePhysicalDevices(Instance, &count, pdevices.data()));
+    MZVK_ASSERT(vkEnumeratePhysicalDevices(Instance, &count, pdevices.data()));
 
     for (auto pdev : pdevices)
     {

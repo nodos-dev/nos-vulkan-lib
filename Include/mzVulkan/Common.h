@@ -26,7 +26,7 @@
 #define MZ_VULKAN_FAILED(expr) (VK_SUCCESS != (expr))
 #define MZ_VULKAN_SUCCEEDED(expr) (!MZ_VULKAN_FAILED(expr))
 
-#define MZ_VULKAN_ASSERT_SUCCESS(expr)                                                                            \
+#define MZVK_ASSERT(expr)                                                                            \
     {                                                                                                             \
         VkResult re = (expr);                                                                                     \
         if (MZ_VULKAN_FAILED(re))                                                                                 \

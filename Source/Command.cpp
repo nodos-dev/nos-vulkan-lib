@@ -39,12 +39,12 @@ CommandBuffer::CommandBuffer(CommandPool* Pool, VkCommandBuffer Handle)
         .flags = VK_FENCE_CREATE_SIGNALED_BIT,
     };
     
-    MZ_VULKAN_ASSERT_SUCCESS(GetDevice()->CreateFence(&fenceInfo, 0, &Fence));
+    MZVK_ASSERT(GetDevice()->CreateFence(&fenceInfo, 0, &Fence));
 }
 
 void CommandBuffer::Wait()
 {
-    MZ_VULKAN_ASSERT_SUCCESS(GetDevice()->WaitForFences(1, &Fence, 0, -1));
+    MZVK_ASSERT(GetDevice()->WaitForFences(1, &Fence, 0, -1));
 
     for (auto& fn : Callbacks)
     {
@@ -68,7 +68,7 @@ CommandBuffer::~CommandBuffer()
     SignalGroup.clear();
     
     GetDevice()->DestroyFence(Fence, 0);
-    MZ_VULKAN_ASSERT_SUCCESS(Reset(VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT));
+    MZVK_ASSERT(Reset(VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT));
 }
 
 rc<CommandBuffer> CommandBuffer::Submit()
@@ -124,8 +124,8 @@ rc<CommandBuffer> CommandBuffer::Submit()
         .pSignalSemaphores    = Signal.data(),
     };
 
-    MZ_VULKAN_ASSERT_SUCCESS(End());
-    MZ_VULKAN_ASSERT_SUCCESS(Pool->Submit(1, &submitInfo, Fence));
+    MZVK_ASSERT(End());
+    MZVK_ASSERT(Pool->Submit(1, &submitInfo, Fence));
 
     return self;
 }
@@ -149,7 +149,7 @@ CommandPool::CommandPool(Device* Vk, rc<vk::Queue> Queue, u64 PoolSize)
         .queueFamilyIndex = Queue->Idx,
     };
 
-    MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateCommandPool(&info, 0, &Handle));
+    MZVK_ASSERT(Vk->CreateCommandPool(&info, 0, &Handle));
 
     std::vector<VkCommandBuffer> buf(PoolSize);
  
@@ -160,7 +160,7 @@ CommandPool::CommandPool(Device* Vk, rc<vk::Queue> Queue, u64 PoolSize)
         .commandBufferCount = (u32)PoolSize,
     };
 
-    MZ_VULKAN_ASSERT_SUCCESS(Vk->AllocateCommandBuffers(&cmdInfo, buf.data()));
+    MZVK_ASSERT(Vk->AllocateCommandBuffers(&cmdInfo, buf.data()));
 
     Buffers.reserve(PoolSize);
 
@@ -196,8 +196,8 @@ rc<CommandBuffer> CommandPool::AllocCommandBuffer(VkCommandBufferLevel level)
 
     cmd->Wait();
 
-    MZ_VULKAN_ASSERT_SUCCESS(GetDevice()->ResetFences(1, &cmd->Fence));
-    MZ_VULKAN_ASSERT_SUCCESS(cmd->Reset(VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT));
+    MZVK_ASSERT(GetDevice()->ResetFences(1, &cmd->Fence));
+    MZVK_ASSERT(cmd->Reset(VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT));
     return cmd;
 }
 
@@ -210,7 +210,7 @@ rc<CommandBuffer> CommandPool::BeginCmd(VkCommandBufferLevel level)
         .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
     };
 
-    MZ_VULKAN_ASSERT_SUCCESS(Cmd->Begin(&beginInfo));
+    MZVK_ASSERT(Cmd->Begin(&beginInfo));
 
     return Cmd;
 }

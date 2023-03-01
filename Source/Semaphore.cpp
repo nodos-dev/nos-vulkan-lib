@@ -33,7 +33,7 @@ Semaphore::Semaphore(Device* Vk) : DeviceChild(Vk)
         .pNext = &semaphoreTypeInfo,
     };
 
-    MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateSemaphore(&semaphoreCreateInfo, 0, &Handle));
+    MZVK_ASSERT(Vk->CreateSemaphore(&semaphoreCreateInfo, 0, &Handle));
 
     VkSemaphoreGetWin32HandleInfoKHR getHandleInfo = {
         .sType      = VK_STRUCTURE_TYPE_SEMAPHORE_GET_WIN32_HANDLE_INFO_KHR,
@@ -41,7 +41,7 @@ Semaphore::Semaphore(Device* Vk) : DeviceChild(Vk)
         .handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_D3D12_FENCE_BIT,
     };
 
-    MZ_VULKAN_ASSERT_SUCCESS(Vk->GetSemaphoreWin32HandleKHR(&getHandleInfo, &OSHandle));
+    MZVK_ASSERT(Vk->GetSemaphoreWin32HandleKHR(&getHandleInfo, &OSHandle));
     assert(OSHandle);
 
     DWORD flags;
@@ -56,7 +56,7 @@ Semaphore::operator VkSemaphore() const
 u64 Semaphore::GetValue() const
 {
     u64 val;
-    MZ_VULKAN_ASSERT_SUCCESS(Vk->GetSemaphoreCounterValue(Handle, &val));
+    MZVK_ASSERT(Vk->GetSemaphoreCounterValue(Handle, &val));
     return val;
 }
 

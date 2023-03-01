@@ -96,7 +96,7 @@ VkExternalMemoryProperties GetExportProperties(VkPhysicalDevice PhysicalDevice, 
         .pNext = &extProps,
     };
 
-    MZ_VULKAN_ASSERT_SUCCESS(vkGetPhysicalDeviceImageFormatProperties2(PhysicalDevice, &imageFormatInfo, &props));
+    MZVK_ASSERT(vkGetPhysicalDeviceImageFormatProperties2(PhysicalDevice, &imageFormatInfo, &props));
     return extProps.externalMemoryProperties;
 }
 

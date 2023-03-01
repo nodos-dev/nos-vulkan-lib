@@ -25,7 +25,7 @@ QueryPool::QueryPool(Device* Vk) : DeviceChild(Vk), Results(Buffer::New(Vk, Buff
         .queryType = VK_QUERY_TYPE_TIMESTAMP,
         .queryCount = 1<<16,
     };
-    MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateQueryPool(&info, 0, &Handle));
+    MZVK_ASSERT(Vk->CreateQueryPool(&info, 0, &Handle));
     Vk->ResetQueryPool(Handle, 0, 1<<16);
 }
 

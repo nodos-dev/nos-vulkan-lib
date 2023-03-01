@@ -16,7 +16,7 @@ Shader::Shader(Device* Vk, std::vector<u8> const& src)
         .codeSize = src.size(),
         .pCode    = (u32*)src.data(),
     };
-    MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateShaderModule(&info, 0, &Module));
+    MZVK_ASSERT(Vk->CreateShaderModule(&info, 0, &Module));
 }
 
 Shader::~Shader()

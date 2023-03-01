@@ -225,7 +225,7 @@ void Allocation::Flush()
         .size   = Size,
     };
 
-    MZ_VULKAN_ASSERT_SUCCESS(Block->Alloc->Vk->FlushMappedMemoryRanges(1, &range));
+    MZVK_ASSERT(Block->Alloc->Vk->FlushMappedMemoryRanges(1, &range));
 }
 
 void Allocation::Free()
@@ -238,12 +238,12 @@ void Allocation::Free()
 
 void Allocation::BindResource(VkImage image)
 {
-    MZ_VULKAN_ASSERT_SUCCESS(Block->Alloc->Vk->BindImageMemory(image, Block->Memory, Offset + Block->Offset));
+    MZVK_ASSERT(Block->Alloc->Vk->BindImageMemory(image, Block->Memory, Offset + Block->Offset));
 }
 
 void Allocation::BindResource(VkBuffer buffer)
 {
-    MZ_VULKAN_ASSERT_SUCCESS(Block->Alloc->Vk->BindBufferMemory(buffer, Block->Memory, Offset + Block->Offset));
+    MZVK_ASSERT(Block->Alloc->Vk->BindBufferMemory(buffer, Block->Memory, Offset + Block->Offset));
 }
 
 HANDLE Allocation::GetOSHandle() const
@@ -319,7 +319,7 @@ Allocation Allocator::AllocateImageMemory(VkImage img, ImageCreateInfo const& in
     VkMemoryWin32HandlePropertiesKHR handleProps = {
       .sType = VK_STRUCTURE_TYPE_MEMORY_WIN32_HANDLE_PROPERTIES_KHR,
     };
-    MZ_VULKAN_ASSERT_SUCCESS(Vk->GetMemoryWin32HandlePropertiesKHR(info.Type, memory,  &handleProps));
+    MZVK_ASSERT(Vk->GetMemoryWin32HandlePropertiesKHR(info.Type, memory,  &handleProps));
     auto [typeIndex, actualProps] = MemoryTypeIndex(Vk->PhysicalDevice, handleProps.memoryTypeBits, requiredProps);
     
     VkMemoryDedicatedAllocateInfo dedicated = {
@@ -342,7 +342,7 @@ Allocation Allocator::AllocateImageMemory(VkImage img, ImageCreateInfo const& in
     };
 
     VkDeviceMemory mem;
-    MZ_VULKAN_ASSERT_SUCCESS(Vk->AllocateMemory(&allocateInfo, 0, &mem));
+    MZVK_ASSERT(Vk->AllocateMemory(&allocateInfo, 0, &mem));
     auto Block = MemoryBlock::New(this, mem, typeIndex, actualProps, info.Type, offset, req.size);
     return Block->Allocate(req.size, req.alignment);
 }
@@ -395,7 +395,7 @@ Allocation Allocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> res
         };
 
         VkDeviceMemory mem;
-        MZ_VULKAN_ASSERT_SUCCESS(Vk->AllocateMemory(&info, 0, &mem));
+        MZVK_ASSERT(Vk->AllocateMemory(&info, 0, &mem));
         auto Block = MemoryBlock::New(this, mem, typeIndex, actualProps, type, imported->Offset, Size);
         return Block->Allocate(req.size, req.alignment);
     }
@@ -438,7 +438,7 @@ Allocation Allocator::AllocateResourceMemory(std::variant<VkBuffer, VkImage> res
     };
 
     VkDeviceMemory mem;
-    MZ_VULKAN_ASSERT_SUCCESS(Vk->AllocateMemory(&info, 0, &mem));
+    MZVK_ASSERT(Vk->AllocateMemory(&info, 0, &mem));
     rc<MemoryBlock> block = MemoryBlock::New(this, mem, typeIndex, actualProps, type, 0, size);
     Allocations[typeIndex].insert(block.get());
     Allocation allocation = block->Allocate(req.size, req.alignment);
@@ -452,7 +452,7 @@ MemoryBlock::MemoryBlock(Allocator* Alloc, VkDeviceMemory mem, u64 typeIndex, Vk
 
     if (props & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
     {
-        MZ_VULKAN_ASSERT_SUCCESS(Alloc->Vk->MapMemory(Memory, Offset, Size, 0, (void**)&Mapping));
+        MZVK_ASSERT(Alloc->Vk->MapMemory(Memory, Offset, Size, 0, (void**)&Mapping));
     }
 
     VkMemoryGetWin32HandleInfoKHR getHandleInfo = {
@@ -461,7 +461,7 @@ MemoryBlock::MemoryBlock(Allocator* Alloc, VkDeviceMemory mem, u64 typeIndex, Vk
         .handleType = type,
     };
 
-    MZ_VULKAN_ASSERT_SUCCESS(Alloc->Vk->GetMemoryWin32HandleKHR(&getHandleInfo, &OSHandle));
+    MZVK_ASSERT(Alloc->Vk->GetMemoryWin32HandleKHR(&getHandleInfo, &OSHandle));
 }
 
 } // namespace mz::vk

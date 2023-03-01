@@ -40,7 +40,7 @@ ComputePipeline::ComputePipeline(Device* Vk, rc<Shader> CS)
         },
         .layout = Layout->Handle,
     };
-    MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateComputePipelines(0, 1, &info, 0, &Handle));
+    MZVK_ASSERT(Vk->CreateComputePipelines(0, 1, &info, 0, &Handle));
 }
 
 
@@ -182,7 +182,7 @@ void GraphicsPipeline::Recreate(VkFormat fmt)
         renderPassInfo.subpassCount = 1;
         renderPassInfo.pSubpasses = &subpass;
 
-        MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateRenderPass(&renderPassInfo, nullptr, &Handles[fmt].rp));
+        MZVK_ASSERT(Vk->CreateRenderPass(&renderPassInfo, nullptr, &Handles[fmt].rp));
     }
 
     VkDynamicState states[] = { VK_DYNAMIC_STATE_VIEWPORT, 
@@ -234,9 +234,9 @@ void GraphicsPipeline::Recreate(VkFormat fmt)
         info.pNext = 0;
     }
 
-    MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateGraphicsPipelines(0, 1, &info, 0, &Handles[fmt].pl));
+    MZVK_ASSERT(Vk->CreateGraphicsPipelines(0, 1, &info, 0, &Handles[fmt].pl));
     rasterizationState.polygonMode = VK_POLYGON_MODE_LINE;
-    MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateGraphicsPipelines(0, 1, &info, 0, &Handles[fmt].wpl));
+    MZVK_ASSERT(Vk->CreateGraphicsPipelines(0, 1, &info, 0, &Handles[fmt].wpl));
 }
 
 

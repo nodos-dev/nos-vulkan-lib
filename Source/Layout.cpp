@@ -41,7 +41,7 @@ DescriptorLayout::DescriptorLayout(Device* Vk, std::map<u32, NamedDSLBinding> Na
         .pBindings    = bindings.data(),
     };
 
-    MZ_VULKAN_ASSERT_SUCCESS(Vk->CreateDescriptorSetLayout(&info, 0, &Handle));
+    MZVK_ASSERT(Vk->CreateDescriptorSetLayout(&info, 0, &Handle));
 }
 
 DescriptorLayout::~DescriptorLayout()
@@ -131,7 +131,7 @@ DescriptorSet::DescriptorSet(rc<DescriptorPool> pool, u32 Index)
         .pSetLayouts        = &Layout->Handle,
     };
 
-    MZ_VULKAN_ASSERT_SUCCESS(Layout->Vk->AllocateDescriptorSets(&info, &Handle));
+    MZVK_ASSERT(Layout->Vk->AllocateDescriptorSets(&info, &Handle));
 }
 
 DescriptorSet::~DescriptorSet()
@@ -189,7 +189,7 @@ DescriptorPool::DescriptorPool(rc<PipelineLayout> Layout, std::vector<VkDescript
         .pPoolSizes    = Sizes.data(),
     };
 
-    MZ_VULKAN_ASSERT_SUCCESS(Layout->Vk->CreateDescriptorPool(&poolInfo, 0, &Handle));
+    MZVK_ASSERT(Layout->Vk->CreateDescriptorPool(&poolInfo, 0, &Handle));
 }
 
 DescriptorPool::~DescriptorPool()
@@ -248,7 +248,7 @@ PipelineLayout::PipelineLayout(Device* Vk, ShaderLayout layout)
         .pPushConstantRanges    = layout.PushConstantSize ? &pushConstantRange : 0,
     };
 
-    MZ_VULKAN_ASSERT_SUCCESS(Vk->CreatePipelineLayout(&layoutInfo, 0, &Handle));
+    MZVK_ASSERT(Vk->CreatePipelineLayout(&layoutInfo, 0, &Handle));
 }
 
 void PipelineLayout::Dump()
