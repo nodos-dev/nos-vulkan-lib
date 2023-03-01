@@ -364,9 +364,10 @@ Device::~Device()
         glob.Free(this);
     }
 
-    ImmAllocator.reset();
+    DeviceWaitIdle();
     ImmPools.clear();
     ImmQPools.clear();
+    ImmAllocator.reset();
     DestroyDevice(0);
 }
 
