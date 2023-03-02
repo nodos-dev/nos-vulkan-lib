@@ -15,11 +15,44 @@
 namespace mz::vk
 {
 
-struct mzFallbackOptions
+// struct mzFallbackOptions
+// {
+//     bool mzDynamicRenderingFallback;
+//     bool mzSync2Fallback;
+//     bool mzCopy2Fallback;
+// };
+
+struct FeatureSet  : VkPhysicalDeviceFeatures2
 {
-    bool mzDynamicRenderingFallback;
-    bool mzSync2Fallback;
-    bool mzCopy2Fallback;
+    VkPhysicalDeviceVulkan11Features vk11{};
+    VkPhysicalDeviceVulkan12Features vk12{};
+    VkPhysicalDeviceVulkan13Features vk13{};
+    FeatureSet() : VkPhysicalDeviceFeatures2{} {};
+    FeatureSet(VkPhysicalDevice PhysicalDevice)
+    {
+        vkGetPhysicalDeviceFeatures2(PhysicalDevice, pnext());
+    }
+    
+    FeatureSet& operator=(FeatureSet const& r) { memcpy(this, &r, sizeof(r)); pnext(); return *this;}
+    FeatureSet(FeatureSet const& r) { *this = r; }
+    FeatureSet operator & (FeatureSet r) const
+    {
+        for(u32 i = 0; i < sizeof(FeatureSet)/sizeof(VkBool32); ++i) *((VkBool32*)&r) &= *((VkBool32*)this);
+        return r;
+    }
+    
+    VkPhysicalDeviceFeatures2* pnext() 
+    {
+        vk11.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
+        vk12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+        vk13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+             sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+        vk12.pNext = &vk11;
+        vk13.pNext = &vk12;
+             pNext = &vk13;
+        return this;
+    }
+
 };
 
 struct mzVulkan_API Device : SharedFactory<Device>,
@@ -58,7 +91,7 @@ struct mzVulkan_API Device : SharedFactory<Device>,
     rc<QueryPool> GetQPool();
     
     rc<Queue> Queue;
-    mzFallbackOptions FallbackOptions;
+    FeatureSet Features;
     std::unordered_map<std::string, Global> Globals;
 
     bool RemoveGlobal(std::string const& id)
@@ -93,13 +126,11 @@ struct mzVulkan_API Device : SharedFactory<Device>,
         return data;
     }
     
-    Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, mzFallbackOptions FallbackOptions);
+    Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice);
     ~Device();
     u64 GetLuid() const;
 
-    static bool IsSupported(VkPhysicalDevice PhysicalDevice);
-    static bool GetFallbackOptionsForDevice(VkPhysicalDevice PhysicalDevice, mzFallbackOptions& FallbackOptions);
-    
+    static bool CheckSupport(VkPhysicalDevice PhysicalDevice);
     std::string GetName() const;
 
 }; // namespace mz::vk
@@ -119,10 +150,9 @@ struct mzVulkan_API Context : SharedFactory<Context>
     std::vector<rc<Device>> Devices;
 
     rc<Device> CreateDevice(u64 luid) const;
-    void OrderDevices();
     ~Context();
     Context(DebugCallback* = 0);
-
+    void OrderDevices();
     static void EnableValidationLayers(bool enable);
 };
 } // namespace mz::vk

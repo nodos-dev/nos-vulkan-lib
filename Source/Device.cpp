@@ -40,6 +40,7 @@ static std::vector<const char*> deviceExtensions = {
     "VK_KHR_dynamic_rendering",
     "VK_KHR_copy_commands2",
     "VK_EXT_host_query_reset",
+    "VK_KHR_16bit_storage",
 };
 
 namespace mz::vk
@@ -61,7 +62,8 @@ static std::string GetName(VkPhysicalDevice PhysicalDevice)
     return props.properties.deviceName;
 }
 
-bool Device::IsSupported(VkPhysicalDevice PhysicalDevice)
+
+bool Device::CheckSupport(VkPhysicalDevice PhysicalDevice)
 {
     std::string name = vk::GetName(PhysicalDevice);
     bool supported = true;
@@ -71,54 +73,26 @@ bool Device::IsSupported(VkPhysicalDevice PhysicalDevice)
     std::vector<VkExtensionProperties> extensionProps(count);
     MZVK_ASSERT(vkEnumerateDeviceExtensionProperties(PhysicalDevice, 0, &count, extensionProps.data()));
     
-    VkPhysicalDeviceVulkan11Features vk11features = {
-        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
-    };
+#define CHECK_SUPPORT(v, f) if(!v.f) { supported = false; printf("%s does not support feature: "#f"\n", name.c_str());}
 
-    VkPhysicalDeviceVulkan12Features vk12features = {
-        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
-        .pNext = &vk11features,
-    };
+    auto set = FeatureSet(PhysicalDevice);
+    
+    CHECK_SUPPORT(set.vk11, samplerYcbcrConversion);
+    CHECK_SUPPORT(set.vk11, storageBuffer16BitAccess);
+    CHECK_SUPPORT(set.vk11, uniformAndStorageBuffer16BitAccess);
 
-    VkPhysicalDeviceVulkan13Features vk13features = {
-        .sType            = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
-        .pNext            = &vk12features,
-    };
+    CHECK_SUPPORT(set.vk12, scalarBlockLayout);
+    CHECK_SUPPORT(set.vk12, uniformBufferStandardLayout);
+    CHECK_SUPPORT(set.vk12, hostQueryReset);
+    CHECK_SUPPORT(set.vk12, timelineSemaphore);
 
-    VkPhysicalDeviceFeatures2 features = {
-        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
-        .pNext = &vk13features,
-    };
+    // These have fallbacks
+    // CHECK_SUPPORT(set.vk13, synchronization2);
+    // CHECK_SUPPORT(set.vk13, dynamicRendering);
 
-    vkGetPhysicalDeviceFeatures2(PhysicalDevice, &features);
-
-    supported = 
-        vk11features.samplerYcbcrConversion &&
-        vk12features.timelineSemaphore && 
-        vk13features.synchronization2 &&
-        vk13features.dynamicRendering;
-
-    if(!vk11features.samplerYcbcrConversion) 
-    {
-        supported = false;
-        printf("%s does not support feature samplerYcbcrConversion\n", name.c_str());
-    }
-    if(!vk12features.timelineSemaphore) 
-    {
-        supported = false;
-        printf("%s does not support feature timelineSemaphore\n", name.c_str());
-    }
-    if(!vk13features.synchronization2) 
-    {
-        supported = false;
-        printf("%s does not support feature synchronization2\n", name.c_str());
-    }
-    if(!vk13features.dynamicRendering) 
-    {
-        supported = false;
-        printf("%s does not support feature dynamicRendering\n", name.c_str());
-    }
-
+    CHECK_SUPPORT(set.features, fillModeNonSolid);
+    CHECK_SUPPORT(set.features, samplerAnisotropy);
+    
     for (auto ext : deviceExtensions)
     {
         if (std::find_if(extensionProps.begin(), extensionProps.end(), [=](auto& prop) {
@@ -130,74 +104,12 @@ bool Device::IsSupported(VkPhysicalDevice PhysicalDevice)
         }
     }
 
-
     //TODO: add mechanism to fallback into non-dynamic pipeline 
     // when no device suitable for vulkan 1.3 extensions is found 
     //supported = true;
 
     return supported;
 }
-
-bool Device::GetFallbackOptionsForDevice(VkPhysicalDevice PhysicalDevice, mzFallbackOptions& FallbackOptions)
-{
-
-    bool supported = true;
-
-    u32 count;
-    MZVK_ASSERT(vkEnumerateDeviceExtensionProperties(PhysicalDevice, 0, &count, 0));
-    std::vector<VkExtensionProperties> extensionProps(count);
-    MZVK_ASSERT(vkEnumerateDeviceExtensionProperties(PhysicalDevice, 0, &count, extensionProps.data()));
-
-    VkPhysicalDeviceVulkan11Features vk11features = {
-        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
-    };
-
-    VkPhysicalDeviceVulkan12Features vk12features = {
-        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
-        .pNext = &vk11features,
-    };
-
-    VkPhysicalDeviceVulkan13Features vk13features = {
-        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
-        .pNext = &vk12features,
-    };
-
-    VkPhysicalDeviceFeatures2 features = {
-        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
-        .pNext = &vk13features,
-    };
-
-    vkGetPhysicalDeviceFeatures2(PhysicalDevice, &features);
-
-    supported =
-        vk11features.samplerYcbcrConversion &&
-        vk12features.timelineSemaphore;
-
-    u32 instanceVersion = VK_API_VERSION_1_0;
-    MZVK_ASSERT(vkEnumerateInstanceVersion(&instanceVersion));
-    uint32_t minorVulkanVersion = VK_VERSION_MINOR(instanceVersion);
-    
-    if (minorVulkanVersion < 3)
-    {
-        FallbackOptions.mzSync2Fallback = true;
-        FallbackOptions.mzDynamicRenderingFallback = true;
-        FallbackOptions.mzCopy2Fallback = true;
-    }
-    else
-    {
-        if (!vk13features.synchronization2)
-        {
-            FallbackOptions.mzSync2Fallback = true;
-        }
-        if (!vk13features.dynamicRendering)
-        {
-            FallbackOptions.mzDynamicRenderingFallback = true;
-        }
-    }
-
-    return supported;
-}
-
 
 std::string Device::GetName() const
 {
@@ -224,8 +136,8 @@ rc<QueryPool> Device::GetQPool()
     return Pool;
 }
 
-Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, mzFallbackOptions FallbackOptions)
-    : Instance(Instance), PhysicalDevice(PhysicalDevice), FallbackOptions(FallbackOptions)
+Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice)
+    : Instance(Instance), PhysicalDevice(PhysicalDevice)
 {
     u32 count;
 
@@ -241,24 +153,24 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, mzFallbackO
                 return 0 == strcmp(ext, prop.extensionName);
             }) == extensionProps.end())
         {
-            if (strcmp(ext, "VK_KHR_dynamic_rendering") == 0 && FallbackOptions.mzDynamicRenderingFallback)
+            if (strcmp(ext, "VK_KHR_dynamic_rendering") == 0 && Features.vk13.dynamicRendering)
             {
                 printf("Device extension %s requested but not available, fallback mechanism in place\n", ext);
                 continue;
+            }
 
-            }
-            if (strcmp(ext, "VK_KHR_synchronization2") == 0 && FallbackOptions.mzSync2Fallback)
+            if (strcmp(ext, "VK_KHR_synchronization2") == 0 && Features.vk13.synchronization2)
             {
                 printf("Device extension %s requested but not available, fallback mechanism in place\n", ext);
                 continue;
+            }
 
-            }
-            if (strcmp(ext, "VK_KHR_copy_commands2") == 0 && FallbackOptions.mzSync2Fallback)
+            if (strcmp(ext, "VK_KHR_copy_commands2") == 0 && Features.vk13.synchronization2)
             {
                 printf("Device extension %s requested but not available, fallback mechanism in place\n", ext);
-                FallbackOptions.mzCopy2Fallback = true;
                 continue;
             }
+
             printf("Device extension %s requested but not available\n", ext);
             assert(0);
         }
@@ -291,40 +203,31 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, mzFallbackO
         .pQueuePriorities = &prio,
     };
 
-    VkPhysicalDeviceVulkan11Features vk11features = {
-        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
+    FeatureSet set;
+    set.vk11 = {
         .storageBuffer16BitAccess = VK_TRUE,
+        .uniformAndStorageBuffer16BitAccess = VK_TRUE,
         .samplerYcbcrConversion = VK_TRUE,
     };
-
-    VkPhysicalDeviceVulkan12Features vk12features = {
-        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
-        .pNext = &vk11features,
+    set.vk12 = {
         .scalarBlockLayout = VK_TRUE,
         .uniformBufferStandardLayout = VK_TRUE,
         .hostQueryReset = VK_TRUE,
         .timelineSemaphore = VK_TRUE,
     };
-
-    VkPhysicalDeviceVulkan13Features vk13features = {
-        .sType            = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
-        .pNext            = &vk12features,
+    set.vk13 = {
         .synchronization2 = VK_TRUE,
         .dynamicRendering = VK_TRUE,
     };
-
-    VkPhysicalDeviceFeatures2 features = {
-        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
-        .pNext = &vk13features,
-        .features = { 
-            .fillModeNonSolid = 1,
-            .samplerAnisotropy = 1, 
-        },
+    set.features = {
+        .fillModeNonSolid = VK_TRUE,
+        .samplerAnisotropy = VK_TRUE,
     };
 
+    auto available = FeatureSet(PhysicalDevice) & set;
     VkDeviceCreateInfo info = {
         .sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-        .pNext                   = &features,
+        .pNext                   = available.pnext(),
         .queueCreateInfoCount    = 1,
         .pQueueCreateInfos       = &qinfo,
         .enabledLayerCount       = (u32)layers.size(),
@@ -342,19 +245,14 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, mzFallbackO
 void Context::OrderDevices()
 {
     //TODO: Order devices in order to best device to work on is in the first index (Devices[0])
-
-    int idx = 0;
-    for (auto device : Devices)
-    {
-        VkPhysicalDeviceProperties props = {};
-        vkGetPhysicalDeviceProperties(device->PhysicalDevice, &props);
-        if (props.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
-        {
-            std::iter_swap(Devices.begin() + idx, Devices.begin());
-            break;
-        }
-        idx++;
-    }
+    std::sort(Devices.begin(), Devices.end(), [](auto a, auto b) {
+        VkPhysicalDeviceProperties props[2] = {};
+        vkGetPhysicalDeviceProperties(a->PhysicalDevice, &props[0]);
+        vkGetPhysicalDeviceProperties(b->PhysicalDevice, &props[1]);
+        return
+            (VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU == props[0].deviceType) < 
+            (VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU == props[1].deviceType);
+    });
 }
 
 Device::~Device()
@@ -462,42 +360,19 @@ Context::Context(DebugCallback* debugCallback)
 
     for (auto pdev : pdevices)
     {
-        if(Device::IsSupported(pdev))
+        if(Device::CheckSupport(pdev))
         {
-            mzFallbackOptions FallbackOptions{
-                .mzDynamicRenderingFallback = false,
-                .mzSync2Fallback = false,
-                .mzCopy2Fallback = false,
-            };
-            rc<Device> device = Device::New(Instance, pdev, FallbackOptions);
+            rc<Device> device = Device::New(Instance, pdev);
             Devices.emplace_back(device);
-            
         }
     }
-    if (Devices.empty())
-    {
-        for (auto pdev : pdevices)
-        {
-            mzFallbackOptions FallbackOptions{
-                .mzDynamicRenderingFallback = false,
-                .mzSync2Fallback = false,
-                .mzCopy2Fallback = false,
-            };
-            if (Device::GetFallbackOptionsForDevice(pdev, FallbackOptions))
-            {
-                rc<Device> device = Device::New(Instance, pdev, FallbackOptions);
-                Devices.emplace_back(device);
-            }
-        }
-    }
+
     if(Devices.empty())
     {
-        printf("Currently , we do not support any of your graphics cards \n");
+        printf("We do not support any of your graphics cards currently\n");
+        return;
     }
-    else
-    {
-        OrderDevices();
-    }
+    OrderDevices();
 }
 
 Context::~Context()
@@ -519,7 +394,7 @@ rc<Device> Context::CreateDevice(u64 luid) const
     {
         if (dev->GetLuid() == luid)
         {
-            return Device::New(Instance, dev->PhysicalDevice, dev->FallbackOptions);
+            return Device::New(Instance, dev->PhysicalDevice);
         }
     }
     return 0;

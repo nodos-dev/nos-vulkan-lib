@@ -156,7 +156,7 @@ void GraphicsPipeline::Recreate(VkFormat fmt)
         .pAttachments = &attachment,
     };
     
-    if (Vk->FallbackOptions.mzDynamicRenderingFallback)
+    if (!Vk->Features.vk13.dynamicRendering)
     {
         VkAttachmentDescription colorAttachment{};
         colorAttachment.format = fmt;
@@ -228,7 +228,7 @@ void GraphicsPipeline::Recreate(VkFormat fmt)
         .layout = Layout->Handle,
     };
     
-    if (Vk->FallbackOptions.mzDynamicRenderingFallback)
+    if (!Vk->Features.vk13.dynamicRendering)
     {
         info.renderPass = Handles[fmt].rp;
         info.pNext = 0;

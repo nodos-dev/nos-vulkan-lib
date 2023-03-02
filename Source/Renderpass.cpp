@@ -194,7 +194,7 @@ void Renderpass::Begin(rc<CommandBuffer> Cmd, rc<Image> SrcImage, bool wireframe
     Cmd->SetDepthWriteEnable(false);
     Cmd->SetDepthCompareOp(VK_COMPARE_OP_NEVER);
 
-    if (Vk->FallbackOptions.mzDynamicRenderingFallback)
+    if (!Vk->Features.vk13.dynamicRendering)
     {
         VkRenderPass rp = PL->Handles[Image->GetEffectiveFormat()].rp;
 
@@ -269,7 +269,7 @@ void Renderpass::Begin(rc<CommandBuffer> Cmd, rc<Image> SrcImage, bool wireframe
 
 void Renderpass::End(rc<CommandBuffer> Cmd)
 {
-    if (Vk->FallbackOptions.mzDynamicRenderingFallback)
+    if (!Vk->Features.vk13.dynamicRendering)
     {
         Cmd->EndRenderPass();
     }
@@ -333,7 +333,7 @@ bool Basepass::BindResources(std::unordered_map<std::string, Binding::Type> cons
 
 Renderpass::~Renderpass()
 {
-    if (Vk->FallbackOptions.mzDynamicRenderingFallback)
+    if (!Vk->Features.vk13.dynamicRendering)
     {
         if (FrameBuffer)
         {

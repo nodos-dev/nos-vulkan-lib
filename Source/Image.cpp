@@ -218,19 +218,18 @@ void Image::Transition(
     rc<CommandBuffer> Cmd,
     ImageState Dst)
 {
-
     // Dst.AccessMask = 0;
     // Dst.StageMask  = 0;
-    if (Vk->FallbackOptions.mzSync2Fallback)
+    if (!Vk->Features.vk13.synchronization2)
     {
-        ImageLayoutTransition(this->Handle, Cmd, this->State, Dst, GetAspect());
+        ImageLayoutTransition(Handle, Cmd, State, Dst, GetAspect());
     }
     else 
     {
-        ImageLayoutTransition2(this->Handle, Cmd, this->State, Dst, GetAspect());
+        ImageLayoutTransition2(Handle, Cmd, State, Dst, GetAspect());
     }
-    Cmd->AddDependency(shared_from_this());
     State = Dst;
+    Cmd->AddDependency(shared_from_this());
 }
 
 void Image::Clear(rc<CommandBuffer> Cmd, VkClearColorValue value)
@@ -389,7 +388,7 @@ void Image::BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
                              .Layout     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                          });
 
-    if (Vk->FallbackOptions.mzCopy2Fallback)
+    if (!Vk->Features.vk13.synchronization2)
     {
         VkImageBlit region = {
             .srcSubresource = {
@@ -522,7 +521,6 @@ void Image::ResolveFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
 
     Cmd->ResolveImage2(&resolveInfo);
 }
-
 
 MemoryExportInfo Image::GetExportInfo() const
 {
