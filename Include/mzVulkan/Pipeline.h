@@ -37,7 +37,6 @@ struct mzVulkan_API ComputePipeline : SharedFactory<ComputePipeline>, Pipeline
 
 struct mzVulkan_API GraphicsPipeline : SharedFactory<GraphicsPipeline>, Pipeline
 {
-    inline static rc<Shader> GlobVS;
     rc<Shader> VS = nullptr;
     bool EnableBlending = false;
 

@@ -79,12 +79,9 @@ rc<Shader> GraphicsPipeline::GetVS()
 {
     if (!VS)
     {
-        if (!GlobVS)
-        {
-            std::vector<u8> GlobalVSSPV(GlobVS_vert_spv, GlobVS_vert_spv + (sizeof(GlobVS_vert_spv) & ~3));
-            GlobVS = *Vk->RegisterGlobal<rc<Shader>>("GlobVS", MakeShared<Shader>(Vk, GlobalVSSPV));
-        }
-        VS = GlobVS;
+        if (!Vk->Globals.contains("GlobVS"))
+            Vk->RegisterGlobal<rc<Shader>>("GlobVS", Vk, std::vector<u8>(GlobVS_vert_spv, GlobVS_vert_spv + (sizeof(GlobVS_vert_spv) & ~3)));
+        VS = Vk->GetGlobal<rc<Shader>>("GlobVS");
     }
     return VS;
 }

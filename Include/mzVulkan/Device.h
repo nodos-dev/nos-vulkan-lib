@@ -56,6 +56,21 @@ struct FeatureSet  : VkPhysicalDeviceFeatures2
 
 };
 
+template<class T, template<class...> class U>
+struct SpecializationOf : std::false_type {  };
+
+template<template<class...> class U, class...Args>
+struct SpecializationOf<U<Args...>, U> : std::true_type {};
+
+template<class T, template<class...> class U>
+concept spec_of = SpecializationOf<T, U>::value;
+
+template<class T>
+concept HasEnabledSharedFromThis = requires (T * t)
+{
+    { t->shared_from_this() } -> spec_of<std::shared_ptr>;
+};
+
 struct mzVulkan_API Device : SharedFactory<Device>,
                              VklDeviceFunctions
 {
@@ -70,7 +85,10 @@ struct mzVulkan_API Device : SharedFactory<Device>,
 
         template <class T>
         Global(T* handle)
-            : Handle((u64)handle), Dtor([](Device*, u64 handle) { delete (T*)handle; })
+            : Handle((u64)handle), Dtor([](Device*, u64 handle) 
+            { 
+                delete (T*)handle; 
+            })
         {
         }
 
@@ -107,26 +125,101 @@ struct mzVulkan_API Device : SharedFactory<Device>,
         return false;
     }
 
+    template<class T>
+    using Spec = SpecializationOf<T, std::shared_ptr>;
+
+    template<class T> struct InnerType { using Inner = T;  };
+    
+    template<class T> struct InnerType<rc<T>> 
+    { 
+        using Inner = std::conditional_t<HasEnabledSharedFromThis<T>, T, rc<T>>;
+    };
+
+    
+    template<class...> struct Head { using T = void; };
+    template<class H, class...R> struct Head<H,R...> { using T = H; };
+
+    template<class T>
+    using Inner = typename InnerType<T>::Inner;
+
+    template<class T> static constexpr bool IS_RC = false;
+    template<class T> static constexpr bool IS_RC<rc<T>> = true;
+
+    template<class T>
+    static constexpr bool IsRC = IS_RC<T> && HasEnabledSharedFromThis<Inner<T>>;
+
+    template<class T>
+    using ReturnType = std::conditional_t<IsRC<T>, T, T*>;
+
     template <class T>
-    T* GetGlobal(std::string const& id)
+    auto GetGlobal(std::string const& id) -> ReturnType<T>
     {
         if (auto it = Globals.find(id); it != Globals.end())
         {
-            return (T*)it->second.Handle;
+            if constexpr (IsRC<T>)
+            {
+                auto ptr = (Inner<T>*)it->second.Handle;
+                return T(ptr->shared_from_this(), ptr);
+            }
+            else 
+                return (T*)it->second.Handle;
         }
         return 0;
     }
 
+    template<class T>
+    struct alignas(alignof(T)) ManuallyDestruct
+    {
+        T& Get() { return *(T*)this; }
+        
+        template<class...Args>
+        void init(Args&&...args)
+        {
+            new (this) T(std::forward<Args>(args)...);
+        }
+        u8 data[sizeof(T)] = {};
+    };
+    
+    // template<class T> requires(std::is_base_of_v<T, std::enable_shared_from_this<T>>)
+    // void RegisterG(std::string const& id, rc<T> v)
+    // {
+    //     Globals[id] = Global(ManuallyDestruct<rc<T>>(v)++.get(), [](u64 handle) { 
+    //         (((T*)handle)->shared_from_this()).rc<T>();
+    //     });
+    // }
+
     template <class T, class... Args>
-    requires(std::is_constructible_v<T, Args...>)
-        T* RegisterGlobal(std::string const& id, Args&&... args)
+        requires(
+            std::is_constructible_v<T, Args...> ||
+            (IsRC<T> && std::is_constructible_v<Inner<T>, Args...>))
+    auto RegisterGlobal(std::string const &id, Args&&...args) -> ReturnType<T>
     {
         RemoveGlobal(id);
-        T* data = new T(std::forward<Args>(args)...);
-        Globals[id] = Global(data);
-        return data;
+
+        if constexpr (IsRC<T>)
+        {
+            ManuallyDestruct<T> tmp;
+            if constexpr ((1 == sizeof...(Args)) && std::is_same_v<std::remove_cvref_t<typename Head<Args...>::T>, T>)
+            {
+                tmp.init(std::forward<Args>(args)...);
+            }
+            else
+            {
+                tmp.init(MakeShared<Inner<T>>(std::forward<Args>(args)...));
+            }
+            Inner<T>* ptr = tmp.Get().get();
+            auto dtor = [](auto, u64 handle) { ((Inner<T>*)handle)->shared_from_this().~shared_ptr(); };
+            Globals[id] = Global((u64)ptr, dtor);
+            return tmp.Get();
+        }
+        else
+        {
+            T *data = new T(std::forward(args)...);
+            Globals[id] = Global(data);
+            return data;
+        }
     }
-    
+
     Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice);
     ~Device();
     u64 GetLuid() const;
@@ -135,6 +228,8 @@ struct mzVulkan_API Device : SharedFactory<Device>,
     std::string GetName() const;
 
 }; // namespace mz::vk
+
+static_assert(Device::IsRC<rc<Device>>);
 
 struct mzVulkan_API Context : SharedFactory<Context>
 {
