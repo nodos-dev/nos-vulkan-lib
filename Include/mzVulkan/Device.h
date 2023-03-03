@@ -37,7 +37,8 @@ struct FeatureSet  : VkPhysicalDeviceFeatures2
     FeatureSet(FeatureSet const& r) { *this = r; }
     FeatureSet operator & (FeatureSet r) const
     {
-        for(u32 i = 0; i < sizeof(FeatureSet)/sizeof(VkBool32); ++i) *((VkBool32*)&r) &= *((VkBool32*)this);
+        for(u32 i = 0; i < sizeof(FeatureSet)/sizeof(VkBool32); ++i) 
+            ((VkBool32*)&r)[i] &= ((VkBool32*)this)[i];
         return r;
     }
     
