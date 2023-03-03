@@ -47,9 +47,9 @@ std::optional<std::chrono::nanoseconds>  QueryPool::PerfScope(u64 frames,std::st
     auto& q = ReadyQueries[key];
     if(q.size() >= frames)
     {
-        const auto sum = std::accumulate(q.begin(), q.end(), std::chrono::nanoseconds(0));
+        const auto sum = std::accumulate(q.begin(), q.end(), std::chrono::nanoseconds(0)) / q.size();
         q.clear();
-        return sum / frames;
+        return sum;
     }
     return {};
 }
