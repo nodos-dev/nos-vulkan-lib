@@ -368,6 +368,7 @@ ShaderLayout GetShaderLayouts(std::vector<u8> const& src, VkShaderStageFlags& st
 ShaderLayout ShaderLayout::Merge(ShaderLayout const& rhs) const
 {
     ShaderLayout re = *this;
+    re.BindingsByName.insert(rhs.BindingsByName.begin(), rhs.BindingsByName.end());
     re.RTCount = std::max(RTCount, rhs.RTCount);
     re.PushConstantSize = std::max(PushConstantSize, rhs.PushConstantSize);
     for(auto& [s, b] : rhs.BindingsByName)

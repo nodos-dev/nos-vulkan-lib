@@ -66,6 +66,11 @@ void Basepass::Bind(std::string const& name, void* data, u32 size, rc<Image>(Imp
     auto idx = PL->Layout->BindingsByName[name];
     auto& binding = PL->Layout->DescriptorLayouts[idx.set]->Bindings[idx.binding];
     auto type = binding.Type;
+    
+    if(binding.Name != name)
+    {
+        type = type->Members.at(name).Type;
+    }
 
     if(binding.SSBO())
     {
@@ -83,7 +88,12 @@ void Basepass::Bind(std::string const& name, void* data, u32 size, rc<Image>(Imp
     u32 baseOffset = PL->Layout->OffsetMap[((u64)idx.set << 32ull) | idx.binding];
     u32 offset = baseOffset + idx.offset;
     Bindings[idx.set][idx.binding] = vk::Binding(UniformBuffer, idx.binding, baseOffset);
-    memcpy(UniformBuffer->Map() + offset, data, size);
+    auto ptr = UniformBuffer->Map() + offset;
+    memcpy(ptr, data, size);
+    if(size < type->Size)
+    {
+        memset(ptr + size, 0, type->Size - size);
+    }
 }
 
 void Renderpass::Draw(rc<vk::CommandBuffer> Cmd, const VertexData* Verts)
