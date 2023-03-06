@@ -113,10 +113,10 @@ void Renderpass::Draw(rc<vk::CommandBuffer> Cmd, const VertexData* Verts)
     }
 }
 
-void Renderpass::Exec(rc<vk::CommandBuffer> cmd, rc<vk::Image> output, const VertexData* Verts, bool clear)
+void Renderpass::Exec(rc<vk::CommandBuffer> cmd, rc<vk::Image> output, const VertexData* Verts, bool clear, u32 frameNumber, float deltaSeconds)
 {
     BindResources(Bindings);
-    Begin(cmd, output, Verts && Verts->Wireframe, clear);
+    Begin(cmd, output, Verts && Verts->Wireframe, clear, frameNumber, deltaSeconds);
     Draw(cmd, Verts);
     End(cmd);
 
@@ -144,7 +144,7 @@ void Basepass::BindResources(rc<vk::CommandBuffer> Cmd)
     RefreshBuffer(Cmd);
 }
 
-void Renderpass::Begin(rc<CommandBuffer> Cmd, rc<Image> SrcImage, bool wireframe, bool clear)
+void Renderpass::Begin(rc<CommandBuffer> Cmd, rc<Image> SrcImage, bool wireframe, bool clear, u32 frameNumber, float deltaSeconds)
 {
     assert(SrcImage);
     
@@ -270,11 +270,19 @@ void Renderpass::Begin(rc<CommandBuffer> Cmd, rc<Image> SrcImage, bool wireframe
 
         Cmd->BeginRendering(&renderInfo);
     }
-    
+
     auto& handle = PL->Handles[Image->GetEffectiveFormat()];
     Cmd->BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, wireframe ? handle.wpl : handle.pl);
-    PL->PushConstants(Cmd, Image->Src->GetExtent());
     Cmd->AddDependency(shared_from_this());
+	
+    struct Constants
+	{
+		VkExtent2D Extent;
+		u32 FrameNumber;
+		float deltaSeconds;
+	}
+	constants = { Image->Src->GetExtent(), frameNumber, deltaSeconds };
+	PL->PushConstants(Cmd, constants);
 }
 
 void Renderpass::End(rc<CommandBuffer> Cmd)

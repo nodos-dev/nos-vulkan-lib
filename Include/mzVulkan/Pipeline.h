@@ -18,14 +18,12 @@ struct mzVulkan_API Pipeline : DeviceChild
     rc<PipelineLayout> Layout;
     Pipeline(Device* Vk, std::vector<u8> const& src);
     Pipeline(Device* Vk, rc<Shader> CS);
-    template <class T>
-    void PushConstants(rc<CommandBuffer> Cmd, T const& data)
-    {
-        if (Layout->PushConstantSize >= sizeof(T))
-        {
-            Cmd->PushConstants(Layout->Handle, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(T), &data);
-        }
-    }
+	template <class T>
+	void PushConstants(rc<CommandBuffer> Cmd, T const& data)
+	{
+		const auto size = std::min(size_t(Layout->PushConstantSize), sizeof(T));
+		Cmd->PushConstants(Layout->Handle, VK_SHADER_STAGE_FRAGMENT_BIT, 0, size, &data);
+	}
 };
 
 struct mzVulkan_API ComputePipeline : SharedFactory<ComputePipeline>, Pipeline
@@ -56,15 +54,6 @@ struct mzVulkan_API GraphicsPipeline : SharedFactory<GraphicsPipeline>, Pipeline
     rc<Shader> GetVS();
 
     void Recreate(VkFormat fmt);
-
-    template <class T>
-    void PushConstants(rc<CommandBuffer> Cmd, T const& data)
-    {
-        if (Layout->PushConstantSize >= sizeof(T))
-        {
-            Cmd->PushConstants(Layout->Handle, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(T), &data);
-        }
-    }
 };
 
 } // namespace mz::vk

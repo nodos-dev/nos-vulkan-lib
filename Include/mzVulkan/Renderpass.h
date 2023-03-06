@@ -121,9 +121,9 @@ struct mzVulkan_API Renderpass : SharedFactory<Renderpass>, Basepass
     Renderpass(Device* Vk, std::vector<u8> const& src);
     ~Renderpass();
 
-    void Begin(rc<CommandBuffer> Cmd, rc<Image> Image, bool wireframe = false, bool clear = true);
+    void Begin(rc<CommandBuffer> Cmd, rc<Image> Image, bool wireframe = false, bool clear = true, u32 frameNumber = 0, float deltaSeconds = .0f);
     void End(rc<CommandBuffer> Cmd);
-    void Exec(rc<vk::CommandBuffer> Cmd, rc<vk::Image> Output, const VertexData* = 0, bool clear = true);
+    void Exec(rc<vk::CommandBuffer> Cmd, rc<vk::Image> Output, const VertexData* = 0, bool clear = true, u32 frameNumber = 0, float deltaSeconds = .0f);
     void Draw(rc<vk::CommandBuffer> Cmd, const VertexData* Verts = 0);
 };
 }
