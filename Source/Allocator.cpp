@@ -86,6 +86,7 @@ struct MemoryBlock : SharedFactory<MemoryBlock>
     ~MemoryBlock()
     {
         std::unique_lock lock(Alloc->Mutex);
+        assert(Chunks.empty());
         auto& Set = Alloc->Allocations[TypeIndex];
         if (1 == Set.size())
         {

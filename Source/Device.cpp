@@ -28,7 +28,7 @@ static std::vector<const char*> extensions = {
     "VK_KHR_surface",
     "VK_KHR_win32_surface",
     "VK_KHR_external_memory_capabilities",
-    "VK_EXT_debug_utils"
+    "VK_EXT_debug_utils",
 };
 
 static std::vector<const char*> deviceExtensions = {
