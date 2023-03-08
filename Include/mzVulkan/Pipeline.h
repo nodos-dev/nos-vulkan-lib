@@ -22,7 +22,10 @@ struct mzVulkan_API Pipeline : DeviceChild
 	void PushConstants(rc<CommandBuffer> Cmd, T const& data)
 	{
 		const auto size = std::min(size_t(Layout->PushConstantSize), sizeof(T));
-		Cmd->PushConstants(Layout->Handle, VK_SHADER_STAGE_FRAGMENT_BIT, 0, size, &data);
+        if(size)
+        {
+            Cmd->PushConstants(Layout->Handle, VK_SHADER_STAGE_FRAGMENT_BIT, 0, size, &data);
+        }
 	}
 };
 
