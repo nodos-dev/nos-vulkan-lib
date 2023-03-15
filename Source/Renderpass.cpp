@@ -228,12 +228,14 @@ void Renderpass::Begin(rc<CommandBuffer> Cmd, rc<Image> SrcImage, bool wireframe
 
             MZVK_ASSERT(Vk->CreateFramebuffer(&framebufferInfo, nullptr, &FrameBuffer));
         }
-
-        VkRenderPassBeginInfo renderPassInfo{
+        VkClearValue clear = {.color = {.float32 = {0,0,0,0}}};
+        VkRenderPassBeginInfo renderPassInfo = {
             .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
             .renderPass = rp,
             .framebuffer = FrameBuffer,
             .renderArea = {{0, 0}, extent},
+            .clearValueCount = 1,
+            .pClearValues = &clear,
         };
 
         Cmd->BeginRenderPass(&renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);

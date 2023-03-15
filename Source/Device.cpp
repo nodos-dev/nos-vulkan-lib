@@ -128,7 +128,7 @@ rc<QueryPool> Device::GetQPool()
 }
 
 Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice)
-    : Instance(Instance), PhysicalDevice(PhysicalDevice)
+    : Instance(Instance), PhysicalDevice(PhysicalDevice), Features(PhysicalDevice)
 {
     u32 count;
 
@@ -215,7 +215,7 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice)
         .samplerAnisotropy = VK_TRUE,
     };
 
-    auto available = FeatureSet(PhysicalDevice) & set;
+    auto available = Features & set;
     VkDeviceCreateInfo info = {
         .sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
         .pNext                   = available.pnext(),
