@@ -41,17 +41,25 @@ void EndResourceDependency(rc<T> Resource)
 struct mzVulkan_API CommandBuffer : SharedFactory<CommandBuffer>,
                                     VklCommandFunctions
 {
+    enum State 
+    { 
+        Recording,
+        Executable,
+        Pending,
+    };
+
     CommandPool* Pool;
-
     VkFence Fence;
-
     std::vector<std::function<void()>> Callbacks;
     std::vector<std::function<void(rc<CommandBuffer>)>> PreSubmit;
     std::map<VkSemaphore, std::pair<uint64_t, VkPipelineStageFlags>> WaitGroup;
     std::map<VkSemaphore, uint64_t> SignalGroup;
-
+    std::atomic<State> State = Pending;
     bool Ready();
     void Wait();
+    void Clear();
+    VkResult Begin(const VkCommandBufferBeginInfo* info);
+    VkResult End();
 
     CommandBuffer(CommandPool* Pool, VkCommandBuffer Handle);
 
@@ -67,6 +75,8 @@ struct mzVulkan_API CommandBuffer : SharedFactory<CommandBuffer>,
             (EndResourceDependency(Resources), ...);
         });
     }
+
+    
 };
 
 struct mzVulkan_API CommandPool : SharedFactory<CommandPool>
@@ -93,6 +103,7 @@ struct mzVulkan_API CommandPool : SharedFactory<CommandPool>
     {
         return Queue->Submit(submitCount, pSubmits, fence);
     }
+    void Clear();
 };
 
 } // namespace mz::vk

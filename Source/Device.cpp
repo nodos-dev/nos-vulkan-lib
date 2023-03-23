@@ -37,6 +37,19 @@ static std::vector<const char*> deviceExtensions = {
 namespace mz::vk
 {
 
+static std::mutex Lock;
+static std::set<Device*> Devices;
+
+thread_local struct PoolCleaner
+{
+    ~PoolCleaner()
+    {
+        std::lock_guard lock(Lock);
+        auto id = std::this_thread::get_id();
+        for (auto d : Devices)
+            d->ImmPools.erase(id);
+    }
+} PoolCleaner;
 
 static std::string GetName(VkPhysicalDevice PhysicalDevice)
 {
@@ -107,24 +120,25 @@ std::string Device::GetName() const
     return vk::GetName(PhysicalDevice);
 }
 
+
 rc<CommandPool> Device::GetPool()
 {
     auto& Pool = ImmPools[std::this_thread::get_id()];
-    if (!Pool)
+    if (!Pool.first)
     {
-        Pool = CommandPool::New(this);
+        Pool = {CommandPool::New(this), QueryPool::New(this)};
     }
-    return Pool;
+    return Pool.first;
 }
 
 rc<QueryPool> Device::GetQPool()
 {
-    auto& Pool = ImmQPools[std::this_thread::get_id()];
-    if (!Pool)
+    auto& Pool = ImmPools[std::this_thread::get_id()];
+    if (!Pool.first)
     {
-        Pool = QueryPool::New(this);
+        Pool = { CommandPool::New(this), QueryPool::New(this) };
     }
-    return Pool;
+    return Pool.second;
 }
 
 Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice)
@@ -231,6 +245,8 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice)
     vkl_load_device_functions(handle, this);
     Queue        = Queue::New(this, family, 0);
     ImmAllocator = Allocator::New(this);
+    std::lock_guard lock(Lock);
+    Devices.insert(this);
 }
 
 void Context::OrderDevices()
@@ -248,6 +264,11 @@ void Context::OrderDevices()
 
 Device::~Device()
 {
+    {
+        std::lock_guard lock(Lock);
+        Devices.erase(this);
+    }
+
     for (auto& [id, glob] : Globals)
     {
         glob.Free(this);
@@ -255,12 +276,9 @@ Device::~Device()
 
     DeviceWaitIdle();
     ImmPools.clear();
-    ImmQPools.clear();
     ImmAllocator.reset();
     DestroyDevice(0);
 }
-
-
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,

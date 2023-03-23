@@ -104,14 +104,15 @@ struct mzVulkan_API Device : SharedFactory<Device>,
 
     rc<Allocator> ImmAllocator;
 
-    std::map<std::thread::id, rc<CommandPool>> ImmPools;
-    std::map<std::thread::id, rc<QueryPool>> ImmQPools;
+    std::map<std::thread::id, std::pair<rc<CommandPool>, rc<QueryPool>>> ImmPools;
+    
     rc<CommandPool> GetPool();
     rc<QueryPool> GetQPool();
     
     rc<Queue> Queue;
     FeatureSet Features;
     std::unordered_map<std::string, Global> Globals;
+    std::vector<std::function<void()>> Callbacks;
 
     bool RemoveGlobal(std::string const& id)
     {

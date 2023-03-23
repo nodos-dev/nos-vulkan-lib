@@ -3,6 +3,7 @@
 #include "mzVulkan/Command.h"
 #include "mzVulkan/Device.h"
 #include "mzVulkan/Image.h"
+#include "vkl.h"
 
 namespace mz::vk
 {
@@ -45,28 +46,34 @@ CommandBuffer::CommandBuffer(CommandPool* Pool, VkCommandBuffer Handle)
 void CommandBuffer::Wait()
 {
     MZVK_ASSERT(GetDevice()->WaitForFences(1, &Fence, 0, -1));
+    Clear();
+}
 
-    for (auto& fn : Callbacks)
-    {
-        fn();
-    }
-
+void CommandBuffer::Clear()
+{
+    for (auto& fn : Callbacks) fn();
     Callbacks.clear();
     WaitGroup.clear();
     SignalGroup.clear();
 }
 
+VkResult CommandBuffer::Begin(const VkCommandBufferBeginInfo* info)
+{
+    VkResult re = VklCommandFunctions::Begin(info);
+    State = Recording;
+    return re;
+}
+
+VkResult CommandBuffer::End()
+{
+    VkResult re = VklCommandFunctions::End();
+    State = Executable;
+    return re;
+}
+
 CommandBuffer::~CommandBuffer()
 {
-    for (auto& fn : Callbacks)
-    {
-        fn();
-    }
-
-    Callbacks.clear();
-    WaitGroup.clear();
-    SignalGroup.clear();
-    
+    Clear();
     GetDevice()->DestroyFence(Fence, 0);
     MZVK_ASSERT(Reset(VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT));
 }
@@ -126,13 +133,13 @@ rc<CommandBuffer> CommandBuffer::Submit()
 
     MZVK_ASSERT(End());
     MZVK_ASSERT(Pool->Submit(1, &submitInfo, Fence));
-
+    State = Pending;
     return self;
 }
 
 bool CommandBuffer::Ready()
 {
-    return VK_SUCCESS == GetDevice()->GetFenceStatus(Fence);
+    return (Pending == State) && (VK_SUCCESS == GetDevice()->GetFenceStatus(Fence));
 }
 
 Device* CommandBuffer::GetDevice()
@@ -188,13 +195,18 @@ CommandPool::~CommandPool()
 
 rc<CommandBuffer> CommandPool::AllocCommandBuffer(VkCommandBufferLevel level)
 {
-    while (!Buffers[NextBuffer]->Ready())
+    while (1)
+    {
+        auto cmd = Buffers[NextBuffer];
+        auto state = cmd->State.load();
+        if (cmd->Ready()) break;
         NextBuffer++;
+    }
     ;
 
     auto cmd = Buffers[NextBuffer];
 
-    cmd->Wait();
+    cmd->Clear();
 
     MZVK_ASSERT(GetDevice()->ResetFences(1, &cmd->Fence));
     MZVK_ASSERT(cmd->Reset(VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT));
@@ -211,8 +223,14 @@ rc<CommandBuffer> CommandPool::BeginCmd(VkCommandBufferLevel level)
     };
 
     MZVK_ASSERT(Cmd->Begin(&beginInfo));
-
     return Cmd;
+}
+
+void CommandPool::Clear()
+{
+    for(auto& cmd : Buffers) 
+        if(cmd->Ready()) 
+            cmd->Clear();
 }
 
 } // namespace mz::vk
