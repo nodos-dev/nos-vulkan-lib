@@ -257,7 +257,7 @@ void Context::OrderDevices()
         vkGetPhysicalDeviceProperties(a->PhysicalDevice, &props[0]);
         vkGetPhysicalDeviceProperties(b->PhysicalDevice, &props[1]);
         return
-            (VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU == props[0].deviceType) < 
+            (VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU == props[0].deviceType) > 
             (VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU == props[1].deviceType);
     });
 }
