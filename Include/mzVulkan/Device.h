@@ -10,17 +10,9 @@
 
 // mzVulkan
 #include "Common.h"
-#include "vulkan/vulkan_core.h"
 
 namespace mz::vk
 {
-
-// struct mzFallbackOptions
-// {
-//     bool mzDynamicRenderingFallback;
-//     bool mzSync2Fallback;
-//     bool mzCopy2Fallback;
-// };
 
 struct FeatureSet  : VkPhysicalDeviceFeatures2
 {
@@ -56,20 +48,6 @@ struct FeatureSet  : VkPhysicalDeviceFeatures2
 
 };
 
-template<class T, template<class...> class U>
-struct SpecializationOf : std::false_type {  };
-
-template<template<class...> class U, class...Args>
-struct SpecializationOf<U<Args...>, U> : std::true_type {};
-
-template<class T, template<class...> class U>
-concept spec_of = SpecializationOf<T, U>::value;
-
-template<class T>
-concept HasEnabledSharedFromThis = requires (T * t)
-{
-    { t->shared_from_this() } -> spec_of<std::shared_ptr>;
-};
 
 struct mzVulkan_API Device : SharedFactory<Device>,
                              VklDeviceFunctions

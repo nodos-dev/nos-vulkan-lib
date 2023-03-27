@@ -38,6 +38,9 @@
         }                                                                                                         \
     }
 
+inline bool operator == (VkExtent2D a, VkExtent2D b) {return a.width == b.width && a.height == b.height; }
+inline bool operator == (VkExtent3D a, VkExtent3D b) {return a.width == b.width && a.height == b.height && a.depth == b.depth; }
+
 namespace mz::vk
 {
 
