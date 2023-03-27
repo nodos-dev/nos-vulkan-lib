@@ -90,6 +90,7 @@ struct mzVulkan_API Device : SharedFactory<Device>,
     rc<Queue> Queue;
     FeatureSet Features;
     std::unordered_map<std::string, Global> Globals;
+    std::unordered_map<VkFilter, VkSampler> Samplers;
     std::vector<std::function<void()>> Callbacks;
 
     bool RemoveGlobal(std::string const& id)

@@ -18,7 +18,7 @@ struct Allocation;
 struct mzVulkan_API Sampler 
 {
     VkSampler Handle = 0;
-    VkSamplerYcbcrConversion SamplerYcbcrConversion = 0;
+    // VkSamplerYcbcrConversion SamplerYcbcrConversion = 0;
     Sampler() = default;
     Sampler(Device* Vk, VkFormat Format, VkFilter Filter);
     operator VkSampler() const { return Handle; }

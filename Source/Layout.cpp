@@ -52,32 +52,33 @@ DescriptorLayout::~DescriptorLayout()
 rc<DescriptorSet> DescriptorSet::Update(std::map<u32, Binding> const& Res)
 {
     BindStates.clear();
-    std::vector<DescriptorResourceInfo> infos;
-    std::vector<VkWriteDescriptorSet> writes;
-    infos.reserve(Res.size());
-    writes.reserve(Res.size());
+    std::vector<DescriptorResourceInfo> infos(Res.size());
+    std::vector<VkWriteDescriptorSet> writes(Res.size());
 
+    size_t i = 0;
     for (auto [_,res] : Res)
     {
-        infos.push_back(res.GetDescriptorInfo(GetType(res.Idx)));
-        writes.push_back(VkWriteDescriptorSet{
+        auto info = &(infos[i] = res.GetDescriptorInfo(GetType(res.Idx)));
+        writes[i] = VkWriteDescriptorSet{
             .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
             .dstSet          = Handle,
             .dstBinding      = res.Idx,
             .descriptorCount = 1,
             .descriptorType  = GetType(res.Idx),
-            .pImageInfo      = (std::get_if<rc<Image>>(&res.Resource) ? &infos.back().Image : 0),
-            .pBufferInfo     = (std::get_if<rc<Buffer>>(&res.Resource) ? &infos.back().Buffer : 0),
-        });
-
+            .pImageInfo      = (std::get_if<rc<Image>>(&res.Resource)  ? &info->Image : 0),
+            .pBufferInfo     = (std::get_if<rc<Buffer>>(&res.Resource) ? &info->Buffer : 0),
+        };
+        
         if (rc<Image> const* ppImg = std::get_if<rc<Image>>(&res.Resource))
         {
             BindStates[(*ppImg)->shared_from_this()] = ImageState{
                                           .StageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                                           .AccessMask = res.AccessFlags,
-                                          .Layout = infos.back().Image.imageLayout,
+                                          .Layout = info->Image.imageLayout,
             };
         }
+
+        ++i;
     }
     Layout->Vk->UpdateDescriptorSets(writes.size(), writes.data(), 0, 0);
     return shared_from_this();

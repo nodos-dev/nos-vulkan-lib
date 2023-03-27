@@ -9,7 +9,7 @@
 namespace mz::vk
 {
 
-Sampler::Sampler(Device* Vk, VkFormat Format, VkFilter Filter) : SamplerYcbcrConversion(0)
+Sampler::Sampler(Device* Vk, VkFormat Format, VkFilter Filter) // : SamplerYcbcrConversion(0)
 {
     VkSamplerYcbcrConversionCreateInfo ycbcrCreateInfo = {
         .sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_CREATE_INFO,
@@ -47,9 +47,8 @@ Sampler::Sampler(Device* Vk, VkFormat Format, VkFilter Filter) : SamplerYcbcrCon
             .borderColor      = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE,
         };
     
-    
+
     static std::mutex mutex;
-    static std::map<VkFilter, VkSampler> samplers;
 
     // static std::map<VkFormat, std::pair<VkSamplerYcbcrConversion, VkSampler>>  ycbr;
     // std::unique_lock lock(Mutex);
@@ -76,13 +75,12 @@ Sampler::Sampler(Device* Vk, VkFormat Format, VkFilter Filter) : SamplerYcbcrCon
     // }
 
     std::unique_lock lock(mutex);
-
-    if(!samplers[Filter])
+    VkSampler& sampler = Vk->Samplers[Filter];
+    if(!sampler)
     {
-        MZVK_ASSERT(Vk->CreateSampler(&samplerInfo, 0, &samplers[Filter]));
+        MZVK_ASSERT(Vk->CreateSampler(&samplerInfo, 0, &sampler));
     }
-
-    Handle = samplers[Filter];
+    Handle = sampler;
 }
 
 Image::~Image()
@@ -102,12 +100,12 @@ ImageView::ImageView(struct Image* Src, VkFormat Format, VkImageUsageFlags Usage
 {
     VkSamplerYcbcrConversionInfo ycbcrInfo = {
         .sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO,
-        .conversion = Sampler.SamplerYcbcrConversion,
+        // .conversion = Sampler.SamplerYcbcrConversion,
     };
 
     VkImageViewUsageCreateInfo usageInfo = {
         .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_USAGE_CREATE_INFO,
-        .pNext = Sampler.SamplerYcbcrConversion ? &ycbcrInfo : 0,
+        // .pNext = Sampler.SamplerYcbcrConversion ? &ycbcrInfo : 0,
         .usage = this->Usage,
     };
 
