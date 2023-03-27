@@ -305,14 +305,14 @@ Allocation Allocator::AllocateImageMemory(VkImage img, ImageCreateInfo const& in
 
     Vk->GetImageMemoryRequirements(img, &req);
 
-    HANDLE memory;
+    HANDLE memory = 0;
     u64 offset = 0;
     if(info.Imported)
     {
         offset = info.Imported->Offset;
         memory = PlatformDupeHandle(info.Imported->PID, info.Imported->Memory);
     }
-    else 
+    if(memory == 0)
     {   
         memory = Dx->CreateSharedTexture(info.Extent, info.Format);
     }
