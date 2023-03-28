@@ -9,80 +9,6 @@
 namespace mz::vk
 {
 
-Sampler::Sampler(Device* Vk, VkFormat Format, VkFilter Filter) // : SamplerYcbcrConversion(0)
-{
-    VkSamplerYcbcrConversionCreateInfo ycbcrCreateInfo = {
-        .sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_CREATE_INFO,
-        .pNext = 0,
-        .format = Format,
-        .ycbcrModel = VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_709,
-        .ycbcrRange = VK_SAMPLER_YCBCR_RANGE_ITU_NARROW,
-        .components = {
-            .r = VK_COMPONENT_SWIZZLE_IDENTITY,
-            .g = VK_COMPONENT_SWIZZLE_IDENTITY,
-            .b = VK_COMPONENT_SWIZZLE_IDENTITY,
-            .a = VK_COMPONENT_SWIZZLE_ONE,
-        },
-        .xChromaOffset = VK_CHROMA_LOCATION_COSITED_EVEN,
-        .yChromaOffset = VK_CHROMA_LOCATION_COSITED_EVEN,
-        .chromaFilter = VK_FILTER_NEAREST,
-        .forceExplicitReconstruction = VK_FALSE,
-    };
-    VkPhysicalDeviceProperties props;
-    vkGetPhysicalDeviceProperties(Vk->PhysicalDevice, &props);
-
-    VkSamplerCreateInfo samplerInfo = {
-            .sType            = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
-            .magFilter        = Filter,
-            .minFilter        = Filter,
-            .mipmapMode       = VK_SAMPLER_MIPMAP_MODE_NEAREST,
-            .addressModeU     = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-            .addressModeV     = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-            .addressModeW     = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-            .mipLodBias       = 0.0f,
-            .anisotropyEnable = 1,
-            .maxAnisotropy    = props.limits.maxSamplerAnisotropy,
-            .compareOp        = VK_COMPARE_OP_NEVER,
-            .maxLod           = 1.f,
-            .borderColor      = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE,
-        };
-    
-
-    static std::mutex mutex;
-
-    // static std::map<VkFormat, std::pair<VkSamplerYcbcrConversion, VkSampler>>  ycbr;
-    // std::unique_lock lock(Mutex);
-    // if (IsYCbCr(Format))
-    // {
-    //    if (ycbr.contains(Format))
-    //    {
-    //        auto& [cvt, sampler] = ycbr[Format];
-    //        SamplerYcbcrConversion = cvt;
-    //        Handle = sampler;
-    //    }
-    //    else
-    //    {
-    //        MZVK_ASSERT(Vk->CreateSamplerYcbcrConversion(&ycbcrCreateInfo, 0, &SamplerYcbcrConversion));
-    //        VkSamplerYcbcrConversionInfo ycbcrInfo = {
-    //            .sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO,
-    //            .conversion = SamplerYcbcrConversion,
-    //        };
-    //        samplerInfo.pNext = &ycbcrInfo;
-    //        MZVK_ASSERT(Vk->CreateSampler(&samplerInfo, 0, &Handle));
-    //        ycbr[Format] = { SamplerYcbcrConversion, Handle };
-    //    }
-    //    return;
-    // }
-
-    std::unique_lock lock(mutex);
-    VkSampler& sampler = Vk->Samplers[Filter];
-    if(!sampler)
-    {
-        MZVK_ASSERT(Vk->CreateSampler(&samplerInfo, 0, &sampler));
-    }
-    Handle = sampler;
-}
-
 Image::~Image()
 {
     Views.clear();
@@ -96,7 +22,7 @@ ImageView::~ImageView()
 }
 
 ImageView::ImageView(struct Image* Src, VkFormat Format, VkImageUsageFlags Usage) :
-    DeviceChild(Src->GetDevice()), Src(Src), Format(Format ? Format : Src->GetFormat()), Usage(Usage ? Usage : Src->Usage), Sampler(Src->GetDevice(), Src->GetFormat(), Src->Filtering)
+    DeviceChild(Src->GetDevice()), Src(Src), Format(Format ? Format : Src->GetFormat()), Usage(Usage ? Usage : Src->Usage), Sampler(Src->GetDevice()->GetSampler(Src->Filtering))
 {
     VkSamplerYcbcrConversionInfo ycbcrInfo = {
         .sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO,

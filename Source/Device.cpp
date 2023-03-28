@@ -120,7 +120,6 @@ std::string Device::GetName() const
     return vk::GetName(PhysicalDevice);
 }
 
-
 rc<CommandPool> Device::GetPool()
 {
     auto& Pool = ImmPools[std::this_thread::get_id()];
@@ -245,6 +244,9 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice)
     vkl_load_device_functions(handle, this);
     Queue        = Queue::New(this, family, 0);
     ImmAllocator = Allocator::New(this);
+    GetSampler(VK_FILTER_NEAREST);
+    GetSampler(VK_FILTER_LINEAR);
+    GetSampler(VK_FILTER_CUBIC_IMG);
     std::lock_guard lock(Lock);
     Devices.insert(this);
 }
@@ -272,6 +274,11 @@ Device::~Device()
     for (auto& [id, glob] : Globals)
     {
         glob.Free(this);
+    }
+
+    for(auto& [_, sampler] : Samplers)
+    {
+        DestroySampler(sampler, 0);
     }
 
     DeviceWaitIdle();
@@ -425,6 +432,37 @@ u64 Device::GetLuid() const
     assert(IDProps.deviceLUIDValid);
 
     return std::bit_cast<u64, u8[VK_LUID_SIZE]>(IDProps.deviceLUID);
+}
+
+VkSampler Device::GetSampler(VkSamplerCreateInfo const& info)
+{
+    auto& sampler = Samplers[info];
+    VkSampler handle = sampler;
+    if(!handle)
+        MZVK_ASSERT(CreateSampler(&info, 0, &handle));
+    return handle;
+}
+
+VkSampler Device::GetSampler(VkFilter Filter)
+{
+    VkPhysicalDeviceProperties props;
+    vkGetPhysicalDeviceProperties(PhysicalDevice, &props);
+    VkSamplerCreateInfo info = {
+        .sType            = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+        .magFilter        = Filter,
+        .minFilter        = Filter,
+        .mipmapMode       = VK_SAMPLER_MIPMAP_MODE_NEAREST,
+        .addressModeU     = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+        .addressModeV     = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+        .addressModeW     = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+        .mipLodBias       = 0.0f,
+        .anisotropyEnable = 1,
+        .maxAnisotropy    = props.limits.maxSamplerAnisotropy,
+        .compareOp        = VK_COMPARE_OP_NEVER,
+        .maxLod           = 1.f,
+        .borderColor      = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK,
+    };
+    return GetSampler(info);
 }
 
 } // namespace mz::vk

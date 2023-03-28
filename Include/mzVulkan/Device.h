@@ -4,12 +4,54 @@
 
 #pragma once
 
-// std
-#include <string>
-#include <type_traits>
-
 // mzVulkan
 #include "Common.h"
+
+template<>
+struct std::hash<VkSamplerCreateInfo>
+{
+    using Arr = std::array<u8, sizeof(VkSamplerCreateInfo) - offsetof(VkSamplerCreateInfo, flags)>;
+    size_t operator()(VkSamplerCreateInfo const& info) const 
+    {
+        size_t re = 0;
+        mz::hash_combine(re, 
+            info.flags, 
+            info.magFilter, 
+            info.minFilter, 
+            info.mipmapMode, 
+            info.addressModeU, 
+            info.addressModeV, 
+            info.addressModeW, 
+            info.mipLodBias, 
+            info.minLod, 
+            info.maxLod, 
+            info.borderColor, 
+            (bool)info.unnormalizedCoordinates);
+            if(info.compareEnable) mz::hash_combine(re, info.compareOp);
+            if(info.anisotropyEnable) mz::hash_combine(re, info.maxAnisotropy);
+        return re;
+    }
+};
+
+inline bool operator == (VkSamplerCreateInfo const& a, VkSamplerCreateInfo const& b)
+{
+    return  a.flags == b.flags &&
+            a.magFilter == b.magFilter &&
+            a.minFilter == b.minFilter &&
+            a.mipmapMode == b.mipmapMode &&
+            a.addressModeU == b.addressModeU &&
+            a.addressModeV == b.addressModeV &&
+            a.addressModeW == b.addressModeW &&
+            a.mipLodBias == b.mipLodBias &&
+            a.minLod == b.minLod &&
+            a.maxLod == b.maxLod &&
+            a.borderColor == b.borderColor &&
+            (bool)a.unnormalizedCoordinates == (bool)b.unnormalizedCoordinates && 
+            a.compareEnable == b.compareEnable &&
+            a.anisotropyEnable == b.anisotropyEnable &&
+            (a.compareEnable ? a.compareOp == b.compareOp : true) &&
+            (a.anisotropyEnable ? a.maxAnisotropy == b.maxAnisotropy : true);
+}
 
 namespace mz::vk
 {
@@ -45,7 +87,6 @@ struct FeatureSet  : VkPhysicalDeviceFeatures2
              pNext = &vk13;
         return this;
     }
-
 };
 
 
@@ -90,8 +131,12 @@ struct mzVulkan_API Device : SharedFactory<Device>,
     rc<Queue> Queue;
     FeatureSet Features;
     std::unordered_map<std::string, Global> Globals;
-    std::unordered_map<VkFilter, VkSampler> Samplers;
     std::vector<std::function<void()>> Callbacks;
+
+    std::unordered_map<VkSamplerCreateInfo, VkSampler> Samplers;
+
+    VkSampler GetSampler(VkSamplerCreateInfo const& info);
+    VkSampler GetSampler(VkFilter);
 
     bool RemoveGlobal(std::string const& id)
     {
@@ -115,7 +160,6 @@ struct mzVulkan_API Device : SharedFactory<Device>,
         using Inner = std::conditional_t<HasEnabledSharedFromThis<T>, T, rc<T>>;
     };
 
-    
     template<class...> struct Head { using T = void; };
     template<class H, class...R> struct Head<H,R...> { using T = H; };
 
@@ -159,14 +203,6 @@ struct mzVulkan_API Device : SharedFactory<Device>,
         }
         u8 data[sizeof(T)] = {};
     };
-    
-    // template<class T> requires(std::is_base_of_v<T, std::enable_shared_from_this<T>>)
-    // void RegisterG(std::string const& id, rc<T> v)
-    // {
-    //     Globals[id] = Global(ManuallyDestruct<rc<T>>(v)++.get(), [](u64 handle) { 
-    //         (((T*)handle)->shared_from_this()).rc<T>();
-    //     });
-    // }
 
     template <class T, class... Args>
         requires(

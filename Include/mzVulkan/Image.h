@@ -14,16 +14,6 @@ struct CommandBuffer;
 struct Buffer;
 struct Allocation;
 
-
-struct mzVulkan_API Sampler 
-{
-    VkSampler Handle = 0;
-    // VkSamplerYcbcrConversion SamplerYcbcrConversion = 0;
-    Sampler() = default;
-    Sampler(Device* Vk, VkFormat Format, VkFilter Filter);
-    operator VkSampler() const { return Handle; }
-};
-
 struct mzVulkan_API ImageView  : private SharedFactory<ImageView>, DeviceChild
 {
     friend struct Image;
@@ -31,7 +21,7 @@ struct mzVulkan_API ImageView  : private SharedFactory<ImageView>, DeviceChild
 private:
     VkFormat Format;
 public:
-    Sampler Sampler;
+    VkSampler Sampler;
     VkImageUsageFlags Usage;
     struct Image* Src;
     ImageView(struct Image* Image, VkFormat Format = VK_FORMAT_UNDEFINED, VkImageUsageFlags Usage = 0);
