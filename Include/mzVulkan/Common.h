@@ -91,9 +91,11 @@ struct MemoryExportInfo
 {
     u64 PID;
     HANDLE Memory;
-    VkExternalMemoryHandleTypeFlagBits Type;
+    VkExternalMemoryHandleTypeFlags Type;
     VkDeviceSize Offset;
 };
+
+constexpr VkFlags MemoryHandleTypeWin32 = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT | VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT | VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_BIT | VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_KMT_BIT | VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_HEAP_BIT | VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT;
 
 struct BufferCreateInfo
 {
@@ -101,8 +103,7 @@ struct BufferCreateInfo
     u32 Mapped: 1 = 1;
     u32 VRAM: 1 = 0;
     VkBufferUsageFlags Usage;
-    VkExternalMemoryHandleTypeFlagBits Type = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
-
+    VkExternalMemoryHandleTypeFlags Type = 0;
     void* Data = 0;
     const MemoryExportInfo* Imported = 0;
 };
@@ -202,7 +203,7 @@ mzVulkan_API u64 PlatformGetCurrentProcessId();
 
 mzVulkan_API std::string GetLastErrorAsString();
 
-mzVulkan_API std::pair<u32, VkMemoryPropertyFlags> MemoryTypeIndex(VkPhysicalDevice physicalDevice, u32 memoryTypeBits, VkMemoryPropertyFlags requestedProps);
+mzVulkan_API std::pair<u32, VkMemoryType> MemoryTypeIndex(VkPhysicalDevice physicalDevice, u32 memoryTypeBits, VkMemoryPropertyFlags requestedProps);
 
 mzVulkan_API void ImageLayoutTransition(VkImage Image,
                                         rc<CommandBuffer> Cmd,

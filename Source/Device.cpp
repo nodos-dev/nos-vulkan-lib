@@ -31,7 +31,9 @@ static std::vector<const char*> deviceExtensions = {
     "VK_KHR_dynamic_rendering",
     "VK_KHR_copy_commands2",
     "VK_EXT_host_query_reset",
+    "VK_KHR_shader_float16_int8",
     "VK_KHR_16bit_storage",
+    "VK_NV_external_memory_rdma",
 };
 
 namespace mz::vk

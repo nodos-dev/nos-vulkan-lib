@@ -180,7 +180,7 @@ void ImageLayoutTransition2(VkImage Image,
     // Cmd->PipelineBarrier(Src.StageMask, Dst.StageMask, VK_DEPENDENCY_DEVICE_GROUP_BIT, 0, 0, 0, 0, 1, &imageMemoryBarrier);
 }
 
-std::pair<u32, VkMemoryPropertyFlags> MemoryTypeIndex(VkPhysicalDevice physicalDevice, u32 memoryTypeBits, VkMemoryPropertyFlags requestedProps)
+std::pair<u32, VkMemoryType> MemoryTypeIndex(VkPhysicalDevice physicalDevice, u32 memoryTypeBits, VkMemoryPropertyFlags requestedProps)
 {
     VkPhysicalDeviceMemoryProperties props;
     vkGetPhysicalDeviceMemoryProperties(physicalDevice, &props);
@@ -208,7 +208,7 @@ std::pair<u32, VkMemoryPropertyFlags> MemoryTypeIndex(VkPhysicalDevice physicalD
         typeIndex = memoryTypes.front().first;
     }
 
-    return std::make_pair(typeIndex, props.memoryTypes[typeIndex].propertyFlags);
+    return std::make_pair(typeIndex, props.memoryTypes[typeIndex]);
 }
 
 bool IsYCbCr(VkFormat fmt)

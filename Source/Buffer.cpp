@@ -16,6 +16,7 @@ Buffer::Buffer(Device* Vk, BufferCreateInfo const& info)
 Buffer::Buffer(Allocator* Allocator, BufferCreateInfo const& info)
     : DeviceChild(Allocator->GetDevice()), Usage(info.Usage)
 {
+
     if(0 == info.Size)
     {
         UNREACHABLE;
@@ -28,14 +29,14 @@ Buffer::Buffer(Allocator* Allocator, BufferCreateInfo const& info)
 
     VkBufferCreateInfo createInfo = {
         .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-        .pNext = &resourceCreateInfo,
+        .pNext = info.Type ? &resourceCreateInfo : 0,
         .size  = info.Size,
         .usage = info.Usage,
     };
 
     MZVK_ASSERT(Vk->CreateBuffer(&createInfo, 0, &Handle));
 
-    Allocation = Allocator->AllocateResourceMemory(Handle, VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT, info.Mapped, info.VRAM, info.Imported);
+    Allocation = Allocator->AllocateResourceMemory(Handle, info.Type, info.Mapped, info.VRAM, info.Imported);
     Allocation.BindResource(Handle);
 
     if(info.Data)
