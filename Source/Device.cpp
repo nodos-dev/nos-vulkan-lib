@@ -439,10 +439,9 @@ u64 Device::GetLuid() const
 VkSampler Device::GetSampler(VkSamplerCreateInfo const& info)
 {
     auto& sampler = Samplers[info];
-    VkSampler handle = sampler;
-    if(!handle)
-        MZVK_ASSERT(CreateSampler(&info, 0, &handle));
-    return handle;
+    if(!sampler)
+        MZVK_ASSERT(CreateSampler(&info, 0, &sampler));
+    return sampler;
 }
 
 VkSampler Device::GetSampler(VkFilter Filter)
