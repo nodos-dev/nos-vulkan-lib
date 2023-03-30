@@ -33,7 +33,7 @@ static std::vector<const char*> deviceExtensions = {
     "VK_EXT_host_query_reset",
     "VK_KHR_shader_float16_int8",
     "VK_KHR_16bit_storage",
-    "VK_NV_external_memory_rdma",
+    // "VK_NV_external_memory_rdma",
 };
 
 namespace mz::vk
