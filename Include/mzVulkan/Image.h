@@ -100,6 +100,11 @@ public:
     {
         return (Format == VK_FORMAT_D32_SFLOAT) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
     }
+
+    VkImageType GetImageType() const
+    {
+        return (1 >= Extent.height) ? VK_IMAGE_TYPE_1D : VK_IMAGE_TYPE_2D;
+    }
 };
 
 }; // namespace mz::vk

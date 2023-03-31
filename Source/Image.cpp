@@ -39,7 +39,7 @@ ImageView::ImageView(struct Image* Src, VkFormat Format, VkImageUsageFlags Usage
         .sType      = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
         .pNext      = &usageInfo,
         .image      = Src->Handle,
-        .viewType   = VK_IMAGE_VIEW_TYPE_2D,
+        .viewType   = VkImageViewType(Src->GetImageType()),
         .format     = IsYCbCr(this->Format) ? VK_FORMAT_R8G8B8A8_UNORM : this->Format,
         .components = {},
         .subresourceRange = {
@@ -109,7 +109,7 @@ Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo, VkResult* 
         .sType                 = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
          .pNext                 = &resourceCreateInfo,
         .flags                 = createInfo.Flags,
-        .imageType             = VK_IMAGE_TYPE_2D,
+        .imageType             = GetImageType(),
         .format                = GetEffectiveFormat(),
         .extent                = {GetEffectiveExtent().width, Extent.height, 1},
         .mipLevels             = 1,
@@ -164,7 +164,7 @@ void Image::Clear(rc<CommandBuffer> Cmd, VkClearColorValue value)
                         .Layout     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                     });
     VkImageSubresourceRange range = {
-        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+        .aspectMask = GetAspect(),
         .levelCount = 1,
         .layerCount = 1,
     };
@@ -189,7 +189,7 @@ void Image::Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src, u32 bufferRowLength, u
         .bufferRowLength = bufferRowLength,
         .bufferImageHeight = bufferImageHeight,
         .imageSubresource = {
-            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .aspectMask = GetAspect(),
             .layerCount = 1,
         },
         .imageExtent = {
@@ -231,11 +231,11 @@ rc<Image> Image::Copy(rc<CommandBuffer> Cmd, rc<Allocator> Allocator)
 
     VkImageCopy region = {
         .srcSubresource = {
-            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .aspectMask = GetAspect(),
             .layerCount = 1,
         },
         .dstSubresource = {
-            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .aspectMask = Img->GetAspect(),
             .layerCount = 1,
         },
         .extent = {GetEffectiveExtent().width, Extent.height, 1},
@@ -276,7 +276,7 @@ void Image::Download(rc<CommandBuffer> Cmd, rc<Buffer> Buffer)
 
     VkBufferImageCopy region = {
         .imageSubresource = {
-            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .aspectMask = GetAspect(),
             .layerCount = 1,
         },
         .imageExtent = {
@@ -316,12 +316,12 @@ void Image::BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
     {
         VkImageBlit region = {
             .srcSubresource = {
-                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .aspectMask = Src->GetAspect(),
                 .layerCount = 1,
             },
             .srcOffsets = {{}, {(i32)Src->Extent.width / (IsYCbCr(Src->Format) + 1), (i32)Src->Extent.height, 1}},
             .dstSubresource = {
-                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .aspectMask = Dst->GetAspect(),
                 .layerCount = 1,
             },
             .dstOffsets = {{}, {(i32)Dst->Extent.width / (IsYCbCr(Dst->Format) + 1), (i32)Dst->Extent.height, 1}},
@@ -388,11 +388,11 @@ void Image::CopyFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
 
     VkImageCopy region = {
         .srcSubresource = {
-            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .aspectMask = Src->GetAspect(),
             .layerCount = 1,
         },
         .dstSubresource = {
-            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .aspectMask = Dst->GetAspect(),
             .layerCount = 1,
         },
         .extent = {GetEffectiveExtent().width, Extent.height, 1},
@@ -423,11 +423,11 @@ void Image::ResolveFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
     VkImageResolve2 region = {
         .sType = VK_STRUCTURE_TYPE_IMAGE_RESOLVE_2_KHR,
         .srcSubresource = {
-            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .aspectMask = Src->GetAspect(),
             .layerCount = 1,
         },
         .dstSubresource = {
-            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .aspectMask = Dst->GetAspect(),
             .layerCount = 1,
         },
         .extent = {GetEffectiveExtent().width, Extent.height, 1},
