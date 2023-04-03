@@ -103,6 +103,7 @@ public:
 
     VkImageType GetImageType() const
     {
+        return VK_IMAGE_TYPE_2D; // Temporary fix for color nodes.
         return (1 >= Extent.height) ? VK_IMAGE_TYPE_1D : VK_IMAGE_TYPE_2D;
     }
 };
