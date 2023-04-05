@@ -34,6 +34,7 @@
             char errbuf[4096];                                                                                    \
             std::snprintf(errbuf, 4096, "%s %d (%s:%d)", ::mz::vk::vk_result_string(re), re, __FILE__, __LINE__); \
             printf("%s\n", errbuf);                                                                               \
+            fflush(stdout);                                                                                       \
             MZ_ABORT;                                                                                             \
         }                                                                                                         \
     }
