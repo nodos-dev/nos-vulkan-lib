@@ -6,16 +6,17 @@
 
 #include "Common.h"
 
-namespace mz::vk {
+namespace mz::vk
+{
 
-struct mzVulkan_API Semaphore : DeviceChild
+struct mzVulkan_API Semaphore : SharedFactory<Semaphore>, DeviceChild
 {
     VkSemaphore Handle;
     HANDLE OSHandle;
-    Semaphore(Device* Vk);
+    Semaphore(Device *Vk, u64 pid = 0, HANDLE OSHandle = 0);
     operator VkSemaphore() const;
     ~Semaphore();
     u64 GetValue() const;
 };
 
-}  // namespace mz::vk
+} // namespace mz::vk

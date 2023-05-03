@@ -21,8 +21,8 @@ HANDLE PlatformDupeHandle(u64 pid, HANDLE handle)
     DWORD flags;
     HANDLE re = 0;
 
-    HANDLE src = OpenProcess(GENERIC_ALL, false, pid);
     HANDLE cur = GetCurrentProcess();
+    HANDLE src = pid ? OpenProcess(GENERIC_ALL, false, pid) : cur;
 
 	if (!DuplicateHandle(src, handle, cur, &re, GENERIC_ALL, 0, DUPLICATE_SAME_ACCESS))                                                                                                                                                                                                    
         return 0;
