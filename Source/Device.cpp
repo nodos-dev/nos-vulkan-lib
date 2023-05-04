@@ -112,7 +112,7 @@ bool Device::CheckSupport(VkPhysicalDevice PhysicalDevice)
 
     //TODO: add mechanism to fallback into non-dynamic pipeline 
     // when no device suitable for vulkan 1.3 extensions is found 
-    //supported = true;
+    supported = true;
 
     return supported;
 }
@@ -159,19 +159,19 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice)
                 return 0 == strcmp(ext, prop.extensionName);
             }) == extensionProps.end())
         {
-            if (strcmp(ext, "VK_KHR_dynamic_rendering") == 0 && Features.vk13.dynamicRendering)
+            if (strcmp(ext, "VK_KHR_dynamic_rendering") == 0 && !Features.vk13.dynamicRendering)
             {
                 printf("Device extension %s requested but not available, fallback mechanism in place\n", ext);
                 continue;
             }
 
-            if (strcmp(ext, "VK_KHR_synchronization2") == 0 && Features.vk13.synchronization2)
+            if (strcmp(ext, "VK_KHR_synchronization2") == 0 && !Features.vk13.synchronization2)
             {
                 printf("Device extension %s requested but not available, fallback mechanism in place\n", ext);
                 continue;
             }
 
-            if (strcmp(ext, "VK_KHR_copy_commands2") == 0 && Features.vk13.synchronization2)
+            if (strcmp(ext, "VK_KHR_copy_commands2") == 0 && !Features.vk13.synchronization2)
             {
                 printf("Device extension %s requested but not available, fallback mechanism in place\n", ext);
                 continue;
