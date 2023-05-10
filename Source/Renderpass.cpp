@@ -208,9 +208,9 @@ void Renderpass::Begin(rc<CommandBuffer> Cmd, rc<Image> SrcImage, bool wireframe
     {
         VkRenderPass rp = PL->Handles[Image->GetEffectiveFormat()].rp;
 
-        if (m_ImageView != Image)
+        if (ImgView != Image)
         {
-            m_ImageView = Image;
+            ImgView = Image;
             if (FrameBuffer)
             {
                 Vk->DestroyFramebuffer(FrameBuffer, 0);

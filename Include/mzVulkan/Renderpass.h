@@ -115,7 +115,7 @@ struct mzVulkan_API Renderpass : SharedFactory<Renderpass>, Basepass
 {
     VkFramebuffer FrameBuffer = 0;
     rc<Image> DepthBuffer;
-    rc<ImageView> m_ImageView;
+    rc<ImageView> ImgView;
 
     Renderpass(rc<GraphicsPipeline> PL);
     Renderpass(Device* Vk, std::vector<u8> const& src);
