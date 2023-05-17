@@ -119,10 +119,6 @@ void Renderpass::Exec(rc<vk::CommandBuffer> cmd, rc<vk::Image> output, const Ver
     Begin(cmd, output, Verts && Verts->Wireframe, clear, frameNumber, deltaSeconds);
     Draw(cmd, Verts);
     End(cmd);
-
-	output->Transition(cmd, { .StageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-						      .AccessMask = VK_ACCESS_SHADER_READ_BIT,
-							  .Layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL });
     
     if(UniformBuffer) // Get a new buffer so it's not overwritten by next pass
     {
@@ -148,19 +144,46 @@ void Renderpass::Begin(rc<CommandBuffer> Cmd, rc<Image> SrcImage, bool wireframe
 {
     assert(SrcImage);
     
-    rc<ImageView> Image = SrcImage->GetView(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
+    rc<ImageView> img = SrcImage->GetView(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
 
     auto PL = ((GraphicsPipeline*)this->PL.get());
 
-    PL->Recreate(Image->GetEffectiveFormat());
+    VkImageView           imageView          = img->Handle;
+    VkResolveModeFlagBits resolveMode        = VK_RESOLVE_MODE_NONE;
+    VkImageView           resolveImageView   = 0;
+    VkImageLayout         resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    
+    if(PL->MS > 1)
+    {
+        rc<Image> tmp  = Image::New(SrcImage->GetDevice(), ImageCreateInfo {
+            .Extent = SrcImage->GetEffectiveExtent(),
+            .Format = SrcImage->GetEffectiveFormat(),
+            .Usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+            .Filtering = SrcImage->Filtering,
+            .Samples = (VkSampleCountFlagBits)PL->MS,
+        });
+        Cmd->AddDependency(tmp);
+        tmp->Transition(Cmd, ImageState{
+                                            .StageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                                            .AccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                                            .Layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                                        });
 
-    Image->Src->Transition(Cmd, ImageState{
+        resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        resolveImageView = imageView;
+        resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
+        imageView = tmp->GetView(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)->Handle;
+    }
+    
+    PL->Recreate(img->GetEffectiveFormat());
+
+    img->Src->Transition(Cmd, ImageState{
                                            .StageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                                            .AccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                                            .Layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                                        });
 
-    auto extent = Image->Src->GetEffectiveExtent();
+    auto extent = img->Src->GetEffectiveExtent();
     if(!DepthBuffer || (DepthBuffer->GetEffectiveExtent().width != extent.width || 
                       DepthBuffer->GetEffectiveExtent().height != extent.height))
     {
@@ -206,11 +229,11 @@ void Renderpass::Begin(rc<CommandBuffer> Cmd, rc<Image> SrcImage, bool wireframe
 
     if (!Vk->Features.vk13.dynamicRendering)
     {
-        VkRenderPass rp = PL->Handles[Image->GetEffectiveFormat()].rp;
+        VkRenderPass rp = PL->Handles[img->GetEffectiveFormat()].rp;
 
-        if (ImgView != Image)
+        if (ImgView != img)
         {
-            ImgView = Image;
+            ImgView = img;
             if (FrameBuffer)
             {
                 Vk->DestroyFramebuffer(FrameBuffer, 0);
@@ -220,7 +243,7 @@ void Renderpass::Begin(rc<CommandBuffer> Cmd, rc<Image> SrcImage, bool wireframe
                 .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
                 .renderPass = rp,
                 .attachmentCount = 1,
-                .pAttachments = &Image->Handle,
+                .pAttachments = &img->Handle,
                 .width = extent.width,
                 .height = extent.height,
                 .layers = 1,
@@ -242,12 +265,15 @@ void Renderpass::Begin(rc<CommandBuffer> Cmd, rc<Image> SrcImage, bool wireframe
     }
     else
     {
+    
         VkRenderingAttachmentInfo Attachment = {
             .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-            .imageView = Image->Handle,
+            .imageView = imageView,
             .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-            // .loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD,
-            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+            .resolveMode = resolveMode,
+            .resolveImageView = resolveImageView,
+            .resolveImageLayout = resolveImageLayout,
+            .loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD,
             .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
             .clearValue = {.color = {.float32 = {0,0,0,0}}},
         };
@@ -273,7 +299,7 @@ void Renderpass::Begin(rc<CommandBuffer> Cmd, rc<Image> SrcImage, bool wireframe
         Cmd->BeginRendering(&renderInfo);
     }
 
-    auto& handle = PL->Handles[Image->GetEffectiveFormat()];
+    auto& handle = PL->Handles[img->GetEffectiveFormat()];
     Cmd->BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, wireframe ? handle.wpl : handle.pl);
     Cmd->AddDependency(shared_from_this());
 	
@@ -283,7 +309,7 @@ void Renderpass::Begin(rc<CommandBuffer> Cmd, rc<Image> SrcImage, bool wireframe
 		u32 FrameNumber;
 		float deltaSeconds;
 	}
-	constants = { Image->Src->GetExtent(), frameNumber, deltaSeconds };
+	constants = { img->Src->GetExtent(), frameNumber, deltaSeconds };
 	PL->PushConstants(Cmd, constants);
 }
 

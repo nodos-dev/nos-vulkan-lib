@@ -84,7 +84,6 @@ Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo, VkResult* 
     VkFormatProperties props;
     vkGetPhysicalDeviceFormatProperties(Vk->PhysicalDevice, GetEffectiveFormat(), &props);
     
-
     auto Ft = props.optimalTilingFeatures;
     bool Opt = true;
     VkImageTiling tiling = createInfo.Tiling;
@@ -114,7 +113,7 @@ Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo, VkResult* 
         .extent                = {GetEffectiveExtent().width, Extent.height, 1},
         .mipLevels             = 1,
         .arrayLayers           = 1,
-        .samples               = VK_SAMPLE_COUNT_1_BIT,
+        .samples               = createInfo.Samples,
         .tiling                = tiling,
         .usage                 = Usage,
         .sharingMode           = VK_SHARING_MODE_EXCLUSIVE,

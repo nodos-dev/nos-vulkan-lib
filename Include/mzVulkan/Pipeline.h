@@ -40,6 +40,7 @@ struct mzVulkan_API GraphicsPipeline : SharedFactory<GraphicsPipeline>, Pipeline
 {
     rc<Shader> VS = nullptr;
     bool EnableBlending = false;
+    VkSampleCountFlags MS = 1;
 
     struct PerFormat
     {
@@ -50,8 +51,8 @@ struct mzVulkan_API GraphicsPipeline : SharedFactory<GraphicsPipeline>, Pipeline
     
     std::map<VkFormat, PerFormat> Handles;
 
-    GraphicsPipeline(Device* Vk, std::vector<u8> const&, bool blend = false);
-    GraphicsPipeline(Device* Vk, rc<Shader> PS, rc<Shader> VS = 0, bool blend = false);
+    GraphicsPipeline(Device* Vk, std::vector<u8> const&, bool blend = false, u32 MS = 1);
+    GraphicsPipeline(Device* Vk, rc<Shader> PS, rc<Shader> VS = 0, bool blend = false, u32 MS = 1);
     ~GraphicsPipeline();
 
     rc<Shader> GetVS();
