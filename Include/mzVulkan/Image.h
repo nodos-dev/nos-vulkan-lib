@@ -67,7 +67,7 @@ public:
 
     MemoryExportInfo GetExportInfo() const;
     void Transition(rc<CommandBuffer> Cmd, ImageState Dst);
-    void BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src);
+    void BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src, VkFilter Filter = VK_FILTER_MAX_ENUM);
     void CopyFrom(rc<CommandBuffer> Cmd, rc<Image> Src);
     void ResolveFrom(rc<CommandBuffer> Cmd, rc<Image> Src);
 

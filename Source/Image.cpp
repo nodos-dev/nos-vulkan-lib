@@ -290,14 +290,18 @@ void Image::Download(rc<CommandBuffer> Cmd, rc<Buffer> Buffer)
     Cmd->AddDependency(shared_from_this(), Buffer);
 }
 
-void Image::BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
+void Image::BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src, VkFilter Filter)
 {
-    
     Image* Dst = this;
 
     if(Src.get() == Dst)
     {
         UNREACHABLE;
+    }
+
+    if(VK_FILTER_MAX_ENUM == Filter)
+    {
+        Filter = Src->Filtering;
     }
 
     Src->Transition(Cmd, ImageState{
@@ -326,7 +330,7 @@ void Image::BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
             },
             .dstOffsets = {{}, {(i32)Dst->Extent.width / (IsYCbCr(Dst->Format) + 1), (i32)Dst->Extent.height, 1}},
         };
-        Cmd->BlitImage(Src->Handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, Dst->Handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1 , &region, VK_FILTER_NEAREST);
+        Cmd->BlitImage(Src->Handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, Dst->Handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1 , &region, Filter);
     }
     else
     {
@@ -352,7 +356,7 @@ void Image::BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
             .dstImageLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
             .regionCount = 1,
             .pRegions = &region,
-            .filter = VK_FILTER_NEAREST,
+            .filter = Filter,
         };
 
         Cmd->BlitImage2(&blitInfo);
