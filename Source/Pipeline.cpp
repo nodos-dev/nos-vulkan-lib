@@ -63,14 +63,15 @@ GraphicsPipeline::~GraphicsPipeline()
     }
 }
 
-GraphicsPipeline::GraphicsPipeline(Device* Vk, rc<Shader> PS, rc<Shader> VS, bool blend) 
-    : Pipeline(Vk, PS), VS(VS), EnableBlending(blend)
+
+GraphicsPipeline::GraphicsPipeline(Device* Vk, rc<Shader> PS, rc<Shader> VS, bool blend, u32 ms) 
+    : Pipeline(Vk, PS), VS(VS), EnableBlending(blend), MS(ms)
 {
     Layout = PipelineLayout::New(Vk, PS->Layout.Merge(GetVS()->Layout));
 }
 
-GraphicsPipeline::GraphicsPipeline(Device* Vk, std::vector<u8> const& src, bool blend) :
-    GraphicsPipeline(Vk, Shader::New(Vk, src), 0, blend)
+GraphicsPipeline::GraphicsPipeline(Device* Vk, std::vector<u8> const& src, bool blend, u32 ms) :
+    GraphicsPipeline(Vk, Shader::New(Vk, src), 0, blend, ms)
 {
 
 }
@@ -132,7 +133,7 @@ void GraphicsPipeline::Recreate(VkFormat fmt)
 
     VkPipelineMultisampleStateCreateInfo multisampleState = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
-        .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
+        .rasterizationSamples = VkSampleCountFlagBits(MS),
     };
 
     VkPipelineColorBlendAttachmentState attachment = {

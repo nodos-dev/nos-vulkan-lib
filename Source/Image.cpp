@@ -84,7 +84,6 @@ Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo, VkResult* 
     VkFormatProperties props;
     vkGetPhysicalDeviceFormatProperties(Vk->PhysicalDevice, GetEffectiveFormat(), &props);
     
-
     auto Ft = props.optimalTilingFeatures;
     bool Opt = true;
     VkImageTiling tiling = createInfo.Tiling;
@@ -114,7 +113,7 @@ Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo, VkResult* 
         .extent                = {GetEffectiveExtent().width, Extent.height, 1},
         .mipLevels             = 1,
         .arrayLayers           = 1,
-        .samples               = VK_SAMPLE_COUNT_1_BIT,
+        .samples               = createInfo.Samples,
         .tiling                = tiling,
         .usage                 = Usage,
         .sharingMode           = VK_SHARING_MODE_EXCLUSIVE,
@@ -290,14 +289,18 @@ void Image::Download(rc<CommandBuffer> Cmd, rc<Buffer> Buffer)
     Cmd->AddDependency(shared_from_this(), Buffer);
 }
 
-void Image::BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
+void Image::BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src, VkFilter Filter)
 {
-    
     Image* Dst = this;
 
     if(Src.get() == Dst)
     {
         UNREACHABLE;
+    }
+
+    if(VK_FILTER_MAX_ENUM == Filter)
+    {
+        Filter = Src->Filtering;
     }
 
     Src->Transition(Cmd, ImageState{
@@ -326,7 +329,7 @@ void Image::BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
             },
             .dstOffsets = {{}, {(i32)Dst->Extent.width / (IsYCbCr(Dst->Format) + 1), (i32)Dst->Extent.height, 1}},
         };
-        Cmd->BlitImage(Src->Handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, Dst->Handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1 , &region, VK_FILTER_NEAREST);
+        Cmd->BlitImage(Src->Handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, Dst->Handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1 , &region, Filter);
     }
     else
     {
@@ -352,7 +355,7 @@ void Image::BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
             .dstImageLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
             .regionCount = 1,
             .pRegions = &region,
-            .filter = VK_FILTER_NEAREST,
+            .filter = Filter,
         };
 
         Cmd->BlitImage2(&blitInfo);
