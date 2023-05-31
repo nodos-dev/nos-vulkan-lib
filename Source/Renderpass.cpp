@@ -30,7 +30,7 @@ Basepass::Basepass(rc<Pipeline> PL) : DeviceChild(PL->GetDevice()), PL(PL), Desc
     }
 }
 
-void Basepass::TransitionInput(rc<vk::CommandBuffer> Cmd, std::string const& name, void* data, u32 size, rc<Image> (ImportImage)(void*), rc<Buffer>(ImportBuffer)(void*))
+void Basepass::TransitionInput(rc<vk::CommandBuffer> Cmd, std::string const& name, const void* data, rc<Image> (ImportImage)(const void*), rc<Buffer>(ImportBuffer)(const  void*))
 {
     auto& layout = *PL->Layout;
 
@@ -56,7 +56,7 @@ void Basepass::TransitionInput(rc<vk::CommandBuffer> Cmd, std::string const& nam
     }
 }
 
-void Basepass::Bind(std::string const& name, void* data, u32 size, rc<Image>(ImportImage)(void*), rc<Buffer>(ImportBuffer)(void*))
+void Basepass::Bind(std::string const& name, const void* data, rc<Image>(ImportImage)(const void*), rc<Buffer>(ImportBuffer)(const void*))
 {
     if (!PL->Layout->BindingsByName.contains(name))
     {
@@ -89,11 +89,7 @@ void Basepass::Bind(std::string const& name, void* data, u32 size, rc<Image>(Imp
     u32 offset = baseOffset + idx.offset;
     Bindings[idx.set][idx.binding] = vk::Binding(UniformBuffer, idx.binding, baseOffset);
     auto ptr = UniformBuffer->Map() + offset;
-    memcpy(ptr, data, size);
-    if(size < type->Size)
-    {
-        memset(ptr + size, 0, type->Size - size);
-    }
+    memcpy(ptr, data, type->Size);
 }
 
 void Renderpass::Draw(rc<vk::CommandBuffer> Cmd, const VertexData* Verts)
