@@ -52,11 +52,12 @@ ImageView::ImageView(struct Image* Src, VkFormat Format, VkImageUsageFlags Usage
     MZVK_ASSERT(Src->GetDevice()->CreateImageView(&viewInfo, 0, &Handle));
 }
 
-Image::Image(Device* Vk, ImageCreateInfo const& createInfo, VkResult* re) : Image(Vk->ImmAllocator.get(), createInfo, re) 
+Image::Image(Device* Vk, ImageCreateInfo const& createInfo, VkResult* re, HANDLE externalSemaphore)
+	: Image(Vk->ImmAllocator.get(), createInfo, re, externalSemaphore)
 {
 }
 
-Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo, VkResult* re)
+Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo, VkResult* re, HANDLE externalSemaphore)
     : DeviceChild(Allocator->Vk),
       Extent(createInfo.Extent),
       Format(createInfo.Format),
@@ -125,13 +126,13 @@ Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo, VkResult* 
     VkResult result = Vk->CreateImage(&info, 0, &Handle);
 
     if(re) 
-    {
         *re = result;
-    }
     if(MZ_VULKAN_FAILED(result))
-    {
         return;
-    }
+
+    if (externalSemaphore && createInfo.Imported)
+		ExtSemaphore = mz::vk::Semaphore::New(Vk, createInfo.Imported->PID, externalSemaphore);
+
     //if(SamplerYcbcrConversion) Allocation = Allocator->AllocateResourceMemory(Handle, true, createInfo.Imported); else 
     Allocation = Allocator->AllocateImageMemory(Handle, createInfo);
     Allocation.BindResource(Handle);

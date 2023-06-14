@@ -34,6 +34,7 @@ Semaphore::Semaphore(Device *Vk, u64 pid, HANDLE ExtHandle) : DeviceChild(Vk)
     VkSemaphoreCreateInfo semaphoreCreateInfo = {
         .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
         .pNext = &semaphoreTypeInfo,
+		.flags = VK_SEMAPHORE_TYPE_TIMELINE,
     };
 
     MZVK_ASSERT(Vk->CreateSemaphore(&semaphoreCreateInfo, 0, &Handle));
@@ -41,7 +42,7 @@ Semaphore::Semaphore(Device *Vk, u64 pid, HANDLE ExtHandle) : DeviceChild(Vk)
     if(ExtHandle)
     {
         VkImportSemaphoreWin32HandleInfoKHR importInfo = {
-            .sType = VK_STRUCTURE_TYPE_EXPORT_SEMAPHORE_WIN32_HANDLE_INFO_KHR,
+			.sType = VK_STRUCTURE_TYPE_IMPORT_SEMAPHORE_WIN32_HANDLE_INFO_KHR,
             .semaphore = Handle,
             .handleType = HANDLE_TYPE,
             .handle = PlatformDupeHandle(pid, ExtHandle),

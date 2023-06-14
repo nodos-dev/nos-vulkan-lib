@@ -5,6 +5,8 @@
 #pragma once
 
 #include "Allocator.h"
+#include "Semaphore.h"
+
 
 
 namespace mz::vk
@@ -61,9 +63,10 @@ public:
 
     ImageState State = {};
     std::map<u64, rc<ImageView>> Views;
+	rc<vk::Semaphore> ExtSemaphore;
 
-    Image(Allocator*, ImageCreateInfo const& createInfo, VkResult* re = 0);
-    Image(Device* Vk, ImageCreateInfo const& createInfo, VkResult* re = 0);
+    Image(Allocator*, ImageCreateInfo const& createInfo, VkResult* re = 0, HANDLE externalSemaphore = 0);
+    Image(Device* Vk, ImageCreateInfo const& createInfo, VkResult* re = 0, HANDLE externalSemaphore = 0);
 
     MemoryExportInfo GetExportInfo() const;
     void Transition(rc<CommandBuffer> Cmd, ImageState Dst);
