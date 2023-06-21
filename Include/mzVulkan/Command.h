@@ -75,8 +75,6 @@ struct mzVulkan_API CommandBuffer : SharedFactory<CommandBuffer>,
             (EndResourceDependency(Resources), ...);
         });
     }
-
-    
 };
 
 struct mzVulkan_API CommandPool : SharedFactory<CommandPool>

@@ -28,6 +28,7 @@ Queue::Queue(Device* Device, u32 Family, u32 Index)
 
 Device* Queue::GetDevice()
 {
+
     return static_cast<Device*>(fnptrs);
 }
 
@@ -59,6 +60,8 @@ void CommandBuffer::Clear()
 
 VkResult CommandBuffer::Begin(const VkCommandBufferBeginInfo* info)
 {
+    if(!Pool || Pending != State)
+        return VK_INCOMPLETE;
     VkResult re = VklCommandFunctions::Begin(info);
     State = Recording;
     return re;
@@ -66,6 +69,8 @@ VkResult CommandBuffer::Begin(const VkCommandBufferBeginInfo* info)
 
 VkResult CommandBuffer::End()
 {
+    if (!Pool || Recording != State)
+        return VK_INCOMPLETE;
     VkResult re = VklCommandFunctions::End();
     State = Executable;
     return re;
@@ -85,6 +90,10 @@ rc<CommandBuffer> CommandBuffer::Submit()
     {
         f(self);
     }
+
+    if (!Pool || Recording != State)
+        return 0;
+
     std::vector<VkSemaphore> Signal;
     std::vector<VkSemaphore> Wait;
     std::vector<VkPipelineStageFlags> Stages;
@@ -189,6 +198,10 @@ Device* CommandPool::GetDevice()
 
 CommandPool::~CommandPool()
 {
+
+    for(auto& cmd : Buffers)
+        cmd->Pool = 0;
+
     Buffers.clear();
     GetDevice()->DestroyCommandPool(Handle, 0);
 }
