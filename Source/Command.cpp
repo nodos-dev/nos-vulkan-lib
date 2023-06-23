@@ -198,7 +198,6 @@ Device* CommandPool::GetDevice()
 
 CommandPool::~CommandPool()
 {
-
     for(auto& cmd : Buffers)
         cmd->Pool = 0;
 
@@ -215,7 +214,6 @@ rc<CommandBuffer> CommandPool::AllocCommandBuffer(VkCommandBufferLevel level)
         if (cmd->Ready()) break;
         NextBuffer++;
     }
-    ;
 
     auto cmd = Buffers[NextBuffer];
 
