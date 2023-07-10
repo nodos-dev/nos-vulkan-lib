@@ -56,7 +56,7 @@ struct mzVulkan_API CommandBuffer : SharedFactory<CommandBuffer>,
     std::map<VkSemaphore, uint64_t> SignalGroup;
     std::atomic<State> State = Pending;
     bool Ready();
-    void Wait();
+    bool Wait();
     void Clear();
     VkResult Begin(const VkCommandBufferBeginInfo* info);
     VkResult End();

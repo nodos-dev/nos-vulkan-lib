@@ -44,10 +44,15 @@ CommandBuffer::CommandBuffer(CommandPool* Pool, VkCommandBuffer Handle)
     MZVK_ASSERT(GetDevice()->CreateFence(&fenceInfo, 0, &Fence));
 }
 
-void CommandBuffer::Wait()
+bool CommandBuffer::Wait()
 {
-    MZVK_ASSERT(GetDevice()->WaitForFences(1, &Fence, 0, -1));
-    Clear();
+    if (GetDevice()->WaitForFences(1, &Fence, 0, (uint64_t)3000000000) != VK_SUCCESS)
+    {
+        Clear();
+        return false;
+    }
+	Clear();
+	return true;
 }
 
 void CommandBuffer::Clear()
