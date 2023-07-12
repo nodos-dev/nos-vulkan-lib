@@ -12,6 +12,7 @@
 
 // Framework
 #include <mzCommon.h>
+#include <mzUtil/Logger.h>
 
 #ifdef mzVulkan_SHARED
 #ifdef mzVulkan_EXPORTS
@@ -35,6 +36,7 @@
             std::snprintf(errbuf, 4096, "%s %d (%s:%d)", ::mz::vk::vk_result_string(re), re, __FILE__, __LINE__); \
             printf("%s\n", errbuf);                                                                               \
             fflush(stdout);                                                                                       \
+            le() << errbuf;                                                                                       \
             MZ_ABORT;                                                                                             \
         }                                                                                                         \
     }

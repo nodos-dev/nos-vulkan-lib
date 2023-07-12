@@ -5,6 +5,8 @@
 #include "mzVulkan/Image.h"
 #include "vkl.h"
 
+#include <mzUtil/TimeUtils.h>
+
 namespace mz::vk
 {
 
@@ -212,13 +214,20 @@ CommandPool::~CommandPool()
 
 rc<CommandBuffer> CommandPool::AllocCommandBuffer(VkCommandBufferLevel level)
 {
-    while (1)
-    {
-        auto cmd = Buffers[NextBuffer];
-        auto state = cmd->State.load();
-        if (cmd->Ready()) break;
-        NextBuffer++;
-    }
+	auto now = mz::util::TimestampUs();
+	while (1)
+	{
+		auto cmd = Buffers[NextBuffer];
+		if (cmd->Ready())
+			break;
+		NextBuffer++;
+		auto elapsed = mz::util::TimestampUs() - now;
+		if (elapsed > 1e4) // log if exhausted for 10ms
+		{
+			le() << "Command pool is exhausted";
+			now = mz::util::TimestampUs();
+		}
+	}
 
     auto cmd = Buffers[NextBuffer];
 
