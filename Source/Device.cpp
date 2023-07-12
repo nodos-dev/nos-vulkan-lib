@@ -181,9 +181,9 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice)
             printf("Device extension %s requested but not available\n", ext);
             assert(0);
         }
-        deviceExtensionsToAsk.push_back(ext);
+        else deviceExtensionsToAsk.push_back(ext);
     }
-
+    
     vkGetPhysicalDeviceQueueFamilyProperties(PhysicalDevice, &count, 0);
     std::vector<VkQueueFamilyProperties> props(count);
     vkGetPhysicalDeviceQueueFamilyProperties(PhysicalDevice, &count, props.data());
