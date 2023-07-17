@@ -64,6 +64,17 @@ Semaphore::Semaphore(Device *Vk, u64 pid, HANDLE ExtHandle) : DeviceChild(Vk)
     WIN32_ASSERT(GetHandleInformation(OSHandle, &flags));
 }
 
+void Semaphore::Signal(uint64_t value)
+{
+	VkSemaphoreSignalInfo signalInfo;
+	signalInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SIGNAL_INFO;
+	signalInfo.pNext = NULL;
+	signalInfo.semaphore = Handle;
+	signalInfo.value = value;
+
+	Vk->SignalSemaphore(&signalInfo);
+}
+
 
 Semaphore::operator VkSemaphore() const
 {
