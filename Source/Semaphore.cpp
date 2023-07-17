@@ -28,13 +28,13 @@ Semaphore::Semaphore(Device *Vk, u64 pid, HANDLE ExtHandle) : DeviceChild(Vk)
     VkSemaphoreTypeCreateInfo semaphoreTypeInfo = {
         .sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
         .pNext = &exportInfo,
-        .semaphoreType = VK_SEMAPHORE_TYPE_BINARY,
+        .semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE,
     };
 
     VkSemaphoreCreateInfo semaphoreCreateInfo = {
         .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
         .pNext = &semaphoreTypeInfo,
-		.flags = VK_SEMAPHORE_TYPE_TIMELINE,
+		.flags = 0,
     };
 
     MZVK_ASSERT(Vk->CreateSemaphore(&semaphoreCreateInfo, 0, &Handle));
