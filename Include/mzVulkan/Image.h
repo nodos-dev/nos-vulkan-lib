@@ -16,7 +16,7 @@ struct CommandBuffer;
 struct Buffer;
 struct Allocation;
 
-struct mzVulkan_API ImageView  : private SharedFactory<ImageView>, DeviceChild
+struct mzVulkan_API ImageView  : SharedFactory<ImageView>, DeviceChild
 {
     friend struct Image;
     VkImageView Handle;
