@@ -50,6 +50,7 @@ bool CommandBuffer::Wait()
 {
     if (GetDevice()->WaitForFences(1, &Fence, 0, (uint64_t)3000000000) != VK_SUCCESS)
     {
+        lw() << "Command buffer wait timeout!";
         Clear();
         return false;
     }
