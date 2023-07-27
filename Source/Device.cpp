@@ -49,8 +49,11 @@ thread_local struct PoolCleaner
     {
         std::lock_guard lock(Lock);
         auto id = std::this_thread::get_id();
-        for (auto d : Devices)
-            d->ImmPools.erase(id);
+		for (auto d : Devices)
+		{
+			std::unique_lock ulock(d->ImmPoolsMutex);
+			d->ImmPools.erase(id);
+		}
     }
 } PoolCleaner;
 
@@ -125,22 +128,32 @@ std::string Device::GetName() const
 
 rc<CommandPool> Device::GetPool()
 {
-    auto& Pool = ImmPools[std::this_thread::get_id()];
-    if (!Pool.first)
-    {
-        Pool = {CommandPool::New(this), QueryPool::New(this)};
+	{
+	std::shared_lock slock(ImmPoolsMutex);
+	auto it = ImmPools.find(std::this_thread::get_id());
+	    if (it != ImmPools.end())
+	    {
+		    return it->second.first;
+	    }
     }
-    return Pool.first;
+	std::unique_lock ulock(ImmPoolsMutex);
+	auto& res = ImmPools[std::this_thread::get_id()] = {CommandPool::New(this), QueryPool::New(this)};
+    return res.first;
 }
 
 rc<QueryPool> Device::GetQPool()
 {
-    auto& Pool = ImmPools[std::this_thread::get_id()];
-    if (!Pool.first)
-    {
-        Pool = { CommandPool::New(this), QueryPool::New(this) };
-    }
-    return Pool.second;
+	{
+		std::shared_lock slock(ImmPoolsMutex);
+		auto it = ImmPools.find(std::this_thread::get_id());
+		if (it != ImmPools.end())
+		{
+			return it->second.second;
+		}
+	}
+	std::unique_lock ulock(ImmPoolsMutex);
+	auto& res = ImmPools[std::this_thread::get_id()] = {CommandPool::New(this), QueryPool::New(this)};
+	return res.second;
 }
 
 Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice)
@@ -285,7 +298,10 @@ Device::~Device()
     }
 
     DeviceWaitIdle();
-    ImmPools.clear();
+	{
+		std::unique_lock ulock(ImmPoolsMutex);
+		ImmPools.clear();
+	}
     ImmAllocator.reset();
     DestroyDevice(0);
 }

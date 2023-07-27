@@ -124,6 +124,7 @@ struct mzVulkan_API Device : SharedFactory<Device>,
     rc<Allocator> ImmAllocator;
 
     std::map<std::thread::id, std::pair<rc<CommandPool>, rc<QueryPool>>> ImmPools;
+	std::shared_mutex ImmPoolsMutex;
     
     rc<CommandPool> GetPool();
     rc<QueryPool> GetQPool();
