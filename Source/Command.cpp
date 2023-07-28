@@ -44,6 +44,7 @@ CommandBuffer::CommandBuffer(CommandPool* Pool, VkCommandBuffer Handle)
     };
     
     MZVK_ASSERT(GetDevice()->CreateFence(&fenceInfo, 0, &Fence));
+	Clear();
 }
 
 bool CommandBuffer::Wait()
@@ -57,20 +58,27 @@ bool CommandBuffer::Wait()
 	return true;
 }
 
+void CommandBuffer::WaitAndClear()
+{
+	if (State == Pending && GetDevice()->WaitForFences(1, &Fence, 0, UINT64_MAX) != VK_SUCCESS)
+		le() << "Clearing command buffer without finishing: Thread " << std::this_thread::get_id();
+	Clear();
+}
+
 void CommandBuffer::Clear()
 {
-	if (!Ready())
-		if (GetDevice()->WaitForFences(1, &Fence, 0, UINT64_MAX) != VK_SUCCESS)
-			le() << "Clearing command buffer without finishing: Thread " << std::this_thread::get_id();
+	MZVK_ASSERT(GetDevice()->ResetFences(1, &Fence));
+	MZVK_ASSERT(VklCommandFunctions::Reset(VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT));
     for (auto& fn : Callbacks) fn();
     Callbacks.clear();
     WaitGroup.clear();
     SignalGroup.clear();
+	State = Initial;
 }
 
 VkResult CommandBuffer::Begin(const VkCommandBufferBeginInfo* info)
 {
-    if(!Pool || Pending != State)
+    if(!Pool || Initial != State)
         return VK_INCOMPLETE;
     VkResult re = VklCommandFunctions::Begin(info);
     State = Recording;
@@ -86,11 +94,19 @@ VkResult CommandBuffer::End()
     return re;
 }
 
+void CommandBuffer::UpdatePendingState()
+{
+	if (State != Pending)
+		return;
+	if (GetDevice()->GetFenceStatus(Fence) != VK_SUCCESS)
+		return;
+	Clear();
+}
+
 CommandBuffer::~CommandBuffer()
 {
-    Clear();
+    WaitAndClear();
     GetDevice()->DestroyFence(Fence, 0);
-    MZVK_ASSERT(Reset(VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT));
 }
 
 rc<CommandBuffer> CommandBuffer::Submit()
@@ -100,10 +116,17 @@ rc<CommandBuffer> CommandBuffer::Submit()
     {
         f(self);
     }
+    
+    if (!Pool)
+		return 0;
 
-    if (!Pool || Recording != State)
+    if (Recording == State)
+    {
+        MZVK_ASSERT(End());
+
+    }
+    if (Executable != State)
         return 0;
-
     std::vector<VkSemaphore> Signal;
     std::vector<VkSemaphore> Wait;
     std::vector<VkPipelineStageFlags> Stages;
@@ -150,15 +173,23 @@ rc<CommandBuffer> CommandBuffer::Submit()
         .pSignalSemaphores    = Signal.data(),
     };
 
-    MZVK_ASSERT(End());
     MZVK_ASSERT(Pool->Submit(1, &submitInfo, Fence));
     State = Pending;
     return self;
 }
 
-bool CommandBuffer::Ready()
+bool CommandBuffer::IsFree()
 {
-    return (Pending == State) && (VK_SUCCESS == GetDevice()->GetFenceStatus(Fence));
+	if (State == Initial)
+		return true;
+	if (State != Pending)
+		return false;
+    if (GetDevice()->GetFenceStatus(Fence) == VK_SUCCESS)
+    {
+		Clear();
+		return true;
+    }
+	return false;
 }
 
 Device* CommandBuffer::GetDevice()
@@ -218,10 +249,14 @@ CommandPool::~CommandPool()
 rc<CommandBuffer> CommandPool::AllocCommandBuffer(VkCommandBufferLevel level)
 {
 	auto now = mz::util::TimestampUs();
+    for (auto& cmd : Buffers)
+    {
+		cmd->UpdatePendingState();
+    }
 	while (1)
 	{
 		auto cmd = Buffers[NextBuffer];
-		if (cmd->Ready())
+		if (cmd->IsFree())
 			break;
 		NextBuffer++;
 		auto elapsed = mz::util::TimestampUs() - now;
@@ -233,11 +268,6 @@ rc<CommandBuffer> CommandPool::AllocCommandBuffer(VkCommandBufferLevel level)
 	}
 
     auto cmd = Buffers[NextBuffer];
-
-    cmd->Clear();
-
-    MZVK_ASSERT(GetDevice()->ResetFences(1, &cmd->Fence));
-    MZVK_ASSERT(cmd->Reset(VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT));
     return cmd;
 }
 
@@ -257,8 +287,8 @@ rc<CommandBuffer> CommandPool::BeginCmd(VkCommandBufferLevel level)
 void CommandPool::Clear()
 {
     for(auto& cmd : Buffers) 
-        if(cmd->Ready()) 
-            cmd->Clear();
+        if(cmd->State != CommandBuffer::Initial) 
+            cmd->WaitAndClear();
 }
 
 } // namespace mz::vk

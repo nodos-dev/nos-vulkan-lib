@@ -43,9 +43,11 @@ struct mzVulkan_API CommandBuffer : SharedFactory<CommandBuffer>,
 {
     enum State 
     { 
+        Initial,
         Recording,
         Executable,
         Pending,
+        Invalid
     };
 
     CommandPool* Pool;
@@ -54,13 +56,14 @@ struct mzVulkan_API CommandBuffer : SharedFactory<CommandBuffer>,
     std::vector<std::function<void(rc<CommandBuffer>)>> PreSubmit;
     std::map<VkSemaphore, std::pair<uint64_t, VkPipelineStageFlags>> WaitGroup;
     std::map<VkSemaphore, uint64_t> SignalGroup;
-    std::atomic<State> State = Pending;
-    bool Ready();
+    std::atomic<State> State = Initial;
+    bool IsFree();
     bool Wait();
+	void WaitAndClear();
     void Clear();
     VkResult Begin(const VkCommandBufferBeginInfo* info);
     VkResult End();
-
+	void UpdatePendingState();
     CommandBuffer(CommandPool* Pool, VkCommandBuffer Handle);
 
     ~CommandBuffer();
