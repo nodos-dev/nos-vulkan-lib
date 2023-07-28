@@ -296,7 +296,8 @@ void Image::BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src, VkFilter Filter)
 
     if(Src.get() == Dst)
     {
-        UNREACHABLE;
+    	le() << "Image::BlitFrom: Src and Dst are the same image";
+        return;
     }
 
     if(VK_FILTER_MAX_ENUM == Filter)
