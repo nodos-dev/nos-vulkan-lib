@@ -48,10 +48,9 @@ CommandBuffer::CommandBuffer(CommandPool* Pool, VkCommandBuffer Handle)
 
 bool CommandBuffer::Wait()
 {
-    if (GetDevice()->WaitForFences(1, &Fence, 0, (uint64_t)3000000000) != VK_SUCCESS)
+    if (GetDevice()->WaitForFences(1, &Fence, 0, 3000000000ull) != VK_SUCCESS)
     {
         lw() << "Command buffer wait timeout!";
-        Clear();
         return false;
     }
 	Clear();
@@ -60,6 +59,9 @@ bool CommandBuffer::Wait()
 
 void CommandBuffer::Clear()
 {
+	if (!Ready())
+		if (GetDevice()->WaitForFences(1, &Fence, 0, UINT64_MAX) != VK_SUCCESS)
+			le() << "Clearing command buffer without finishing: Thread " << std::this_thread::get_id();
     for (auto& fn : Callbacks) fn();
     Callbacks.clear();
     WaitGroup.clear();
