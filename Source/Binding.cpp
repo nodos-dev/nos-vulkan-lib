@@ -10,8 +10,13 @@
 namespace mz::vk
 {
 
-Binding::Binding(Type res, u32 binding, u32 bufferOffset)
+Binding::Binding(rc<Buffer> res, u32 binding, u32 bufferOffset)
     : Resource(res), Idx(binding), AccessFlags(0), BufferOffset(bufferOffset)
+{
+}
+
+Binding::Binding(rc<Image> res, u32 binding, VkFilter filter)
+    : Resource(res), Idx(binding), AccessFlags(0), Filter(filter)
 {
 }
 
@@ -81,7 +86,7 @@ DescriptorResourceInfo Binding::GetDescriptorInfo(VkDescriptorType type) const
 
     if (auto img = std::get_if<rc<Image>>(&Resource))
     {
-        Info = (*img)->GetView(usage)->GetDescriptorInfo();
+        Info = (*img)->GetView(usage)->GetDescriptorInfo(Filter);
         Info.Image.imageLayout = MapTypeToLayout(type);
     }
     else 

@@ -24,10 +24,15 @@ struct mzVulkan_API Binding
 
     Type Resource;
     u32 Idx;
-    u32 BufferOffset;
     mutable VkAccessFlags AccessFlags;
-    Binding() = default;
-    Binding(Type res, u32 binding, u32 bufferOffset = 0);
+    union
+    {
+        u32 BufferOffset;
+        VkFilter Filter;
+    };
+    Binding() = delete;
+    Binding(rc<Buffer> res, u32 binding, u32 bufferOffset);
+    Binding(rc<Image> res, u32 binding, VkFilter filter);
 
     DescriptorResourceInfo GetDescriptorInfo(VkDescriptorType type) const;
 };

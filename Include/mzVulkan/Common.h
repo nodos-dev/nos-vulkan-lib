@@ -63,7 +63,7 @@ struct DeviceChild
   Device* Vk = 0;
   DeviceChild() = default;
   DeviceChild(Device* Vk)  : Vk(Vk) {}
-  Device* GetDevice() { return Vk; }
+  Device* GetDevice() const { return Vk; }
   virtual ~DeviceChild() = default;
 };
 
@@ -116,7 +116,6 @@ struct ImageCreateInfo
     VkExtent2D Extent;
     VkFormat Format;
     VkImageUsageFlags Usage;
-    VkFilter Filtering = VK_FILTER_LINEAR;
     VkSampleCountFlagBits Samples = VK_SAMPLE_COUNT_1_BIT;
     VkImageTiling Tiling = VK_IMAGE_TILING_OPTIMAL;
     VkImageCreateFlags Flags = VK_IMAGE_CREATE_ALIAS_BIT;

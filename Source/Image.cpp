@@ -22,7 +22,7 @@ ImageView::~ImageView()
 }
 
 ImageView::ImageView(struct Image* Src, VkFormat Format, VkImageUsageFlags Usage) :
-    DeviceChild(Src->GetDevice()), Src(Src), Format(Format ? Format : Src->GetFormat()), Usage(Usage ? Usage : Src->Usage), Sampler(Src->GetDevice()->GetSampler(Src->Filtering))
+    DeviceChild(Src->GetDevice()), Src(Src), Format(Format ? Format : Src->GetFormat()), Usage(Usage ? Usage : Src->Usage)
 {
     VkSamplerYcbcrConversionInfo ycbcrInfo = {
         .sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO,
@@ -62,7 +62,6 @@ Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo, VkResult* 
       Extent(createInfo.Extent),
       Format(createInfo.Format),
       Usage(createInfo.Usage),
-      Filtering(createInfo.Filtering),
       State{
           .StageMask  = VK_PIPELINE_STAGE_NONE,
           .AccessMask = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT,
@@ -300,11 +299,6 @@ void Image::BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src, VkFilter Filter)
         return;
     }
 
-    if(VK_FILTER_MAX_ENUM == Filter)
-    {
-        Filter = Src->Filtering;
-    }
-
     Src->Transition(Cmd, ImageState{
                              .StageMask  = VK_PIPELINE_STAGE_TRANSFER_BIT,
                              .AccessMask = VK_ACCESS_TRANSFER_READ_BIT,
@@ -461,11 +455,11 @@ MemoryExportInfo Image::GetExportInfo() const
     };
 }
 
-DescriptorResourceInfo ImageView::GetDescriptorInfo() const
+DescriptorResourceInfo ImageView::GetDescriptorInfo(VkFilter filter) const
 {
     return DescriptorResourceInfo{
         .Image = {
-            .sampler     = Sampler,
+            .sampler     = GetDevice()->GetSampler(filter),
             .imageView   = Handle,
             .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
         }};

@@ -31,7 +31,7 @@ struct mzVulkan_API Basepass :  DeviceChild
     rc<Pipeline> PL;
     rc<DescriptorPool> DescriptorPool;
     std::vector<rc<DescriptorSet>> DescriptorSets;
-    std::map<u32, std::map<u32, vk::Binding>> Bindings;
+    std::map<u32, std::vector<vk::Binding>> Bindings;
     rc<Buffer> UniformBuffer;
     bool BufferDirty = false;
 
@@ -51,9 +51,9 @@ struct mzVulkan_API Basepass :  DeviceChild
     void Bind(std::string const& name,
 			  const void* data,
 			  std::optional<size_t> readSize,
-			  rc<Image>(ImportImage)(const void*),
+			  rc<Image>(ImportImage)(const void*, VkFilter* filter),
 			  rc<Buffer>(ImportBuffer)(const void*));
-    void TransitionInput(rc<vk::CommandBuffer> Cmd, std::string const& name, const void* data, rc<Image> (ImportImage)(const void*), rc<Buffer>(ImportBuffer)(const void*));
+    void TransitionInput(rc<vk::CommandBuffer> Cmd, std::string const& name, const void* data, rc<Image> (ImportImage)(const void*, VkFilter* filter), rc<Buffer>(ImportBuffer)(const void*));
 
     void RefreshBuffer(rc<vk::CommandBuffer> Cmd);
     void BindResources(rc<vk::CommandBuffer> Cmd);

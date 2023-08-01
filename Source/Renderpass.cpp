@@ -30,7 +30,7 @@ Basepass::Basepass(rc<Pipeline> PL) : DeviceChild(PL->GetDevice()), PL(PL), Desc
     }
 }
 
-void Basepass::TransitionInput(rc<vk::CommandBuffer> Cmd, std::string const& name, const void* data, rc<Image> (ImportImage)(const void*), rc<Buffer>(ImportBuffer)(const  void*))
+void Basepass::TransitionInput(rc<vk::CommandBuffer> Cmd, std::string const& name, const void* data, rc<Image> (ImportImage)(const void*, VkFilter*), rc<Buffer>(ImportBuffer)(const  void*))
 {
     auto& layout = *PL->Layout;
 
@@ -44,8 +44,9 @@ void Basepass::TransitionInput(rc<vk::CommandBuffer> Cmd, std::string const& nam
 
     if (dsl.Type->Tag == vk::SVType::Image)
     {
-        auto img = ImportImage(data);
-        auto binding = vk::Binding(img, idx.binding);
+        VkFilter filter;
+        auto img = ImportImage(data, &filter);
+        auto binding = vk::Binding(img, idx.binding, filter);
         auto info = binding.GetDescriptorInfo(dsl.DescriptorType);
         img->Transition(Cmd, {
             .StageMask = GetStage(),
@@ -59,7 +60,7 @@ void Basepass::TransitionInput(rc<vk::CommandBuffer> Cmd, std::string const& nam
 void Basepass::Bind(std::string const& name,
 					const void* data,
 					std::optional<size_t> readSize,
-					rc<Image>(ImportImage)(const void*),
+					rc<Image>(ImportImage)(const void*, VkFilter*),
 					rc<Buffer>(ImportBuffer)(const void*))
 {
     if (!PL->Layout->BindingsByName.contains(name))
@@ -75,23 +76,26 @@ void Basepass::Bind(std::string const& name,
     {
         type = type->Members.at(name).Type;
     }
-
+    
+    auto& set = Bindings[idx.set];
     if(binding.SSBO())
     {
-        Bindings[idx.set][idx.binding] = vk::Binding(ImportBuffer(data), idx.binding);
+        set.emplace_back(ImportBuffer(data), idx.binding, 0);
         return;
     }
 
     if (type->Tag == vk::SVType::Image)
     {
-        Bindings[idx.set][idx.binding] = vk::Binding(ImportImage(data), idx.binding);
+        VkFilter filter;
+        auto img = ImportImage(data, &filter);
+        set.emplace_back(img, idx.binding, filter);
         return;
     }
     // Table uniform buffers: Is it a possibility?
     BufferDirty = true;
     u32 baseOffset = PL->Layout->OffsetMap[((u64)idx.set << 32ull) | idx.binding];
     u32 offset = baseOffset + idx.offset;
-    Bindings[idx.set][idx.binding] = vk::Binding(UniformBuffer, idx.binding, baseOffset);
+    set.emplace_back(UniformBuffer, idx.binding, baseOffset);
     auto ptr = UniformBuffer->Map() + offset;
 	if (readSize)
 	{
@@ -137,6 +141,7 @@ void Renderpass::Exec(rc<vk::CommandBuffer> cmd, rc<vk::Image> output, const Ver
             .Usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
         });
     }
+	Bindings.clear();
 }
 
 void Basepass::BindResources(rc<vk::CommandBuffer> Cmd)
@@ -168,7 +173,6 @@ void Renderpass::Begin(rc<CommandBuffer> Cmd, rc<Image> SrcImage, bool wireframe
             .Extent = SrcImage->GetEffectiveExtent(),
             .Format = SrcImage->GetEffectiveFormat(),
             .Usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-            .Filtering = SrcImage->Filtering,
             .Samples = (VkSampleCountFlagBits)PL->MS,
         });
         Cmd->AddDependency(tmp);
@@ -369,19 +373,20 @@ void Basepass::BindResources(std::map<u32, std::map<u32, Binding>> const &bindin
 
 bool Basepass::BindResources(std::unordered_map<std::string, Binding::Type> const &resources)
 {
-    std::map<u32, std::map<u32, Binding>> Bindings;
+    assert(0);
+    //std::map<u32, std::map<u32, Binding>> Bindings;
 
-    for (auto &[name, res] : resources)
-    {
-        auto it = PL->Layout->BindingsByName.find(name);
-        if (it == PL->Layout->BindingsByName.end())
-        {
-            return false;
-        }
-        Bindings[it->second.set][it->second.binding] = Binding(res, it->second.binding);
-    }
+    //for (auto &[name, res] : resources)
+    //{
+    //    auto it = PL->Layout->BindingsByName.find(name);
+    //    if (it == PL->Layout->BindingsByName.end())
+    //    {
+    //        return false;
+    //    }
+    //    Bindings[it->second.set][it->second.binding] = Binding(res, it->second.binding, VK_FILTER_LINEAR);
+    //}
 
-    BindResources(Bindings);
+    //BindResources(Bindings);
 
     return true;
 }

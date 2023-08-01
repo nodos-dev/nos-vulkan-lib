@@ -23,12 +23,11 @@ struct mzVulkan_API ImageView  : SharedFactory<ImageView>, DeviceChild
 private:
     VkFormat Format;
 public:
-    VkSampler Sampler;
     VkImageUsageFlags Usage;
     struct Image* Src;
     ImageView(struct Image* Image, VkFormat Format = VK_FORMAT_UNDEFINED, VkImageUsageFlags Usage = 0);
     ~ImageView();
-    DescriptorResourceInfo GetDescriptorInfo() const;
+    DescriptorResourceInfo GetDescriptorInfo(VkFilter) const;
 
     u64 Hash() const
     {
@@ -59,7 +58,6 @@ public:
     Allocation Allocation = {};
     VkImage Handle = 0;
     VkImageUsageFlags Usage = 0;
-    VkFilter Filtering;
 
     ImageState State = {};
     std::map<u64, rc<ImageView>> Views;
@@ -70,7 +68,7 @@ public:
 
     MemoryExportInfo GetExportInfo() const;
     void Transition(rc<CommandBuffer> Cmd, ImageState Dst);
-    void BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src, VkFilter Filter = VK_FILTER_MAX_ENUM);
+    void BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src, VkFilter Filter);
     void CopyFrom(rc<CommandBuffer> Cmd, rc<Image> Src);
     void ResolveFrom(rc<CommandBuffer> Cmd, rc<Image> Src);
 
