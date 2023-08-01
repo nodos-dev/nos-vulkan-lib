@@ -31,7 +31,7 @@ struct mzVulkan_API Basepass :  DeviceChild
     rc<Pipeline> PL;
     rc<DescriptorPool> DescriptorPool;
     std::vector<rc<DescriptorSet>> DescriptorSets;
-    std::map<u32, std::vector<vk::Binding>> Bindings;
+    std::map<u32, std::map<u32, vk::Binding>> Bindings;
     rc<Buffer> UniformBuffer;
     bool BufferDirty = false;
 

@@ -80,7 +80,7 @@ void Basepass::Bind(std::string const& name,
     auto& set = Bindings[idx.set];
     if(binding.SSBO())
     {
-        set.emplace_back(ImportBuffer(data), idx.binding, 0);
+        set[idx.binding] = vk::Binding(ImportBuffer(data), idx.binding, 0);
         return;
     }
 
@@ -88,14 +88,14 @@ void Basepass::Bind(std::string const& name,
     {
         VkFilter filter;
         auto img = ImportImage(data, &filter);
-        set.emplace_back(img, idx.binding, filter);
+        set[idx.binding] = vk::Binding(img, idx.binding, filter);
         return;
     }
     // Table uniform buffers: Is it a possibility?
     BufferDirty = true;
     u32 baseOffset = PL->Layout->OffsetMap[((u64)idx.set << 32ull) | idx.binding];
     u32 offset = baseOffset + idx.offset;
-    set.emplace_back(UniformBuffer, idx.binding, baseOffset);
+    set[idx.binding] = vk::Binding(UniformBuffer, idx.binding, baseOffset);
     auto ptr = UniformBuffer->Map() + offset;
 	if (readSize)
 	{

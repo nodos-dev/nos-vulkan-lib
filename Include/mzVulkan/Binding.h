@@ -30,7 +30,7 @@ struct mzVulkan_API Binding
         u32 BufferOffset;
         VkFilter Filter;
     };
-    Binding() = delete;
+    Binding() = default;
     Binding(rc<Buffer> res, u32 binding, u32 bufferOffset);
     Binding(rc<Image> res, u32 binding, VkFilter filter);
 
