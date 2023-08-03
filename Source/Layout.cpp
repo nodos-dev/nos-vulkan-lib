@@ -56,7 +56,7 @@ rc<DescriptorSet> DescriptorSet::Update(std::map<u32, Binding> const& Res)
     std::vector<VkWriteDescriptorSet> writes(Res.size());
 
     size_t i = 0;
-    for (auto [_,res] : Res)
+    for (auto& [_,res] : Res)
     {
         auto info = &(infos[i] = res.GetDescriptorInfo(GetType(res.Idx)));
         writes[i] = VkWriteDescriptorSet{
