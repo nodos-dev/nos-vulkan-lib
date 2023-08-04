@@ -88,6 +88,7 @@ void Basepass::Bind(std::string const& name,
     {
         VkFilter filter;
         auto img = ImportImage(data, &filter);
+    	assert(img && "Trying to bind deleted/non-existent image");
         set[idx.binding] = vk::Binding(img, idx.binding, filter);
         return;
     }
