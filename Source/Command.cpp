@@ -13,6 +13,7 @@ namespace mz::vk
 VkResult Queue::Submit(uint32_t submitCount, const VkSubmitInfo* pSubmits, VkFence fence)
 {
     std::unique_lock lock(Mutex);
+	GetDevice()->SubmitCount += submitCount;
     return VklQueueFunctions::Submit(submitCount, pSubmits, fence);
 }
 

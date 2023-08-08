@@ -133,6 +133,7 @@ struct mzVulkan_API Device : SharedFactory<Device>,
     FeatureSet Features;
     std::unordered_map<std::string, Global> Globals;
     std::vector<std::function<void()>> Callbacks;
+	uint64_t SubmitCount = 0;
 
     std::unordered_map<VkSamplerCreateInfo, VkSampler> Samplers;
 
