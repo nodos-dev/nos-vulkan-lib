@@ -3,7 +3,7 @@
 list(APPEND DEPENDENCIES mzCommon vkl spirv-cross-core d3d12 d3d11 dxgi dynalo mzUtil)
 list(APPEND INCLUDE_FOLDERS ${CMAKE_CURRENT_SOURCE_DIR}/Include ${CMAKE_CURRENT_SOURCE_DIR}/..)
 
-add_folder_as_project(${CMAKE_CURRENT_SOURCE_DIR} mzVulkan SHARED "${DEPENDENCIES}" "${INCLUDE_FOLDERS}")
+add_folder_as_project(${CMAKE_CURRENT_SOURCE_DIR} mzVulkan STATIC "${DEPENDENCIES}" "${INCLUDE_FOLDERS}")
 
 if (${MZ_DEV_BUILD})
     list(APPEND TEST_DEPENDENCIES mzVulkan)
