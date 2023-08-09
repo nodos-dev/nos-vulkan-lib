@@ -18,9 +18,6 @@
 // mzVulkan
 #include "NativeAPI.h"
 
-// Framework
-
-
 extern "C" DXGI_FORMAT mzVulkan_API VkFormatToDxgiFormat(VkFormat fmt);
 extern "C" VkFormat mzVulkan_API DxgiFormatToVkFormat(DXGI_FORMAT fmt);
 

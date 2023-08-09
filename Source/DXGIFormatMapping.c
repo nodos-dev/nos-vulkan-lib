@@ -3,11 +3,9 @@
  */
 
 #include <vulkan/vulkan_core.h>
-
 #include <dxgiformat.h>
 
-    
-VkFormat __declspec(dllexport) DxgiFormatToVkFormat(DXGI_FORMAT format)
+VkFormat DxgiFormatToVkFormat(DXGI_FORMAT format)
 {
     switch(format)
     {
@@ -124,7 +122,7 @@ VkFormat __declspec(dllexport) DxgiFormatToVkFormat(DXGI_FORMAT format)
     }
 }
 
-DXGI_FORMAT __declspec(dllexport) VkFormatToDxgiFormat(VkFormat format)
+DXGI_FORMAT VkFormatToDxgiFormat(VkFormat format)
 {
     switch(format)
     {

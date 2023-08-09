@@ -4,9 +4,6 @@
 
 #pragma once
 
-// std
-#include <cstdio>
-
 // External
 #include <vkl.h>
 
