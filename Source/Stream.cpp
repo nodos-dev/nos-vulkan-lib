@@ -10,8 +10,6 @@
 #include "mzVulkan/Stream.h"
 #include "mzVulkan/Image.h"
 
-#define MZ_ASSERT(x) { if(!(x)) { printf("%s:%d\n", __FILE__, __LINE__); abort();} }
-
 namespace mz::vk
 {
 
