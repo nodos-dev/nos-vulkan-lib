@@ -262,7 +262,7 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice)
     ImmAllocator = Allocator::New(this);
     GetSampler(VK_FILTER_NEAREST);
     GetSampler(VK_FILTER_LINEAR);
-    GetSampler(VK_FILTER_CUBIC_IMG);
+    //GetSampler(VK_FILTER_CUBIC_IMG);
     std::lock_guard lock(Lock);
     Devices.insert(this);
 }
