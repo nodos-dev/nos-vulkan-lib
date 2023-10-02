@@ -87,6 +87,8 @@ struct HandleExportInfo
 */
 bool mzVulkan_API IsYCbCr(VkFormat);
 
+bool mzVulkan_API IsFormatSupportedByDevice(const VkFormat&, const VkPhysicalDevice&);
+
 struct MemoryExportInfo
 {
     u64 PID;

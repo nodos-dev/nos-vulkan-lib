@@ -255,6 +255,17 @@ bool IsYCbCr(VkFormat fmt)
     }
 }
 
+bool mzVulkan_API IsFormatSupportedByDevice(const VkFormat& fmt, const VkPhysicalDevice& physicalDevice)
+{
+	VkFormatProperties props;
+	VkFormat effectiveFormat = IsYCbCr(fmt) ? VK_FORMAT_R8G8B8A8_UNORM : fmt;
+	vkGetPhysicalDeviceFormatProperties(physicalDevice, effectiveFormat, &props);
+	if ((props.bufferFeatures || props.linearTilingFeatures || props.optimalTilingFeatures))
+		return true;
+
+	return false;
+}
+
 const char* vk_result_string(VkResult re)
 {
     switch (re)
