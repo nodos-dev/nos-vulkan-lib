@@ -126,9 +126,21 @@ struct mzVulkan_API Renderpass : SharedFactory<Renderpass>, Basepass
     ~Renderpass();
     
     rc<GraphicsPipeline> GetPL() const { return ((GraphicsPipeline*)PL.get())->shared_from_this(); }
-    void Begin(rc<CommandBuffer> Cmd, rc<Image> Image, bool wireframe = false, bool clear = true, u32 frameNumber = 0, float deltaSeconds = .0f);
+	void Begin(rc<CommandBuffer> Cmd,
+			   rc<Image> Image,
+			   bool wireframe = false,
+			   bool clear = true,
+			   u32 frameNumber = 0,
+			   float deltaSeconds = .0f,
+			   std::array<float, 4> clearCol = {0.0f});
     void End(rc<CommandBuffer> Cmd);
-    void Exec(rc<vk::CommandBuffer> Cmd, rc<vk::Image> Output, const VertexData* = 0, bool clear = true, u32 frameNumber = 0, float deltaSeconds = .0f);
+	void Exec(rc<vk::CommandBuffer> Cmd,
+			  rc<vk::Image> Output,
+			  const VertexData* = 0,
+			  bool clear = true,
+			  u32 frameNumber = 0,
+			  float deltaSeconds = .0f,
+			  std::array<float, 4> clearCol = {0.0f});
     void Draw(rc<vk::CommandBuffer> Cmd, const VertexData* Verts = 0);
 };
 }

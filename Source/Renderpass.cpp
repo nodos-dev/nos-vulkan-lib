@@ -127,10 +127,16 @@ void Renderpass::Draw(rc<vk::CommandBuffer> Cmd, const VertexData* Verts)
     }
 }
 
-void Renderpass::Exec(rc<vk::CommandBuffer> cmd, rc<vk::Image> output, const VertexData* Verts, bool clear, u32 frameNumber, float deltaSeconds)
+void Renderpass::Exec(rc<vk::CommandBuffer> cmd,
+					  rc<vk::Image> output,
+					  const VertexData* Verts,
+					  bool clear,
+					  u32 frameNumber,
+					  float deltaSeconds,
+					  std::array<float, 4> clearCol)
 {
     BindResources(Bindings);
-    Begin(cmd, output, Verts && Verts->Wireframe, clear, frameNumber, deltaSeconds);
+    Begin(cmd, output, Verts && Verts->Wireframe, clear, frameNumber, deltaSeconds, clearCol);
     Draw(cmd, Verts);
     End(cmd);
     
@@ -155,7 +161,7 @@ void Basepass::BindResources(rc<vk::CommandBuffer> Cmd)
     RefreshBuffer(Cmd);
 }
 
-void Renderpass::Begin(rc<CommandBuffer> Cmd, rc<Image> SrcImage, bool wireframe, bool clear, u32 frameNumber, float deltaSeconds)
+void Renderpass::Begin(rc<CommandBuffer> Cmd, rc<Image> SrcImage, bool wireframe, bool clear, u32 frameNumber, float deltaSeconds, std::array<float, 4> clearCol)
 {
     assert(SrcImage);
     
@@ -289,8 +295,8 @@ void Renderpass::Begin(rc<CommandBuffer> Cmd, rc<Image> SrcImage, bool wireframe
             .resolveImageLayout = resolveImageLayout,
             .loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD,
             .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-            .clearValue = {.color = {.float32 = {0,0,0,0}}},
-        };
+			.clearValue = {.color = {.float32 = {clearCol[0], clearCol[1], clearCol[2], clearCol[3]}}},
+            };
 
         VkRenderingAttachmentInfo DepthAttachment = {
             .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
