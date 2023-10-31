@@ -65,6 +65,7 @@ void Basepass::Bind(std::string const& name,
 {
     if (!PL->Layout->BindingsByName.contains(name))
     {
+        le() << "No such binding: " << name;
         return;
     }
     
@@ -73,14 +74,18 @@ void Basepass::Bind(std::string const& name,
     auto type = binding.Type;
     
     if(binding.Name != name)
-    {
         type = type->Members.at(name).Type;
-    }
     
     auto& set = Bindings[idx.set];
     if(binding.SSBO())
     {
-        set[idx.binding] = vk::Binding(ImportBuffer(data), idx.binding, 0);
+        auto buf = ImportBuffer(data);
+		if (!buf)
+		{
+			le() << "Trying to bind deleted/non-existent buffer";
+			return;
+		}
+        set[idx.binding] = vk::Binding(buf, idx.binding, 0);
         return;
     }
 
@@ -88,7 +93,11 @@ void Basepass::Bind(std::string const& name,
     {
         VkFilter filter;
         auto img = ImportImage(data, &filter);
-    	assert(img && "Trying to bind deleted/non-existent image");
+		if (!img)
+		{
+            le() << "Trying to bind deleted/non-existent image";
+			return;
+		}
         set[idx.binding] = vk::Binding(img, idx.binding, filter);
         return;
     }
@@ -108,6 +117,7 @@ void Basepass::Bind(std::string const& name,
 	{
 		memcpy(ptr, data, type->Size);
     }
+    return;
 }
 
 void Renderpass::Draw(rc<vk::CommandBuffer> Cmd, const VertexData* Verts)
@@ -148,7 +158,7 @@ void Renderpass::Exec(rc<vk::CommandBuffer> cmd,
             .Usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
         });
     }
-	Bindings.clear();
+    Bindings.clear();
 }
 
 void Basepass::BindResources(rc<vk::CommandBuffer> Cmd)
