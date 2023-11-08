@@ -62,7 +62,6 @@ struct mzVulkan_API CommandBuffer : SharedFactory<CommandBuffer>,
 	void WaitAndClear();
     void Clear();
     VkResult Begin(const VkCommandBufferBeginInfo* info);
-    VkResult End();
 	void UpdatePendingState();
     CommandBuffer(CommandPool* Pool, VkCommandBuffer Handle);
 
@@ -78,6 +77,8 @@ struct mzVulkan_API CommandBuffer : SharedFactory<CommandBuffer>,
             (EndResourceDependency(Resources), ...);
         });
     }
+protected:
+    VkResult End();
 };
 
 struct mzVulkan_API CommandPool : SharedFactory<CommandPool>

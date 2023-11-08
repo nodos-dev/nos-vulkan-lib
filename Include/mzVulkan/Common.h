@@ -44,6 +44,8 @@ inline bool operator == (VkExtent3D a, VkExtent3D b) {return a.width == b.width 
 namespace mz::vk
 {
 
+constexpr auto API_VERSION_USED = VK_API_VERSION_1_3;
+
 struct Device;
 struct Queue;
 struct Allocator;
@@ -97,7 +99,11 @@ struct MemoryExportInfo
     VkDeviceSize Offset;
 };
 
-constexpr VkFlags MemoryHandleTypeWin32 = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT | VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT | VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_BIT | VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_KMT_BIT | VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_HEAP_BIT | VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT;
+#if _WIN32
+constexpr VkFlags PLATFORM_EXTERNAL_MEMORY_HANDLE_TYPE = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+#else
+constexpr VkFlags PLATFORM_EXTERNAL_MEMORY_HANDLE_TYPE = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
+#endif
 
 struct BufferCreateInfo
 {
@@ -118,7 +124,7 @@ struct ImageCreateInfo
     VkSampleCountFlagBits Samples = VK_SAMPLE_COUNT_1_BIT;
     VkImageTiling Tiling = VK_IMAGE_TILING_OPTIMAL;
     VkImageCreateFlags Flags = VK_IMAGE_CREATE_ALIAS_BIT;
-    VkExternalMemoryHandleTypeFlagBits Type = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+    VkExternalMemoryHandleTypeFlags Type = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
     const MemoryExportInfo* Imported = 0;
 };
 

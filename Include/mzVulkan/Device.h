@@ -6,6 +6,7 @@
 
 // mzVulkan
 #include "Common.h"
+#include "Allocation.h"
 
 template<>
 struct std::hash<VkSamplerCreateInfo>
@@ -121,7 +122,7 @@ struct mzVulkan_API Device : SharedFactory<Device>,
     VkInstance Instance;
     VkPhysicalDevice PhysicalDevice;
 
-    rc<Allocator> ImmAllocator;
+    VmaAllocator Allocator;
 
     std::map<std::thread::id, std::pair<rc<CommandPool>, rc<QueryPool>>> ImmPools;
 	std::shared_mutex ImmPoolsMutex;
@@ -245,6 +246,8 @@ struct mzVulkan_API Device : SharedFactory<Device>,
     static bool CheckSupport(VkPhysicalDevice PhysicalDevice);
     std::string GetName() const;
 
+protected:
+	void InitializeVMA();
 }; // namespace mz::vk
 
 static_assert(Device::IsRC<rc<Device>>);

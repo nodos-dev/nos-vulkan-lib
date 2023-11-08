@@ -140,9 +140,13 @@ DescriptorSet::~DescriptorSet()
     std::unique_lock lock(Pool->Mutex);
     Pool->Layout->Vk->FreeDescriptorSets(Pool->Handle, 1, &Handle);
     Pool->InUse--;
-    if (Pool->Prev && !Pool->InUse)
+    if (!Pool->InUse)
     {
-        Pool->Prev->Next = Pool->Next;
+        if(Pool->Prev)
+			Pool->Prev->Next = Pool->Next;
+
+        if (Pool->Next)
+            Pool->Next->Prev = Pool->Prev;
     }
 }
 

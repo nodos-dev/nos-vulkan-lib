@@ -8,7 +8,6 @@
 // mzVulkan
 #include "mzVulkan/Common.h"
 #include "mzVulkan/Device.h"
-#include "mzVulkan/Allocator.h"
 #include "mzVulkan/Command.h"
 #include "mzVulkan/QueryPool.h"
 
@@ -124,6 +123,30 @@ bool Device::CheckSupport(VkPhysicalDevice PhysicalDevice)
 std::string Device::GetName() const
 {
     return vk::GetName(PhysicalDevice);
+}
+
+void Device::InitializeVMA()
+{
+    VmaVulkanFunctions funcs {
+        .vkGetInstanceProcAddr = &vkGetInstanceProcAddr,
+        .vkGetDeviceProcAddr = &vkGetDeviceProcAddr
+    };
+
+    VkPhysicalDeviceMemoryProperties props;
+	vkGetPhysicalDeviceMemoryProperties(PhysicalDevice, &props);
+	std::vector<VkExternalMemoryHandleTypeFlagsKHR> handleTypes(props.memoryTypeCount);
+	for (int i = 0; i < props.memoryTypeCount; ++i)
+        handleTypes[i] = PLATFORM_EXTERNAL_MEMORY_HANDLE_TYPE;
+
+    VmaAllocatorCreateInfo createInfo = {
+        .physicalDevice = PhysicalDevice,
+        .device = handle,
+        .pVulkanFunctions = &funcs,
+        .instance = Instance,
+        .vulkanApiVersion = API_VERSION_USED,
+		.pTypeExternalMemoryHandleTypes = handleTypes.data(),
+    };
+	MZVK_ASSERT(vmaCreateAllocator(&createInfo, &Allocator));
 }
 
 rc<CommandPool> Device::GetPool()
@@ -258,8 +281,8 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice)
 
     MZVK_ASSERT(vkCreateDevice(PhysicalDevice, &info, 0, &handle));
     vkl_load_device_functions(handle, this);
-    Queue        = Queue::New(this, family, 0);
-    ImmAllocator = Allocator::New(this);
+    Queue = Queue::New(this, family, 0);
+	InitializeVMA();
     GetSampler(VK_FILTER_NEAREST);
     GetSampler(VK_FILTER_LINEAR);
     //GetSampler(VK_FILTER_CUBIC_IMG);
@@ -302,7 +325,7 @@ Device::~Device()
 		std::unique_lock ulock(ImmPoolsMutex);
 		ImmPools.clear();
 	}
-    ImmAllocator.reset();
+	vmaDestroyAllocator(Allocator);
     DestroyDevice(0);
 }
 
@@ -338,7 +361,7 @@ Context::Context(DebugCallback* debugCallback)
 
     VkApplicationInfo app = {
         .sType      = VK_STRUCTURE_TYPE_APPLICATION_INFO,
-        .apiVersion = VK_API_VERSION_1_3,
+        .apiVersion = API_VERSION_USED
     };
 
     VkInstanceCreateInfo info = {

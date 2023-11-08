@@ -9,7 +9,6 @@
 namespace mz::vk
 {
 
-#define HANDLE_TYPES (VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT | VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_D3D12_FENCE_BIT)
 #define HANDLE_TYPE  (VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT)
 
 Semaphore::Semaphore(Device *Vk, u64 pid, HANDLE ExtHandle) : DeviceChild(Vk)
@@ -22,13 +21,14 @@ Semaphore::Semaphore(Device *Vk, u64 pid, HANDLE ExtHandle) : DeviceChild(Vk)
     VkExportSemaphoreCreateInfo exportInfo = {
         .sType = VK_STRUCTURE_TYPE_EXPORT_SEMAPHORE_CREATE_INFO,
         .pNext = &handleInfo,
-        .handleTypes = HANDLE_TYPES,
+        .handleTypes = HANDLE_TYPE,
     };
 
     VkSemaphoreTypeCreateInfo semaphoreTypeInfo = {
         .sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
         .pNext = &exportInfo,
         .semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE,
+		.initialValue = 0,
     };
 
     VkSemaphoreCreateInfo semaphoreCreateInfo = {
@@ -66,13 +66,23 @@ Semaphore::Semaphore(Device *Vk, u64 pid, HANDLE ExtHandle) : DeviceChild(Vk)
 
 void Semaphore::Signal(uint64_t value)
 {
-	VkSemaphoreSignalInfo signalInfo;
+    VkSemaphoreSignalInfo signalInfo{};
 	signalInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SIGNAL_INFO;
-	signalInfo.pNext = NULL;
 	signalInfo.semaphore = Handle;
 	signalInfo.value = value;
 
 	Vk->SignalSemaphore(&signalInfo);
+}
+
+void Semaphore::Wait(uint64_t value)
+{
+    VkSemaphoreWaitInfo waitInfo{};
+	waitInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO;
+	waitInfo.semaphoreCount = 1;
+	waitInfo.pSemaphores = &Handle;
+    waitInfo.pValues = &value;
+
+	Vk->WaitSemaphores(&waitInfo, 1292934u);
 }
 
 

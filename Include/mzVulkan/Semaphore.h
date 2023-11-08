@@ -16,6 +16,7 @@ struct mzVulkan_API Semaphore : SharedFactory<Semaphore>, DeviceChild
     Semaphore(Device *Vk, u64 pid = 0, HANDLE OSHandle = 0);
 
     void Signal(uint64_t value);
+    void Wait(uint64_t value);
     
     operator VkSemaphore() const;
     ~Semaphore();

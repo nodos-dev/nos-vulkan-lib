@@ -152,6 +152,8 @@ void Renderpass::Exec(rc<vk::CommandBuffer> cmd,
     
     if(UniformBuffer) // Get a new buffer so it's not overwritten by next pass
     {
+        // Samil: This creates new uniform buffer every frame, pool it by 
+        // moving ResourcePools from mzEngine here, or do not create unless required.
         cmd->AddDependency(UniformBuffer);
         UniformBuffer = vk::Buffer::New(GetDevice(), vk::BufferCreateInfo {
             .Size = PL->Layout->UniformSize,

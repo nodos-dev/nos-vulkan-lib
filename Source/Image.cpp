@@ -12,8 +12,10 @@ namespace mz::vk
 Image::~Image()
 {
     Views.clear();
-    Allocation.Free();
-    Vk->DestroyImage(Handle, 0);
+    if (Allocation.Imported)
+        Vk->DestroyImage(Handle, 0);
+    else if (Allocation.Handle)
+        vmaDestroyImage(Vk->Allocator, Handle, Allocation.Handle);
 };
 
 ImageView::~ImageView()
@@ -23,7 +25,7 @@ ImageView::~ImageView()
 
 ImageView::ImageView(struct Image* Src, VkFormat Format, VkImageUsageFlags Usage) :
     DeviceChild(Src->GetDevice()), Src(Src), Format(Format ? Format : Src->GetFormat()), Usage(Usage ? Usage : Src->Usage)
-{
+{ 
     VkSamplerYcbcrConversionInfo ycbcrInfo = {
         .sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO,
         // .conversion = Sampler.SamplerYcbcrConversion,
@@ -53,12 +55,7 @@ ImageView::ImageView(struct Image* Src, VkFormat Format, VkImageUsageFlags Usage
 }
 
 Image::Image(Device* Vk, ImageCreateInfo const& createInfo, VkResult* re, HANDLE externalSemaphore)
-	: Image(Vk->ImmAllocator.get(), createInfo, re, externalSemaphore)
-{
-}
-
-Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo, VkResult* re, HANDLE externalSemaphore)
-    : DeviceChild(Allocator->Vk),
+    : ResourceBase(Vk),
       Extent(createInfo.Extent),
       Format(createInfo.Format),
       Usage(createInfo.Usage),
@@ -68,74 +65,82 @@ Image::Image(Allocator* Allocator, ImageCreateInfo const& createInfo, VkResult* 
           .Layout     = VK_IMAGE_LAYOUT_UNDEFINED,
       }
 {
-    if (createInfo.Imported)
-    {
-        State.Layout = VK_IMAGE_LAYOUT_PREINITIALIZED;
-    }
+	if (createInfo.Imported)
+		State.Layout = VK_IMAGE_LAYOUT_PREINITIALIZED;
 
-    // assert(IsImportable(Vk->PhysicalDevice, Format, Usage, VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT));
+	// assert(IsImportable(Vk->PhysicalDevice, Format, Usage, VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT));
 
-    VkExternalMemoryImageCreateInfo resourceCreateInfo = {
-        .sType       = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
-        .handleTypes = (VkFlags)createInfo.Type,
-    };
+	VkFormatProperties props;
+	vkGetPhysicalDeviceFormatProperties(Vk->PhysicalDevice, GetEffectiveFormat(), &props);
 
+	auto Ft = props.optimalTilingFeatures;
+	bool Opt = true;
+	VkImageTiling tiling = createInfo.Tiling;
 
-    VkFormatProperties props;
-    vkGetPhysicalDeviceFormatProperties(Vk->PhysicalDevice, GetEffectiveFormat(), &props);
-    
-    auto Ft = props.optimalTilingFeatures;
-    bool Opt = true;
-    VkImageTiling tiling = createInfo.Tiling;
+	if (tiling == VK_IMAGE_TILING_OPTIMAL)
+	{
+		if (((Usage & VK_IMAGE_USAGE_SAMPLED_BIT) && !(Ft & VK_FORMAT_FEATURE_2_SAMPLED_IMAGE_BIT)) ||
+			((Usage & VK_IMAGE_USAGE_SAMPLED_BIT) && !(Ft & VK_FORMAT_FEATURE_2_SAMPLED_IMAGE_BIT)) ||
+			((Usage & VK_IMAGE_USAGE_TRANSFER_SRC_BIT) && !(Ft & VK_FORMAT_FEATURE_2_TRANSFER_SRC_BIT)) ||
+			((Usage & VK_IMAGE_USAGE_TRANSFER_DST_BIT) && !(Ft & VK_FORMAT_FEATURE_2_TRANSFER_DST_BIT)) ||
+			((Usage & VK_IMAGE_USAGE_SAMPLED_BIT) && !(Ft & VK_FORMAT_FEATURE_2_SAMPLED_IMAGE_BIT)) ||
+			((Usage & VK_IMAGE_USAGE_STORAGE_BIT) && !(Ft & VK_FORMAT_FEATURE_2_STORAGE_IMAGE_BIT)) ||
+			((Usage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) && !(Ft & VK_FORMAT_FEATURE_2_COLOR_ATTACHMENT_BIT)) ||
+			((Usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) &&
+			 !(Ft & VK_FORMAT_FEATURE_2_DEPTH_STENCIL_ATTACHMENT_BIT)))
+		{
+			tiling = VK_IMAGE_TILING_LINEAR;
+		}
+	}
 
-    if(tiling == VK_IMAGE_TILING_OPTIMAL)
-    {
-        if(
-        ((Usage & VK_IMAGE_USAGE_SAMPLED_BIT)                  && !(Ft & VK_FORMAT_FEATURE_2_SAMPLED_IMAGE_BIT)) ||
-        ((Usage & VK_IMAGE_USAGE_SAMPLED_BIT)                  && !(Ft & VK_FORMAT_FEATURE_2_SAMPLED_IMAGE_BIT)) ||
-        ((Usage & VK_IMAGE_USAGE_TRANSFER_SRC_BIT)             && !(Ft & VK_FORMAT_FEATURE_2_TRANSFER_SRC_BIT)) ||
-        ((Usage & VK_IMAGE_USAGE_TRANSFER_DST_BIT)             && !(Ft & VK_FORMAT_FEATURE_2_TRANSFER_DST_BIT)) ||
-        ((Usage & VK_IMAGE_USAGE_SAMPLED_BIT)                  && !(Ft & VK_FORMAT_FEATURE_2_SAMPLED_IMAGE_BIT)) ||
-        ((Usage & VK_IMAGE_USAGE_STORAGE_BIT)                  && !(Ft & VK_FORMAT_FEATURE_2_STORAGE_IMAGE_BIT)) ||
-        ((Usage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)         && !(Ft & VK_FORMAT_FEATURE_2_COLOR_ATTACHMENT_BIT)) ||
-        ((Usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) && !(Ft & VK_FORMAT_FEATURE_2_DEPTH_STENCIL_ATTACHMENT_BIT)))
-        {
-            tiling = VK_IMAGE_TILING_LINEAR;
-        }
-    }
-    
-    VkImageCreateInfo info = {
-        .sType                 = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-         .pNext                 = &resourceCreateInfo,
-        .flags                 = createInfo.Flags,
-        .imageType             = GetImageType(),
-        .format                = GetEffectiveFormat(),
-        .extent                = {GetEffectiveExtent().width, Extent.height, 1},
-        .mipLevels             = 1,
-        .arrayLayers           = 1,
-        .samples               = createInfo.Samples,
-        .tiling                = tiling,
-        .usage                 = Usage,
-        .sharingMode           = VK_SHARING_MODE_EXCLUSIVE,
-        .queueFamilyIndexCount = 0,
-        .pQueueFamilyIndices   = nullptr,
-        .initialLayout         = VK_IMAGE_LAYOUT_UNDEFINED,
-    };
-    
-    VkResult result = Vk->CreateImage(&info, 0, &Handle);
+	VkExternalMemoryImageCreateInfo resourceCreateInfo = {
+		.sType = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
+		.handleTypes = createInfo.Type,
+	};
 
-    if(re) 
-        *re = result;
-    if(MZ_VULKAN_FAILED(result))
-        return;
+	VkImageCreateInfo info = {
+		.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+		.pNext = &resourceCreateInfo,
+		.flags = createInfo.Flags,
+		.imageType = GetImageType(),
+		.format = GetEffectiveFormat(),
+		.extent = {GetEffectiveExtent().width, Extent.height, 1},
+		.mipLevels = 1,
+		.arrayLayers = 1,
+		.samples = createInfo.Samples,
+		.tiling = tiling,
+		.usage = Usage,
+		.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+		.queueFamilyIndexCount = 0,
+		.pQueueFamilyIndices = nullptr,
+		.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+	};
 
-    if (externalSemaphore && createInfo.Imported)
-		ExtSemaphore = mz::vk::Semaphore::New(Vk, createInfo.Imported->PID, externalSemaphore);
+    VkMemoryPropertyFlags memProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
-    //if(SamplerYcbcrConversion) Allocation = Allocator->AllocateResourceMemory(Handle, true, createInfo.Imported); else 
-    Allocation = Allocator->AllocateImageMemory(Handle, createInfo);
-    Allocation.BindResource(Handle);
-} // namespace mz::vk
+    VkResult result;
+	if (auto* imported = createInfo.Imported)
+	{
+        result = Vk->CreateImage(&info, 0, &Handle);
+        if (MZ_VULKAN_SUCCEEDED(result))
+            result = Allocation.Import(Vk, Handle, *imported, memProps);
+        
+		if (externalSemaphore)
+			ExtSemaphore = mz::vk::Semaphore::New(Vk, imported->PID, externalSemaphore);
+	}
+	else // Exported
+	{
+		VmaAllocationCreateInfo allocationCreateInfo{.usage = VMA_MEMORY_USAGE_AUTO, .requiredFlags = memProps};
+		result = vmaCreateImage(
+			Vk->Allocator, &info, &allocationCreateInfo, &Handle, &Allocation.Handle, &Allocation.Info);
+	}
+
+	if (MZ_VULKAN_SUCCEEDED(result))
+        result = Allocation.SetExternalMemoryHandleTypes(Vk, createInfo.Type);
+
+	if (re)
+		*re = result;
+}
 
 void Image::Transition(
     rc<CommandBuffer> Cmd,
@@ -202,16 +207,11 @@ void Image::Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src, u32 bufferRowLength, u
 
 }
 
-rc<Image> Image::Copy(rc<CommandBuffer> Cmd, rc<Allocator> Allocator)
+rc<Image> Image::Copy(rc<CommandBuffer> Cmd)
 {
     assert(Usage & VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
 
-    if (0 == Allocator)
-    {
-        Allocator = Vk->ImmAllocator;
-    }
-
-    rc<Image> Img = Image::New(Allocator.get(), ImageCreateInfo{
+    rc<Image> Img = Image::New(Vk, ImageCreateInfo{
                                                     .Extent = Extent,
                                                     .Format = Format,
                                                     .Usage  = Usage | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
@@ -246,17 +246,12 @@ rc<Image> Image::Copy(rc<CommandBuffer> Cmd, rc<Allocator> Allocator)
 }
 
 
-rc<Buffer> Image::Download(rc<CommandBuffer> Cmd, rc<Allocator> Allocator)
+rc<Buffer> Image::Download(rc<CommandBuffer> Cmd)
 {
     assert(Usage & VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
 
-    if (0 == Allocator)
-    {
-        Allocator = Vk->ImmAllocator;
-    }
-
-    rc<Buffer> StagingBuffer = Buffer::New(Allocator.get(), BufferCreateInfo { 
-        .Size = (u32)Allocation.LocalSize(), 
+    rc<Buffer> StagingBuffer = Buffer::New(Vk, BufferCreateInfo { 
+        .Size = (u32)Allocation.GetSize(), 
         .Usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT, 
     });
     
@@ -356,21 +351,21 @@ void Image::BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src, VkFilter Filter)
 
         Cmd->BlitImage2(&blitInfo);
     }
-
 }
 
 void Image::CopyFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
 {
     if(this == Src.get())
     {
-        UNREACHABLE;
+        le() << "Trying to copy to and copy from same resource!";
+        return;
     }
 
     Image* Dst = this;
 
     assert(
         (Dst->Extent.width == Src->Extent.width && Dst->Extent.height == Src->Extent.height) ||
-        Dst->Allocation.LocalSize() >= Src->Allocation.LocalSize()
+        Dst->Allocation.GetSize() >= Src->Allocation.GetSize()
     );
 
     Src->Transition(Cmd, ImageState{
@@ -449,9 +444,9 @@ MemoryExportInfo Image::GetExportInfo() const
 {
     return MemoryExportInfo{
         .PID    = PlatformGetCurrentProcessId(),
-        .Memory = Allocation.GetOSHandle(),
-        .Type   = Allocation.GetType(),
-        .Offset = Allocation.GlobalOffset(),
+        .Memory = Allocation.OsHandle,
+        .Type   = Allocation.ExternalMemoryHandleTypes,
+        .Offset = Allocation.GetOffset(),
     };
 }
 

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "Allocator.h"
+#include "Allocation.h"
 #include "Semaphore.h"
 
 
@@ -38,32 +38,18 @@ public:
     VkFormat GetFormat() const { return Format; }
 };
 
-struct mzVulkan_API Image : SharedFactory<Image>, DeviceChild
+struct mzVulkan_API Image : SharedFactory<Image>, ResourceBase<VkImage>
 {
 private:
     VkExtent2D Extent = {0, 0};
     VkFormat Format = VK_FORMAT_UNDEFINED;
-    // std::mutex Mutex;
 public:
-    void Lock()   
-    { 
-        //Mutex.lock(); 
-    }
-    
-    void Unlock() 
-    { 
-        //Mutex.unlock(); 
-    }
-
-    Allocation Allocation = {};
-    VkImage Handle = 0;
     VkImageUsageFlags Usage = 0;
 
     ImageState State = {};
     std::map<u64, rc<ImageView>> Views;
 	rc<vk::Semaphore> ExtSemaphore;
 
-    Image(Allocator*, ImageCreateInfo const& createInfo, VkResult* re = 0, HANDLE externalSemaphore = 0);
     Image(Device* Vk, ImageCreateInfo const& createInfo, VkResult* re = 0, HANDLE externalSemaphore = 0);
 
     MemoryExportInfo GetExportInfo() const;
@@ -78,8 +64,8 @@ public:
     VkExtent2D GetExtent() const { return Extent; }
 
     void Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src, u32 bufferRowLength = 0, u32 bufferImageHeight = 0);
-    rc<Image> Copy(rc<CommandBuffer> Cmd, rc<Allocator> Allocator = 0);
-    rc<Buffer> Download(rc<CommandBuffer> Cmd, rc<Allocator> Allocator = 0);
+    rc<Image> Copy(rc<CommandBuffer> Cmd);
+    rc<Buffer> Download(rc<CommandBuffer> Cmd);
     void Download(rc<CommandBuffer> Cmd, rc<Buffer>);
     void Clear(rc<CommandBuffer> Cmd, VkClearColorValue value);
 

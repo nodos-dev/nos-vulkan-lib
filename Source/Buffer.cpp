@@ -9,41 +9,55 @@ namespace mz::vk
 {
 
 Buffer::Buffer(Device* Vk, BufferCreateInfo const& info) 
-    : Buffer(Vk->ImmAllocator.get(), info)
+    : ResourceBase(Vk), Usage(info.Usage)
 {
-}
+	auto type = info.Type;
+	if (!type)
+	{
+#if _WIN32
+		type = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+#else
+		type = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
+#endif
+	}
 
-Buffer::Buffer(Allocator* Allocator, BufferCreateInfo const& info)
-    : DeviceChild(Allocator->GetDevice()), Usage(info.Usage)
-{
+	VkExternalMemoryBufferCreateInfo resourceCreateInfo = {
+		.sType = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_BUFFER_CREATE_INFO,
+		.handleTypes = (VkFlags)type,
+	};
 
-    if(0 == info.Size)
-    {
-        UNREACHABLE;
-    }
+	VkBufferCreateInfo bufferCreateInfo = {
+		.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+		.pNext = type ? &resourceCreateInfo : 0,
+		.size = info.Size,
+		.usage = info.Usage,
+	};
 
-    VkExternalMemoryBufferCreateInfo resourceCreateInfo = {
-        .sType       = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_BUFFER_CREATE_INFO,
-        .handleTypes = (VkFlags)info.Type,
-    };
+	VkMemoryPropertyFlags memProps = 0;
+	if (info.Mapped)
+		memProps |= VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+	if (info.VRAM)
+		memProps |= VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
-    VkBufferCreateInfo createInfo = {
-        .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-        .pNext = info.Type ? &resourceCreateInfo : 0,
-        .size  = info.Size,
-        .usage = info.Usage,
-    };
+	if (auto* imported = info.Imported)
+	{
+		MZVK_ASSERT(Vk->CreateBuffer(&bufferCreateInfo, 0, &Handle));
+        MZVK_ASSERT(Allocation.Import(Vk, Handle, *imported, memProps));
+	}
+	else
+	{
+		VmaAllocationCreateInfo allocCreateInfo{
+			.flags = info.Mapped ? VmaAllocationCreateFlags(VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT) : 0,
+			.usage = VMA_MEMORY_USAGE_AUTO, 
+			.requiredFlags = memProps
+		};
+		MZVK_ASSERT(vmaCreateBuffer(Vk->Allocator, &bufferCreateInfo, &allocCreateInfo, &Handle, &Allocation.Handle, &Allocation.Info));
+	}
 
-    MZVK_ASSERT(Vk->CreateBuffer(&createInfo, 0, &Handle));
+	MZVK_ASSERT(Allocation.SetExternalMemoryHandleTypes(Vk, info.Type));
 
-    Allocation = Allocator->AllocateResourceMemory(Handle, info.Type, info.Mapped, info.VRAM, info.Imported);
-    Allocation.BindResource(Handle);
-
-    if(info.Data)
-    {
-        Copy(info.Size, info.Data);
-        Allocation.Flush();
-    }
+	if (info.Data)
+		Copy(info.Size, info.Data);
 }
 
 void Buffer::Bind(VkDescriptorType type, u32 bind, VkDescriptorSet set)
@@ -87,7 +101,7 @@ void Buffer::Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src, const VkBufferCopy* R
     VkBufferCopy DefaultRegion = {
         .srcOffset = 0,
         .dstOffset = 0,
-        .size      = Src->Allocation.LocalSize(),
+        .size      = Src->Allocation.GetSize(),
     };
 
     if (!Region)
@@ -111,18 +125,15 @@ void Buffer::Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src, const VkBufferCopy* R
 
 void Buffer::Copy(size_t len, void* pp, size_t offset)
 {
-    assert(offset + len <= Allocation.LocalSize());
-    memcpy(Allocation.Map() + offset, pp, len);
+    assert(offset + len <= Allocation.GetSize());
+    memcpy(Map() + offset, pp, len);
 }
 
 u8* Buffer::Map()
 {
-    return Allocation.Map();
-}
-
-void Buffer::Flush()
-{
-    Allocation.Flush();
+    if (Allocation.Imported)
+        MZVK_ASSERT(Vk->MapMemory(Allocation.GetMemory(), Allocation.GetOffset(), Allocation.GetSize(), 0, &Allocation.Mapping()))
+    return (u8*)Allocation.Mapping();
 }
 
 DescriptorResourceInfo Buffer::GetDescriptorInfo() const
@@ -137,8 +148,10 @@ DescriptorResourceInfo Buffer::GetDescriptorInfo() const
 
 Buffer::~Buffer()
 {
-    Vk->DestroyBuffer(Handle, 0);
-    Allocation.Free();
+	if (Allocation.Imported)
+		Vk->DestroyBuffer(Handle, 0);
+	else if (Allocation.Handle)
+		vmaDestroyBuffer(Vk->Allocator, Handle, Allocation.Handle);
 }
 
 } // namespace mz::vk
