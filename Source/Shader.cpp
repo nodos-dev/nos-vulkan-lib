@@ -6,6 +6,25 @@
 namespace mz::vk
 {
 
+rc<Shader> Shader::Create(Device* Vk, std::vector<u8> const& src)
+{
+    VkShaderModule handle;
+    VkShaderModuleCreateInfo info = {
+        .sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+        .codeSize = src.size(),
+        .pCode    = (u32*)src.data(),
+    };
+    if(VK_SUCCESS == Vk->CreateShaderModule(&info, 0, &handle))
+        return Shader::New(Vk, src, handle);
+    return nullptr;
+}
+
+Shader::Shader(Device* Vk, std::vector<u8> const& src, VkShaderModule Module) 
+    : DeviceChild(Vk), Module(Module)
+{
+    Layout = GetShaderLayouts(src, Stage, Binding, Attributes);
+}
+
 Shader::Shader(Device* Vk, std::vector<u8> const& src)
     : DeviceChild(Vk)
 {

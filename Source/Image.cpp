@@ -148,7 +148,7 @@ void Image::Transition(
 {
     // Dst.AccessMask = 0;
     // Dst.StageMask  = 0;
-    if (!Vk->Features.vk13.synchronization2)
+    if (!Vk->Features.synchronization2)
     {
         ImageLayoutTransition(Handle, Cmd, State, Dst, GetAspect());
     }
@@ -306,7 +306,7 @@ void Image::BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src, VkFilter Filter)
                              .Layout     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                          });
 
-    if (!Vk->Features.vk13.synchronization2)
+    if (!Vk->Features.synchronization2)
     {
         VkImageBlit region = {
             .srcSubresource = {

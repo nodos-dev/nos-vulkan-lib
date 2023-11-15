@@ -10,13 +10,13 @@
 namespace mz::vk
 {
 
-Binding::Binding(rc<Buffer> res, u32 binding, u32 bufferOffset)
-    : Resource(res), Idx(binding), AccessFlags(0), BufferOffset(bufferOffset)
+Binding::Binding(rc<Buffer> res, u32 binding, u32 bufferOffset, u32 arrayIdx)
+    : Resource(res), Idx(binding), AccessFlags(0), BufferOffset(bufferOffset), ArrayIdx(arrayIdx)
 {
 }
 
-Binding::Binding(rc<Image> res, u32 binding, VkFilter filter)
-    : Resource(res), Idx(binding), AccessFlags(0), Filter(filter)
+Binding::Binding(rc<Image> res, u32 binding, VkFilter filter, u32 arrayIdx)
+    : Resource(res), Idx(binding), AccessFlags(0), Filter(filter), ArrayIdx(arrayIdx)
 {
 }
 

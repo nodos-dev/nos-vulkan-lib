@@ -10,6 +10,7 @@
 namespace mz::vk
 {
 
+
 static VkFormat MapSpvFormat(spv::ImageFormat format)
 {
     using namespace spv;
@@ -200,21 +201,24 @@ void ReadInputLayout(spirv_cross::Compiler& cc, VkVertexInputBindingDescription&
     }
 }
 
-static rc<SVType> GetType(spirv_cross::Compiler const& cc, u32 typeId, std::map<u32, rc<SVType>>& cache)
+static void BuildType(spirv_cross::Compiler const& cc, u32 typeId, SVType* ty);
+
+static rc<SVType> GetType(spirv_cross::Compiler const& cc, u32 typeId)
+{
+    static std::unordered_set<rc<SVType>> TypeCache;
+    rc<SVType> tmp = MakeShared<SVType>();
+    BuildType(cc, typeId, tmp.get());
+    if(auto it = TypeCache.find(tmp); it != TypeCache.end())
+        return *it;
+    TypeCache.insert(tmp);
+    return tmp;
+}
+
+static void BuildType(spirv_cross::Compiler const& cc, u32 typeId, SVType* ty)
 {
     using namespace spirv_cross;
 
-    if (auto it = cache.find(typeId); it != cache.end())
-    {
-        return it->second;
-    }
-
-    SPIRType const& type = cc.get_type(typeId);
-
-    rc<SVType> ty = std::make_shared<SVType>();
-
-    cache[typeId] = ty;
-
+    spirv_cross::SPIRType const& type = cc.get_type(typeId);
     ty->x = type.width;
     ty->y = type.vecsize;
     ty->z = type.columns;
@@ -224,7 +228,16 @@ static rc<SVType> GetType(spirv_cross::Compiler const& cc, u32 typeId, std::map<
     ty->Alignment = v * ty->x / 8;
     ty->Size      = ty->Alignment * ty->z;
     ty->Alignment = std::max(1u, ty->Alignment);
+    ty->ArraySize = 0;
 
+    if(!type.array_size_literal.empty())
+    {
+        assert(1 == type.array_size_literal.size());
+        assert(type.array_size_literal.front());;
+        ty->ArraySize = type.array.front();
+        ty->ArraySize = ty->ArraySize ? ty->ArraySize : ~0u;
+    }
+    
     switch (type.basetype)
     {
 
@@ -233,7 +246,6 @@ static rc<SVType> GetType(spirv_cross::Compiler const& cc, u32 typeId, std::map<
 
         // ty->members.resize(type.member_types.size());
         ty->Size = cc.get_declared_struct_size(type);
-
         for (u32 i = 0; i < type.member_types.size(); ++i)
         {
             u32 idx = i;
@@ -242,9 +254,9 @@ static rc<SVType> GetType(spirv_cross::Compiler const& cc, u32 typeId, std::map<
             {
                 idx = type.member_type_index_redirection[idx];
             }
-
-            ty->Members[cc.get_member_name(typeId, idx)] = {
-                .Type   = GetType(cc, type.member_types[idx], cache),
+            auto name = cc.get_member_name(type.self, idx);
+            ty->Members[name] = {
+                .Type   = GetType(cc, type.member_types[idx]),
                 .Idx    = idx,
                 .Size   = (u32)cc.get_declared_struct_member_size(type, idx),
                 .Offset = cc.type_struct_member_offset(type, idx),
@@ -289,8 +301,9 @@ static rc<SVType> GetType(spirv_cross::Compiler const& cc, u32 typeId, std::map<
         break;
     }
 
-    return ty;
-} // namespace mz::vk
+    if (ty->Size  && 0 != ty->ArraySize && ~0u != ty->ArraySize)
+        ty->Size *= ty->ArraySize;
+}
 
 ShaderLayout GetShaderLayouts(std::vector<u8> const& src, VkShaderStageFlags& stage, VkVertexInputBindingDescription& binding, std::vector<VkVertexInputAttributeDescription>& attributes)
 {
@@ -328,23 +341,22 @@ ShaderLayout GetShaderLayouts(std::vector<u8> const& src, VkShaderStageFlags& st
         std::pair{VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, &resources.subpass_inputs},
     };
 
-    std::map<u32, rc<SVType>> typeCache;
-
     for (auto& [ty, desc] : res)
     {
         for (auto& res : *desc)
         {
 
             SPIRType const& type = cc.get_type(res.type_id);
-
+            type.array;
             u32 set     = cc.get_decoration(res.id, spv::DecorationDescriptorSet);
             u32 binding = cc.get_decoration(res.id, spv::DecorationBinding);
+            u32 count = std::accumulate(type.array.begin(), type.array.end(), 1u, [](u32 a, u32 b) { return a * b; });
             NamedDSLBinding dsl = {
                 .Binding         = binding,
                 .DescriptorType  = ty,
-                .DescriptorCount = std::accumulate(type.array.begin(), type.array.end(), 1u, [](u32 a, u32 b) { return a * b; }),
+                .DescriptorCount = count ? count : 16,
                 .Name            = cc.get_name(res.id),
-                .Type            = GetType(cc, res.base_type_id, typeCache),
+                .Type            = GetType(cc, res.type_id),
                 .StageMask       = stage,
             };
             

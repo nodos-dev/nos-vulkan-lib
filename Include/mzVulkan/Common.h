@@ -77,6 +77,8 @@ union DescriptorResourceInfo {
     VkDescriptorImageInfo Image;
     VkDescriptorBufferInfo Buffer;
 };
+static_assert(sizeof(VkDescriptorImageInfo) == sizeof(DescriptorResourceInfo));
+static_assert(sizeof(VkDescriptorBufferInfo) == sizeof(DescriptorResourceInfo));
 
 // Might need something like this later if Memory and Sync object are not originating from the same process
 /*
@@ -152,7 +154,7 @@ struct mzVulkan_API SVType
         bool Write;
         u32 Sampled;
         VkFormat Fmt;
-    } Img;
+    } Img = {};
 
     struct Member
     {
@@ -162,11 +164,41 @@ struct mzVulkan_API SVType
         u32 Offset;
     };
 
+    std::string StructName;
     std::unordered_map<std::string, Member> Members;
 
-    u32 Size;
-    u32 Alignment;
+    u32 Size = 0;
+    u32 Alignment = 0;
+    u32 ArraySize = 0;
 };
+
+}
+
+template<>
+struct std::hash<mz::rc<mz::vk::SVType>>
+{
+    size_t operator()(mz::rc<mz::vk::SVType> const& ty) const
+    {
+        size_t seed = 0;
+        mz::hash_combine(seed,
+            ty->Tag, ty->x, ty->y, ty->z,
+            ty->Img.Depth, ty->Img.Array, ty->Img.MS, 
+            ty->Img.Read, ty->Img.Write, ty->Img.Sampled, ty->Img.Fmt,
+            ty->Size, ty->Alignment, ty->ArraySize);
+
+        if (mz::vk::SVType::Struct == ty->Tag)
+        {
+            mz::hash_combine(seed, ty->StructName);
+            for (auto& [n, f] : ty->Members)
+                mz::hash_combine(seed, n, f.Type, f.Idx, f.Size, f.Offset);
+        }
+
+        return seed;
+    }
+};
+
+namespace mz::vk
+{
 
 struct mzVulkan_API NamedDSLBinding
 {

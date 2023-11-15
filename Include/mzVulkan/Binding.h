@@ -23,7 +23,8 @@ struct mzVulkan_API Binding
     using Type = std::variant<rc<Image>, rc<Buffer>>;
 
     Type Resource;
-    u32 Idx;
+    u32 Idx = 0;
+    u32 ArrayIdx = 0;
     mutable VkAccessFlags AccessFlags;
     union
     {
@@ -31,10 +32,20 @@ struct mzVulkan_API Binding
         VkFilter Filter;
     };
     Binding() = default;
-    Binding(rc<Buffer> res, u32 binding, u32 bufferOffset);
-    Binding(rc<Image> res, u32 binding, VkFilter filter);
+    Binding(rc<Buffer> res, u32 binding, u32 bufferOffset, u32 arrayIdx);
+    Binding(rc<Image> res,  u32 binding, VkFilter filter, u32 arrayIdx);
 
     DescriptorResourceInfo GetDescriptorInfo(VkDescriptorType type) const;
+
+    bool operator < (Binding const& r) const
+    {
+        if(Idx == r.Idx) return ArrayIdx < r.ArrayIdx;
+        return Idx < r.Idx;
+    }
+    bool operator == (Binding const& r) const
+    {
+        return Idx == r.Idx && ArrayIdx == r.ArrayIdx;
+    }
 };
 
 } // namespace mz::vk

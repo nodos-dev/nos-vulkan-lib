@@ -25,20 +25,20 @@ DescriptorLayout::DescriptorLayout(Device* Vk, std::map<u32, NamedDSLBinding> Na
 
     for (auto& [i, b] : Bindings)
     {
+        MaxDescriptors += b.DescriptorCount;
         VkSampler  sampler = 0;
-
         bindings.emplace_back(VkDescriptorSetLayoutBinding{
-            .binding         = i,
-            .descriptorType  = b.DescriptorType,
+            .binding = i,
+            .descriptorType = b.DescriptorType,
             .descriptorCount = b.DescriptorCount,
-            .stageFlags      = b.StageMask,
-        });
+            .stageFlags = b.StageMask,
+            });
     }
-    
+
     VkDescriptorSetLayoutCreateInfo info = {
-        .sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
         .bindingCount = (u32)bindings.size(),
-        .pBindings    = bindings.data(),
+        .pBindings = bindings.data(),
     };
 
     MZVK_ASSERT(Vk->CreateDescriptorSetLayout(&info, 0, &Handle));
@@ -49,71 +49,64 @@ DescriptorLayout::~DescriptorLayout()
     Vk->DestroyDescriptorSetLayout(Handle, 0);
 }
 
-rc<DescriptorSet> DescriptorSet::Update(std::map<u32, Binding> const& Res)
+void DescriptorSet::Update(std::set<Binding> const& res)
 {
     BindStates.clear();
-    std::vector<DescriptorResourceInfo> infos(Res.size());
-    std::vector<VkWriteDescriptorSet> writes(Res.size());
+ 
+    std::map<u32, std::vector<DescriptorResourceInfo>> infos;
+    std::vector<VkWriteDescriptorSet> writes(Layout->Bindings.size());
+    auto write = writes.data();
 
-    size_t i = 0;
-    for (auto& [_,res] : Res)
+    for (auto it = res.begin(); it != res.end();)
     {
-        auto info = &(infos[i] = res.GetDescriptorInfo(GetType(res.Idx)));
-        writes[i] = VkWriteDescriptorSet{
-            .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-            .dstSet          = Handle,
-            .dstBinding      = res.Idx,
-            .descriptorCount = 1,
-            .descriptorType  = GetType(res.Idx),
-            .pImageInfo      = (std::get_if<rc<Image>>(&res.Resource)  ? &info->Image : 0),
-            .pBufferInfo     = (std::get_if<rc<Buffer>>(&res.Resource) ? &info->Buffer : 0),
-        };
-        
-        if (rc<Image> const* ppImg = std::get_if<rc<Image>>(&res.Resource))
+        auto& cur = infos[it->Idx];
+        cur.resize(Layout->Bindings[it->Idx].DescriptorCount);
+        auto info = cur.data();
+        auto next = it;
+        do
         {
-            BindStates[(*ppImg)->shared_from_this()] = ImageState{
-                                          .StageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                                          .AccessMask = res.AccessFlags,
-                                          .Layout = info->Image.imageLayout,
-            };
+            Write(*next, info++, write);
+            next = std::next(next);
         }
-
-        ++i;
+        while(next != res.end() && next->Idx == it->Idx);
+        it = next;
+        ++write;
     }
-    Layout->Vk->UpdateDescriptorSets(writes.size(), writes.data(), 0, 0);
-    return shared_from_this();
+
+    Layout->Vk->UpdateDescriptorSets(write - writes.data(), writes.data(), 0, 0);
 }
 
-rc<DescriptorSet> DescriptorSet::Update(std::vector<Binding> const& Res)
+void DescriptorSet::Write(Binding const& res, DescriptorResourceInfo* info, VkWriteDescriptorSet* write)
 {
-    BindStates.clear();
-    std::vector<DescriptorResourceInfo> infos;
-    std::vector<VkWriteDescriptorSet> writes;
-    infos.reserve(Res.size());
-    writes.reserve(Res.size());
-    for (auto& res : Res)
+    auto dc = Layout->Bindings[res.Idx].DescriptorCount;
+
+    *info = res.GetDescriptorInfo(GetType(res.Idx));
+    
+    if (1 == dc || 0 == res.ArrayIdx)
     {
-        infos.push_back(res.GetDescriptorInfo(GetType(res.Idx)));
-        writes.push_back(VkWriteDescriptorSet{
-            .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-            .dstSet          = Handle,
-            .dstBinding      = res.Idx,
-            .descriptorCount = 1,
-            .descriptorType  = GetType(res.Idx),
-            .pImageInfo      = (std::get_if<rc<Image>>(&res.Resource) ? &infos.back().Image : 0),
-            .pBufferInfo     = (std::get_if<rc<Buffer>>(&res.Resource) ? &infos.back().Buffer : 0),
-        });
-        if (rc<Image> const* ppImg = std::get_if<rc<Image>>(&res.Resource))
-        {
-            BindStates[(*ppImg)->shared_from_this()] = ImageState{
-                                          .StageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                                          .AccessMask = res.AccessFlags,
-                                          .Layout = infos.back().Image.imageLayout,
-            };
-        }
+        *write = {
+               .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+               .dstSet = Handle,
+               .dstBinding = res.Idx,
+               .descriptorCount = dc,
+               .descriptorType = GetType(res.Idx),
+               .pImageInfo = (std::get_if<rc<Image>>(&res.Resource) ? &info->Image : 0),
+               .pBufferInfo = (std::get_if<rc<Buffer>>(&res.Resource) ? &info->Buffer : 0),
+        };
+
+        for (u32 i = 1; i < dc; ++i)
+            info[i] = *info;
     }
-    Layout->Vk->UpdateDescriptorSets(writes.size(), writes.data(), 0, 0);
-    return shared_from_this();
+
+    if (rc<Image> const* ppImg = std::get_if<rc<Image>>(&res.Resource))
+    {
+        BindStates[(*ppImg)->shared_from_this()] = ImageState{
+                                      .StageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                                      .AccessMask = res.AccessFlags,
+                                      .Layout = info->Image.imageLayout,
+        };
+    }
+
 }
 
 void DescriptorSet::Bind(rc<CommandBuffer> Cmd, VkPipelineBindPoint BindPoint)
@@ -223,6 +216,15 @@ PipelineLayout::PipelineLayout(Device* Vk, ShaderLayout layout)
         }
 
         auto layout = DescriptorLayout::New(Vk, std::move(set));
+
+        std::map<u32, u32> spec;
+        
+        for (auto& [i, b] : layout->Bindings)
+        {
+            if(-1 == b.DescriptorCount)
+                spec[i] = 1;
+        }
+
         handles.push_back(layout->Handle);
         DescriptorLayouts[idx] = layout;
     }
@@ -292,6 +294,7 @@ rc<DescriptorPool> PipelineLayout::CreatePool()
 {
     return DescriptorPool::New(shared_from_this());
 }
+
 
 rc<DescriptorSet> DescriptorPool::AllocateSet(u32 set)
 {

@@ -30,14 +30,12 @@ Basepass::Basepass(rc<Pipeline> PL) : DeviceChild(PL->GetDevice()), PL(PL), Desc
     }
 }
 
-void Basepass::TransitionInput(rc<vk::CommandBuffer> Cmd, std::string const& name, const void* data, rc<Image> (ImportImage)(const void*, VkFilter*), rc<Buffer>(ImportBuffer)(const  void*))
+void Basepass::TransitionInput(rc<vk::CommandBuffer> Cmd, std::string const& name, rc<Image> img)
 {
     auto& layout = *PL->Layout;
 
-    if (!layout.BindingsByName.contains(name))
-    {
+    if (!img && !layout.BindingsByName.contains(name))
         return;
-    }
     
     auto idx = layout[name];
     auto& dsl = layout[idx];
@@ -45,79 +43,60 @@ void Basepass::TransitionInput(rc<vk::CommandBuffer> Cmd, std::string const& nam
     if (dsl.Type->Tag == vk::SVType::Image)
     {
         VkFilter filter;
-        auto img = ImportImage(data, &filter);
-        auto binding = vk::Binding(img, idx.binding, filter);
-        auto info = binding.GetDescriptorInfo(dsl.DescriptorType);
         img->Transition(Cmd, {
             .StageMask = GetStage(),
-            .AccessMask = binding.AccessFlags,
-            .Layout = info.Image.imageLayout,
+            .AccessMask = vk::Binding::MapTypeToAccess(dsl.DescriptorType),
+            .Layout = vk::Binding::MapTypeToLayout(dsl.DescriptorType),
         });
         return;
     }
 }
 
-void Basepass::Bind(std::string const& name,
-					const void* data,
-					std::optional<size_t> readSize,
-					rc<Image>(ImportImage)(const void*, VkFilter*),
-					rc<Buffer>(ImportBuffer)(const void*))
+static void UpdateOrInsert(std::set<vk::Binding>& bindings, vk::Binding&& binding)
 {
-    if (!PL->Layout->BindingsByName.contains(name))
-    {
-        le() << "No such binding: " << name;
-        return;
-    }
-    
-    auto idx = PL->Layout->BindingsByName[name];
-    auto& binding = PL->Layout->DescriptorLayouts[idx.set]->Bindings[idx.binding];
-    auto type = binding.Type;
-    
-    if(binding.Name != name)
-        type = type->Members.at(name).Type;
-    
-    auto& set = Bindings[idx.set];
-    if(binding.SSBO())
-    {
-        auto buf = ImportBuffer(data);
-		if (!buf)
-		{
-			le() << "Trying to bind deleted/non-existent buffer";
-			return;
-		}
-        set[idx.binding] = vk::Binding(buf, idx.binding, 0);
-        return;
-    }
+    auto it = bindings.find(binding);
+    if(it != bindings.end())
+        bindings.erase(it);
+    bindings.insert(binding);
+}
 
-    if (type->Tag == vk::SVType::Image)
-    {
-        VkFilter filter;
-        auto img = ImportImage(data, &filter);
-		if (!img)
-		{
-            le() << "Trying to bind deleted/non-existent image";
-			return;
-		}
-        set[idx.binding] = vk::Binding(img, idx.binding, filter);
-        return;
-    }
-    // Table uniform buffers: Is it a possibility?
+void Basepass::BindResource(std::string const& name, rc<Image> res, VkFilter filter)
+{
+    assert(IMAGE == GetUniformClass(name));
+    auto [binding, idx, type] = GetBindingAndType(name);
+    UpdateOrInsert(Bindings[idx.set], vk::Binding(res, idx.binding, filter, 0));
+}
+
+void Basepass::BindResource(std::string const& name, std::vector<rc<Image>> res, VkFilter filter)
+{
+    assert(IMAGE_ARRAY == GetUniformClass(name));
+    auto [binding, idx, type] = GetBindingAndType(name);
+    auto& set = Bindings[idx.set];
+    for (u32 i = 0; i < res.size(); ++i)
+        UpdateOrInsert(set, vk::Binding(res[i], idx.binding, filter, i));
+}
+
+void Basepass::BindResource(std::string const& name, rc<Buffer> res)
+{
+    assert(BUFFER == GetUniformClass(name));
+    auto [binding, idx, type] = GetBindingAndType(name);
+    UpdateOrInsert(Bindings[idx.set], vk::Binding(res, idx.binding, 0, 0));
+}
+
+void Basepass::BindData(std::string const& name, const void* data, uint32_t sz)
+{
+    assert(UNIFORM == GetUniformClass(name));
+    auto [binding, idx, type] = GetBindingAndType(name);
+
     BufferDirty = true;
-    u32 baseOffset = PL->Layout->OffsetMap[((u64)idx.set << 32ull) | idx.binding];
+    u32 baseOffset = PL->Layout->OffsetMap[((u64)idx.set<< 32ull) | idx.binding];
     u32 offset = baseOffset + idx.offset;
-    set[idx.binding] = vk::Binding(UniformBuffer, idx.binding, baseOffset);
+    UpdateOrInsert(Bindings[idx.set], vk::Binding(UniformBuffer, idx.binding, baseOffset, 0));
+
     auto ptr = UniformBuffer->Map() + offset;
-	if (readSize)
-	{
-		if (type->Size != *readSize)
-			memset(ptr, 0, type->Size);
-		memcpy(ptr, data, *readSize < type->Size ? *readSize : type->Size);
-	}
-	else
-	{
-		memcpy(ptr, data, type->Size);
-    }
-    return;
+
+    memset(ptr, 0, type->Size);
+    memcpy(ptr, data, sz ? std::min(sz, type->Size) : type->Size);
 }
 
 void Renderpass::Draw(rc<vk::CommandBuffer> Cmd, const VertexData* Verts)
@@ -145,31 +124,22 @@ void Renderpass::Exec(rc<vk::CommandBuffer> cmd,
 					  float deltaSeconds,
 					  std::array<float, 4> clearCol)
 {
-    BindResources(Bindings);
+
+    BindResources(cmd);
     Begin(cmd, output, Verts && Verts->Wireframe, clear, frameNumber, deltaSeconds, clearCol);
     Draw(cmd, Verts);
     End(cmd);
-    
-    if(UniformBuffer) // Get a new buffer so it's not overwritten by next pass
-    {
-        // Samil: This creates new uniform buffer every frame, pool it by 
-        // moving ResourcePools from mzEngine here, or do not create unless required.
-        cmd->AddDependency(UniformBuffer);
-        UniformBuffer = vk::Buffer::New(GetDevice(), vk::BufferCreateInfo {
-            .Size = PL->Layout->UniformSize,
-            .Usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-        });
-    }
-    Bindings.clear();
+
 }
 
 void Basepass::BindResources(rc<vk::CommandBuffer> Cmd)
 {
-    BindResources(Bindings);
+    UpdateDescriptorSets();
     for (auto &set : DescriptorSets)
     {
         set->Bind(Cmd, PL->MainShader->Stage == VK_SHADER_STAGE_FRAGMENT_BIT ? VK_PIPELINE_BIND_POINT_GRAPHICS : VK_PIPELINE_BIND_POINT_COMPUTE);
     }
+    DescriptorSets.clear();
     RefreshBuffer(Cmd);
 }
 
@@ -236,14 +206,14 @@ void Renderpass::Begin(rc<CommandBuffer> Cmd, rc<Image> SrcImage, bool wireframe
                                            .Layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
                                        });
 
-    for (auto &set : DescriptorSets)
-    {
-        for (auto [img, state] : set->BindStates)
-        {
-            img->Transition(Cmd, state);
-        }
-        set->Bind(Cmd);
-    }
+    // for (auto &set : DescriptorSets)
+    // {
+    //     for (auto [img, state] : set->BindStates)
+    //     {
+    //         img->Transition(Cmd, state);
+    //     }
+    //     set->Bind(Cmd);
+    // }
 
     VkViewport viewport = {
         .width = (f32)extent.width,
@@ -259,7 +229,7 @@ void Renderpass::Begin(rc<CommandBuffer> Cmd, rc<Image> SrcImage, bool wireframe
     Cmd->SetDepthWriteEnable(false);
     Cmd->SetDepthCompareOp(VK_COMPARE_OP_NEVER);
 
-    if (!Vk->Features.vk13.dynamicRendering)
+    if (!Vk->Features.dynamicRendering)
     {
         VkRenderPass rp = PL->Handles[img->GetEffectiveFormat()].rp;
 
@@ -347,7 +317,7 @@ void Renderpass::Begin(rc<CommandBuffer> Cmd, rc<Image> SrcImage, bool wireframe
 
 void Renderpass::End(rc<CommandBuffer> Cmd)
 {
-    if (!Vk->Features.vk13.dynamicRendering)
+    if (!Vk->Features.dynamicRendering)
     {
         Cmd->EndRenderPass();
     }
@@ -355,15 +325,16 @@ void Renderpass::End(rc<CommandBuffer> Cmd)
     {
         Cmd->EndRendering();
     }
-}
 
-void Basepass::BindResources(std::map<u32, std::vector<Binding>> const &bindings)
-{
-    DescriptorSets.clear();
-    for (auto &[idx, set] : bindings)
+    if (UniformBuffer) // Get a new buffer so it's not overwritten by next pass
     {
-        DescriptorSets.push_back(DescriptorPool->AllocateSet(idx)->Update(set));
+        Cmd->AddDependency(UniformBuffer);
+        UniformBuffer = vk::Buffer::New(GetDevice(), vk::BufferCreateInfo {
+            .Size = PL->Layout->UniformSize,
+                .Usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+        });
     }
+    Bindings.clear();
 }
 
 void Basepass::RefreshBuffer(rc<vk::CommandBuffer> Cmd)
@@ -381,38 +352,20 @@ void Basepass::RefreshBuffer(rc<vk::CommandBuffer> Cmd)
     }
 }
 
-void Basepass::BindResources(std::map<u32, std::map<u32, Binding>> const &bindings)
+void Basepass::UpdateDescriptorSets()
 {
     DescriptorSets.clear();
-    for (auto &[idx, set] : bindings)
+    for (auto &[idx, set] : Bindings)
     {
-        DescriptorSets.push_back(DescriptorPool->AllocateSet(idx)->Update(set));
+        auto dset = DescriptorPool->AllocateSet(idx);
+        dset->Update(set);
+        DescriptorSets.push_back(std::move(dset));
     }
-}
-
-bool Basepass::BindResources(std::unordered_map<std::string, Binding::Type> const &resources)
-{
-    assert(0);
-    //std::map<u32, std::map<u32, Binding>> Bindings;
-
-    //for (auto &[name, res] : resources)
-    //{
-    //    auto it = PL->Layout->BindingsByName.find(name);
-    //    if (it == PL->Layout->BindingsByName.end())
-    //    {
-    //        return false;
-    //    }
-    //    Bindings[it->second.set][it->second.binding] = Binding(res, it->second.binding, VK_FILTER_LINEAR);
-    //}
-
-    //BindResources(Bindings);
-
-    return true;
 }
 
 Renderpass::~Renderpass()
 {
-    if (!Vk->Features.vk13.dynamicRendering)
+    if (!Vk->Features.dynamicRendering)
     {
         if (FrameBuffer)
         {

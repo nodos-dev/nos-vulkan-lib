@@ -31,7 +31,7 @@ struct mzVulkan_API Basepass :  DeviceChild
     rc<Pipeline> PL;
     rc<DescriptorPool> DescriptorPool;
     std::vector<rc<DescriptorSet>> DescriptorSets;
-    std::map<u32, std::map<u32, vk::Binding>> Bindings;
+    std::map<u32, std::set<vk::Binding>> Bindings;
     rc<Buffer> UniformBuffer;
     bool BufferDirty = false;
 
@@ -48,64 +48,55 @@ struct mzVulkan_API Basepass :  DeviceChild
         return re;
     }
 
-    void Bind(std::string const& name,
-			  const void* data,
-			  std::optional<size_t> readSize,
-			  rc<Image>(ImportImage)(const void*, VkFilter* filter),
-			  rc<Buffer>(ImportBuffer)(const void*));
-    void TransitionInput(rc<vk::CommandBuffer> Cmd, std::string const& name, const void* data, rc<Image> (ImportImage)(const void*, VkFilter* filter), rc<Buffer>(ImportBuffer)(const void*));
+    void BindResource(std::string const& name, rc<Image> res, VkFilter filter);
+    void BindResource(std::string const& name, std::vector<rc<Image>> res, VkFilter filter);
+    void BindResource(std::string const& name, rc<Buffer> res);
+    void BindData(std::string const& name, const void*, uint32_t sz);
+
+    enum UniformClass
+    {
+        INVALID,
+        IMAGE_ARRAY,
+        IMAGE,
+        BUFFER,
+        UNIFORM,
+    };
+    
+    auto GetBindingAndType(std::string const& name) -> std::tuple<const NamedDSLBinding*, ShaderLayout::Index, rc<SVType>>
+    {
+        auto it = PL->Layout->BindingsByName.find(name);
+        if(it == PL->Layout->BindingsByName.end())
+            return {};
+        
+        auto binding = &PL->Layout->DescriptorLayouts[it->second.set]->Bindings[it->second.binding];
+        auto type = binding->Type;
+        if (binding->Name != name)
+            type = type->Members.at(name).Type;
+
+        return {binding, it->second, type};
+    }
+
+    UniformClass GetUniformClass(std::string const& name)
+    {
+        auto [binding, idx, type] = GetBindingAndType(name);
+        if(!binding)
+            return INVALID;
+
+        if(binding->SSBO())
+            return BUFFER;
+        
+        if (type->Tag == vk::SVType::Image)
+            return type->ArraySize ? IMAGE_ARRAY : IMAGE;
+        
+        return UNIFORM;
+    }
+    
+    void TransitionInput(rc<vk::CommandBuffer> Cmd, std::string const& name, rc<Image>);
 
     void RefreshBuffer(rc<vk::CommandBuffer> Cmd);
     void BindResources(rc<vk::CommandBuffer> Cmd);
 
-    void BindResources(std::map<u32, std::map<u32, Binding>> const &bindings);
-    void BindResources(std::map<u32, std::vector<Binding>> const &bindings);
-    bool BindResources(std::unordered_map<std::string, Binding::Type> const &resources);
-
-    template <class... Args> requires(StringResourcePairPack<std::remove_cvref_t<Args>...>()) 
-    bool BindResources(Args&&... args)
-    {
-        std::map<u32, std::vector<Binding>> bindings;
-        if (!Insert(bindings, std::forward<Args>(args)...))
-        {
-            return false;
-        }
-        BindResources(bindings);
-        return true;
-    }
-
-    template <class K, class V, class... Rest>
-    bool Insert(std::map<u32, std::vector<Binding>>& bindings, K&& k, V&& v, Rest&&... rest)
-    {
-        auto it = PL->Layout->BindingsByName.find(k);
-        if (it == PL->Layout->BindingsByName.end())
-        {
-            return false;
-        }
-        bindings[it->second.set].push_back(Binding(v, it->second.binding));
-        if constexpr (sizeof...(rest) > 0)
-        {
-            return Insert(bindings, std::forward<Rest>(rest)...);
-        }
-        return true;
-    }
-
-    template <class A, class B, class... Tail>
-    inline static constexpr bool StringResourcePairPack()
-    {
-        if constexpr ((sizeof...(Tail) % 2 == 0) && std::convertible_to<A, std::string> && TypeClassResource<B>)
-        {
-            if constexpr (sizeof...(Tail))
-            {
-                return StringResourcePairPack<Tail...>();
-            }
-            else
-            {
-                return true;
-            }
-        }
-        return false;
-    }
+    void UpdateDescriptorSets();
 };
 
 struct mzVulkan_API Computepass : SharedFactory<Computepass>, Basepass

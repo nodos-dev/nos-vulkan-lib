@@ -16,12 +16,13 @@ concept TypeClassString = std::same_as<T, std::string> || std::same_as<T, const 
 
 struct mzVulkan_API DescriptorLayout : SharedFactory<DescriptorLayout>, DeviceChild
 {
-    VkDescriptorSetLayout Handle;
     std::map<u32, NamedDSLBinding> Bindings;
+    VkDescriptorSetLayout Handle;
+    u32 MaxDescriptors = 0;
     NamedDSLBinding const& operator[](u32 binding) const;
     DescriptorLayout(Device* Vk, std::map<u32, NamedDSLBinding> NamedBindings);
     ~DescriptorLayout();
-    
+
     auto begin() const
     {
         return Bindings.begin();
@@ -56,12 +57,12 @@ struct mzVulkan_API DescriptorSet : SharedFactory<DescriptorSet>
     u32 Index;
     VkDescriptorSet Handle;
     std::unordered_map<rc<Image>, ImageState> BindStates;
-    DescriptorSet(rc<DescriptorPool>, u32);
+    DescriptorSet(rc<DescriptorPool>, u32 Index);
     ~DescriptorSet();
     VkDescriptorType GetType(u32 Binding);
-    rc<DescriptorSet> Update(std::vector<Binding> const& Res);
-    rc<DescriptorSet> Update(std::map<u32, Binding> const& Res);
-    
+
+    void Update(std::set<Binding> const& res);
+    void Write(Binding const& res, DescriptorResourceInfo* info, VkWriteDescriptorSet* write);
     void Bind(rc<CommandBuffer> Cmd, VkPipelineBindPoint BindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS);
 };
 

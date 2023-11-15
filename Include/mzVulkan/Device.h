@@ -57,37 +57,42 @@ inline bool operator == (VkSamplerCreateInfo const& a, VkSamplerCreateInfo const
 namespace mz::vk
 {
 
-struct FeatureSet  : VkPhysicalDeviceFeatures2
+struct FeatureSet  : 
+    VkPhysicalDeviceFeatures2,
+    VkPhysicalDeviceVulkan13Features, 
+    VkPhysicalDeviceVulkan12Features,
+    VkPhysicalDeviceVulkan11Features
 {
-    VkPhysicalDeviceVulkan11Features vk11{};
-    VkPhysicalDeviceVulkan12Features vk12{};
-    VkPhysicalDeviceVulkan13Features vk13{};
-    FeatureSet() : VkPhysicalDeviceFeatures2{} {};
-    FeatureSet(VkPhysicalDevice PhysicalDevice)
+    FeatureSet()  { memset(this, 0, sizeof(*this)); }
+
+    FeatureSet(VkPhysicalDevice PhysicalDevice) : FeatureSet()
     {
         vkGetPhysicalDeviceFeatures2(PhysicalDevice, pnext());
     }
     
     FeatureSet& operator=(FeatureSet const& r) { memcpy(this, &r, sizeof(r)); pnext(); return *this;}
     FeatureSet(FeatureSet const& r) { *this = r; }
+    
     FeatureSet operator & (FeatureSet r) const
     {
-        for(u32 i = 0; i < sizeof(FeatureSet)/sizeof(VkBool32); ++i) 
+        for(u32 i = 0; i < sizeof(*this)/sizeof(VkBool32); ++i) 
             ((VkBool32*)&r)[i] &= ((VkBool32*)this)[i];
         return r;
     }
     
-    VkPhysicalDeviceFeatures2* pnext() 
+    VkPhysicalDeviceFeatures2* pnext()
     {
-        vk11.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
-        vk12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
-        vk13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
-             sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-        vk12.pNext = &vk11;
-        vk13.pNext = &vk12;
-             pNext = &vk13;
-        return this;
+        VkPhysicalDeviceVulkan11Features::sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
+        VkPhysicalDeviceVulkan12Features::sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+        VkPhysicalDeviceVulkan13Features::sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+        VkPhysicalDeviceFeatures2::sType        = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+        VkPhysicalDeviceVulkan11Features::pNext = nullptr;
+        VkPhysicalDeviceVulkan12Features::pNext = static_cast<VkPhysicalDeviceVulkan11Features*>(this);
+        VkPhysicalDeviceVulkan13Features::pNext = static_cast<VkPhysicalDeviceVulkan12Features*>(this);
+        VkPhysicalDeviceFeatures2::pNext        = static_cast<VkPhysicalDeviceVulkan13Features*>(this);
+        return static_cast<VkPhysicalDeviceFeatures2*>(this);
     }
+    
 };
 
 

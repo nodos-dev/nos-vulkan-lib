@@ -154,7 +154,7 @@ void GraphicsPipeline::Recreate(VkFormat fmt)
         .pAttachments = &attachment,
     };
     
-    if (!Vk->Features.vk13.dynamicRendering)
+    if (!Vk->Features.dynamicRendering)
     {
         VkAttachmentDescription colorAttachment{};
         colorAttachment.format = fmt;
@@ -226,7 +226,7 @@ void GraphicsPipeline::Recreate(VkFormat fmt)
         .layout = Layout->Handle,
     };
     
-    if (!Vk->Features.vk13.dynamicRendering)
+    if (!Vk->Features.dynamicRendering)
     {
         info.renderPass = Handles[fmt].rp;
         info.pNext = 0;

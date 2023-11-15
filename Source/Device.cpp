@@ -86,14 +86,14 @@ bool Device::CheckSupport(VkPhysicalDevice PhysicalDevice)
 
     auto set = FeatureSet(PhysicalDevice);
     
-    CHECK_SUPPORT(set.vk11, samplerYcbcrConversion);
-    CHECK_SUPPORT(set.vk11, storageBuffer16BitAccess);
-    CHECK_SUPPORT(set.vk11, uniformAndStorageBuffer16BitAccess);
+    CHECK_SUPPORT(set, samplerYcbcrConversion);
+    CHECK_SUPPORT(set, storageBuffer16BitAccess);
+    CHECK_SUPPORT(set, uniformAndStorageBuffer16BitAccess);
 
-    CHECK_SUPPORT(set.vk12, scalarBlockLayout);
-    CHECK_SUPPORT(set.vk12, uniformBufferStandardLayout);
-    CHECK_SUPPORT(set.vk12, hostQueryReset);
-    CHECK_SUPPORT(set.vk12, timelineSemaphore);
+    CHECK_SUPPORT(set, scalarBlockLayout);
+    CHECK_SUPPORT(set, uniformBufferStandardLayout);
+    CHECK_SUPPORT(set, hostQueryReset);
+    CHECK_SUPPORT(set, timelineSemaphore);
 
     // These have fallbacks
     // CHECK_SUPPORT(set.vk13, synchronization2);
@@ -115,7 +115,7 @@ bool Device::CheckSupport(VkPhysicalDevice PhysicalDevice)
 
     //TODO: add mechanism to fallback into non-dynamic pipeline 
     // when no device suitable for vulkan 1.3 extensions is found 
-    supported = true;
+    // supported = true;
 
     return supported;
 }
@@ -196,19 +196,19 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice)
                 return 0 == strcmp(ext, prop.extensionName);
             }) == extensionProps.end())
         {
-            if (strcmp(ext, "VK_KHR_dynamic_rendering") == 0 && !Features.vk13.dynamicRendering)
+            if (strcmp(ext, "VK_KHR_dynamic_rendering") == 0 && !Features.dynamicRendering)
             {
                 printf("Device extension %s requested but not available, fallback mechanism in place\n", ext);
                 continue;
             }
 
-            if (strcmp(ext, "VK_KHR_synchronization2") == 0 && !Features.vk13.synchronization2)
+            if (strcmp(ext, "VK_KHR_synchronization2") == 0 && !Features.synchronization2)
             {
                 printf("Device extension %s requested but not available, fallback mechanism in place\n", ext);
                 continue;
             }
 
-            if (strcmp(ext, "VK_KHR_copy_commands2") == 0 && !Features.vk13.synchronization2)
+            if (strcmp(ext, "VK_KHR_copy_commands2") == 0 && !Features.synchronization2)
             {
                 printf("Device extension %s requested but not available, fallback mechanism in place\n", ext);
                 continue;
@@ -247,25 +247,23 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice)
     };
 
     FeatureSet set;
-    set.vk11 = {
-        .storageBuffer16BitAccess = VK_TRUE,
-        .uniformAndStorageBuffer16BitAccess = VK_TRUE,
-        .samplerYcbcrConversion = VK_TRUE,
-    };
-    set.vk12 = {
-        .scalarBlockLayout = VK_TRUE,
-        .uniformBufferStandardLayout = VK_TRUE,
-        .hostQueryReset = VK_TRUE,
-        .timelineSemaphore = VK_TRUE,
-    };
-    set.vk13 = {
-        .synchronization2 = VK_TRUE,
-        .dynamicRendering = VK_TRUE,
-    };
-    set.features = {
-        .fillModeNonSolid = VK_TRUE,
-        .samplerAnisotropy = VK_TRUE,
-    };
+    
+    set.storageBuffer16BitAccess = VK_TRUE;
+    set.uniformAndStorageBuffer16BitAccess = VK_TRUE;
+    set.samplerYcbcrConversion = VK_TRUE;
+ 
+    set.scalarBlockLayout = VK_TRUE;
+    set.uniformBufferStandardLayout = VK_TRUE;
+    set.hostQueryReset = VK_TRUE;
+    set.timelineSemaphore = VK_TRUE;
+
+    set.synchronization2 = VK_TRUE;
+    set.dynamicRendering = VK_TRUE;
+
+    set.features.fillModeNonSolid = VK_TRUE;
+    set.features.samplerAnisotropy = VK_TRUE;
+
+    set.runtimeDescriptorArray = VK_TRUE;
 
     auto available = Features & set;
     VkDeviceCreateInfo info = {
