@@ -9,6 +9,7 @@
 #include <handleapi.h>
 
 #include <algorithm>
+#include <bit>
 
 namespace mz::vk
 {

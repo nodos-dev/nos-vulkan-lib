@@ -11,6 +11,7 @@
 #include "mzVulkan/QueryPool.h"
 
 #include <iostream>
+#include <bit>
 
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
