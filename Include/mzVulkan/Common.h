@@ -67,25 +67,11 @@ inline bool operator == (VkExtent3D a, VkExtent3D b) {return a.width == b.width 
 namespace mz::vk
 {
 
-inline void DummyLog(const char* fmt, ...)
-{
-}
-
-struct Log
-{
-	void (*D)(const char* fmt, ...) = DummyLog;
-	void (*I)(const char* fmt, ...) = DummyLog;
-	void (*W)(const char* fmt, ...) = DummyLog;
-	void (*E)(const char* fmt, ...) = DummyLog;
-};
-
-extern Log GLog;
-    
 template <typename T>
 using rc = std::shared_ptr<T>;
 
 template <class T, class... Args>
-requires(std::is_constructible_v<T, Args...>)
+	requires(std::is_constructible_v<T, Args...>)
 rc<T> MakeShared(Args&&... args)
 {
 	return std::make_shared<T>(std::forward<Args>(args)...);
@@ -104,6 +90,22 @@ struct SharedFactory : std::enable_shared_from_this<T>
 		return MakeShared<T>(std::forward<Args>(args)...);
 	}
 };
+
+
+inline void DummyLog(const char* fmt, ...)
+{
+}
+
+struct Log
+{
+	void (*D)(const char* fmt, ...) = DummyLog;
+	void (*I)(const char* fmt, ...) = DummyLog;
+	void (*W)(const char* fmt, ...) = DummyLog;
+	void (*E)(const char* fmt, ...) = DummyLog;
+};
+
+extern Log GLog;
+    
 
 inline void hash_combine(std::size_t& seed) {}
 
