@@ -290,7 +290,7 @@ void Image::BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src, VkFilter Filter)
 
     if(Src.get() == Dst)
     {
-    	le() << "Image::BlitFrom: Src and Dst are the same image";
+    	GLog.E("Image::BlitFrom: Src and Dst are the same image");
         return;
     }
 
@@ -357,7 +357,7 @@ void Image::CopyFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
 {
     if(this == Src.get())
     {
-        le() << "Trying to copy to and copy from same resource!";
+        GLog.E("Trying to copy to and copy from same resource!");
         return;
     }
 

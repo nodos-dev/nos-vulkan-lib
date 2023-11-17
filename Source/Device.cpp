@@ -3,13 +3,18 @@
 
 // External
 #include <vulkan/vulkan_core.h>
-#include <dynalo/dynalo.hpp>
 
 // mzVulkan
 #include "mzVulkan/Common.h"
 #include "mzVulkan/Device.h"
 #include "mzVulkan/Command.h"
 #include "mzVulkan/QueryPool.h"
+
+#include <iostream>
+
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <Windows.h>
 
 static std::vector<const char*> layers = {
 };
@@ -352,9 +357,9 @@ void Context::EnableValidationLayers(bool enable)
 }
 
 Context::Context(DebugCallback* debugCallback)
-    : Lib(dynalo::open("vulkan-1.dll"))
+    : Lib(::LoadLibrary("vulkan-1.dll"))
 {
-    MZVK_ASSERT(vkl_init(dynalo::get_function<decltype(vkGetInstanceProcAddr)>((dynalo::native::handle)Lib, "vkGetInstanceProcAddr")));
+    MZVK_ASSERT(vkl_init((PFN_vkGetInstanceProcAddr)GetProcAddress((HMODULE)Lib, "vkGetInstanceProcAddr")));
     u32 count;
 
     VkApplicationInfo app = {
@@ -441,7 +446,7 @@ Context::~Context()
     }
     vkDestroyInstance(Instance, 0);
 
-    dynalo::close((dynalo::native::handle)Lib);
+    ::FreeLibrary((HMODULE)Lib);
 }
 
 rc<Device> Context::CreateDevice(u64 luid) const

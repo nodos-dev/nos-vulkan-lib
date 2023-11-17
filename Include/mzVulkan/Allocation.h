@@ -5,6 +5,9 @@
 // External
 #include <vk_mem_alloc.h>
 
+// std
+#include <variant>
+
 namespace mz::vk
 {
 

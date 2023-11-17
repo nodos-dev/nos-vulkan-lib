@@ -5,8 +5,6 @@
 #include "mzVulkan/Image.h"
 #include "vkl.h"
 
-#include <mzUtil/TimeUtils.h>
-
 namespace mz::vk
 {
 
@@ -52,7 +50,7 @@ bool CommandBuffer::Wait()
 {
     if (GetDevice()->WaitForFences(1, &Fence, 0, 3000000000ull) != VK_SUCCESS)
     {
-        lw() << "Command buffer wait timeout!";
+		GLog.W("Command buffer wait timeout!");
         return false;
     }
 	Clear();
@@ -62,7 +60,7 @@ bool CommandBuffer::Wait()
 void CommandBuffer::WaitAndClear()
 {
 	if (State == Pending && GetDevice()->WaitForFences(1, &Fence, 0, UINT64_MAX) != VK_SUCCESS)
-		le() << "Clearing command buffer without finishing: Thread " << std::this_thread::get_id();
+        GLog.E("Clearing command buffer without finishing: Thread %d", std::this_thread::get_id());
 	Clear();
 }
 
@@ -247,9 +245,14 @@ CommandPool::~CommandPool()
     GetDevice()->DestroyCommandPool(Handle, 0);
 }
 
+uint64_t NowInUs()
+{
+    return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+}
+
 rc<CommandBuffer> CommandPool::AllocCommandBuffer(VkCommandBufferLevel level)
 {
-	auto now = mz::util::TimestampUs();
+	auto now = NowInUs();
     for (auto& cmd : Buffers)
     {
 		cmd->UpdatePendingState();
@@ -260,11 +263,11 @@ rc<CommandBuffer> CommandPool::AllocCommandBuffer(VkCommandBufferLevel level)
 		if (cmd->IsFree())
 			break;
 		NextBuffer++;
-		auto elapsed = mz::util::TimestampUs() - now;
+		auto elapsed = NowInUs() - now;
 		if (elapsed > 1e4) // log if exhausted for 10ms
 		{
-			le() << "Command pool is exhausted";
-			now = mz::util::TimestampUs();
+			GLog.E("Command pool is exhausted");
+			now = NowInUs();
 		}
 	}
 

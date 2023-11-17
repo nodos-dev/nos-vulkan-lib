@@ -8,8 +8,11 @@
 
 #include <handleapi.h>
 
+#include <algorithm>
+
 namespace mz::vk
 {
+Log GLog = {};
 
 bool PlatformCloseHandle(HANDLE handle)
 {

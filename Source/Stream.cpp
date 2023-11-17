@@ -25,7 +25,7 @@ Stream::Stream(Device* Vk, u32 Size, ImageCreateInfo const& info) : Head(Size), 
 
 u32 Stream::InUse() const
 {
-    return Head.val - Tail.val;
+    return Head.Val - Tail.Val;
 }
 
 rc<Image> Stream::AcquireWrite()

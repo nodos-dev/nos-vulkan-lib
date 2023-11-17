@@ -7,10 +7,11 @@
 // mzVulkan
 #include "mzVulkan/Pipeline.h"
 
+// std
+#include <numeric>
+
 namespace mz::vk
 {
-
-
 static VkFormat MapSpvFormat(spv::ImageFormat format)
 {
     using namespace spv;
@@ -206,7 +207,7 @@ static void BuildType(spirv_cross::Compiler const& cc, u32 typeId, SVType* ty);
 static rc<SVType> GetType(spirv_cross::Compiler const& cc, u32 typeId)
 {
     static std::unordered_set<rc<SVType>> TypeCache;
-    rc<SVType> tmp = MakeShared<SVType>();
+    rc<SVType> tmp = std::make_shared<SVType>();
     BuildType(cc, typeId, tmp.get());
     if(auto it = TypeCache.find(tmp); it != TypeCache.end())
         return *it;

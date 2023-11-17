@@ -29,7 +29,7 @@ extern "C" VkFormat mzVulkan_API DxgiFormatToVkFormat(DXGI_FORMAT fmt);
             std::string __err = std::system_category().message(re);                                 \
             char errbuf[1024];                                                                      \
             std::snprintf(errbuf, 1024, "[%lx] %s (%s:%d)", re, __err.c_str(), __FILE__, __LINE__); \
-            MZ_ABORT;                                                                           \
+            assert(false);                                                                           \
         }                                                                                           \
     }
 
@@ -38,7 +38,7 @@ extern "C" VkFormat mzVulkan_API DxgiFormatToVkFormat(DXGI_FORMAT fmt);
     {                                                                                                             \
         char errbuf[1024];                                                                                        \
         std::snprintf(errbuf, 1024, "%s\t(%s:%d)", ::mz::vk::GetLastErrorAsString().c_str(), __FILE__, __LINE__); \
-        MZ_ABORT;                                                                                             \
+		assert(false);                                                                                            \
     }
 
 namespace mz::vk

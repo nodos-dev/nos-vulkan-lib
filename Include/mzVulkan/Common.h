@@ -8,8 +8,20 @@
 #include <vkl.h>
 
 // Framework
-#include <mzCommon.h>
-#include <mzUtil/Logger.h>
+//#include <mzCommon.h>
+//#include <mzUtil/Logger.h>
+
+#include <memory>
+#include <unordered_map>
+#include <map>
+#include <string>
+#include <functional>
+#include <variant>
+#include <mutex>
+#include <array>
+#include <optional>
+#include <set>
+#include <algorithm>
 
 #ifdef mzVulkan_SHARED
 #ifdef mzVulkan_EXPORTS
@@ -24,7 +36,19 @@
 #define MZ_VULKAN_FAILED(expr) (VK_SUCCESS != (expr))
 #define MZ_VULKAN_SUCCEEDED(expr) (!MZ_VULKAN_FAILED(expr))
 
-#define MZVK_ASSERT(expr)                                                                            \
+#define MARK_LINE printf("%s:%d\n", __FILE__, __LINE__)
+
+#define MZ_ASSERT(x)                                                                                                   \
+	{                                                                                                                  \
+		if (!(x))                                                                                                      \
+		{                                                                                                              \
+			printf("[MZ] Assertion failed at ");                                                                       \
+			MARK_LINE;                                                                                                 \
+            assert(false);                                                                                             \
+		}                                                                                                              \
+	}
+
+#define MZVK_ASSERT(expr)                                                                                         \
     {                                                                                                             \
         VkResult re = (expr);                                                                                     \
         if (MZ_VULKAN_FAILED(re))                                                                                 \
@@ -33,8 +57,7 @@
             std::snprintf(errbuf, 4096, "%s %d (%s:%d)", ::mz::vk::vk_result_string(re), re, __FILE__, __LINE__); \
             printf("%s\n", errbuf);                                                                               \
             fflush(stdout);                                                                                       \
-            le() << errbuf;                                                                                       \
-            MZ_ABORT;                                                                                             \
+            assert(false);                                                                                        \
         }                                                                                                         \
     }
 
@@ -43,6 +66,101 @@ inline bool operator == (VkExtent3D a, VkExtent3D b) {return a.width == b.width 
 
 namespace mz::vk
 {
+
+inline void DummyLog(const char* fmt, ...)
+{
+}
+
+struct Log
+{
+	void (*D)(const char* fmt, ...) = DummyLog;
+	void (*I)(const char* fmt, ...) = DummyLog;
+	void (*W)(const char* fmt, ...) = DummyLog;
+	void (*E)(const char* fmt, ...) = DummyLog;
+};
+
+extern Log GLog;
+    
+template <typename T>
+using rc = std::shared_ptr<T>;
+
+template <class T, class... Args>
+requires(std::is_constructible_v<T, Args...>)
+rc<T> MakeShared(Args&&... args)
+{
+	return std::make_shared<T>(std::forward<Args>(args)...);
+}
+
+template <class T>
+struct SharedFactory : std::enable_shared_from_this<T>
+{
+	SharedFactory() = default;
+	SharedFactory(SharedFactory const&) = delete;
+
+	template <class... Args>
+		requires(std::is_constructible_v<T, Args...>)
+	static rc<T> New(Args&&... args)
+	{
+		return MakeShared<T>(std::forward<Args>(args)...);
+	}
+};
+
+inline void hash_combine(std::size_t& seed) {}
+
+template <typename T, typename... Rest>
+inline void hash_combine(std::size_t& seed, const T& v, Rest... rest)
+{
+	std::hash<T> hasher;
+	seed ^= hasher(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+	hash_combine(seed, rest...);
+}
+
+template <class T, template <class...> class U>
+struct SpecializationOf : std::false_type
+{
+};
+
+template <template <class...> class U, class... Args>
+struct SpecializationOf<U<Args...>, U> : std::true_type
+{
+};
+
+template <class T, template <class...> class U>
+concept spec_of = SpecializationOf<std::remove_cvref_t<T>, U>::value;
+
+template <class T>
+concept HasEnabledSharedFromThis = requires(T* t) {
+									   {
+										   t->shared_from_this()
+										   } -> spec_of<std::shared_ptr>;
+								   };
+
+template <class T = u64>
+struct CircularIndex
+{
+	T Val;
+	T Max;
+
+	explicit CircularIndex(T max) : Val(0), Max(u64(max)) {}
+
+	CircularIndex& operator=(T max)
+	{
+        Val = 0;
+		this->Max = (u64)max;
+		return *this;
+	}
+
+	u64 operator++() { return Val = (Val + 1) % Max; }
+
+	u64 operator++(int)
+	{
+		u64 ret = Val % Max;
+        Val = (Val + 1) % Max;
+		return ret;
+	}
+
+	operator u64() const { return Val % Max; }
+};
 
 constexpr auto API_VERSION_USED = VK_API_VERSION_1_3;
 
@@ -175,12 +293,12 @@ struct mzVulkan_API SVType
 }
 
 template<>
-struct std::hash<mz::rc<mz::vk::SVType>>
+struct std::hash<mz::vk::rc<mz::vk::SVType>>
 {
-    size_t operator()(mz::rc<mz::vk::SVType> const& ty) const
+    size_t operator()(mz::vk::rc<mz::vk::SVType> const& ty) const
     {
         size_t seed = 0;
-        mz::hash_combine(seed,
+        mz::vk::hash_combine(seed,
             ty->Tag, ty->x, ty->y, ty->z,
             ty->Img.Depth, ty->Img.Array, ty->Img.MS, 
             ty->Img.Read, ty->Img.Write, ty->Img.Sampled, ty->Img.Fmt,
@@ -188,9 +306,9 @@ struct std::hash<mz::rc<mz::vk::SVType>>
 
         if (mz::vk::SVType::Struct == ty->Tag)
         {
-            mz::hash_combine(seed, ty->StructName);
+            mz::vk::hash_combine(seed, ty->StructName);
             for (auto& [n, f] : ty->Members)
-                mz::hash_combine(seed, n, f.Type, f.Idx, f.Size, f.Offset);
+                mz::vk::hash_combine(seed, n, f.Type, f.Idx, f.Size, f.Offset);
         }
 
         return seed;

@@ -8,6 +8,10 @@
 #include "Common.h"
 #include "Allocation.h"
 
+// std
+#include <thread>
+#include <shared_mutex>
+
 template<>
 struct std::hash<VkSamplerCreateInfo>
 {
@@ -15,7 +19,7 @@ struct std::hash<VkSamplerCreateInfo>
     size_t operator()(VkSamplerCreateInfo const& info) const 
     {
         size_t re = 0;
-        mz::hash_combine(re, 
+        mz::vk::hash_combine(re, 
             info.flags, 
             info.magFilter, 
             info.minFilter, 
@@ -28,8 +32,8 @@ struct std::hash<VkSamplerCreateInfo>
             info.maxLod, 
             info.borderColor, 
             (bool)info.unnormalizedCoordinates);
-            if(info.compareEnable) mz::hash_combine(re, info.compareOp);
-            if(info.anisotropyEnable) mz::hash_combine(re, info.maxAnisotropy);
+            if(info.compareEnable) mz::vk::hash_combine(re, info.compareOp);
+            if(info.anisotropyEnable) mz::vk::hash_combine(re, info.maxAnisotropy);
         return re;
     }
 };
