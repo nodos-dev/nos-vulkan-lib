@@ -57,3 +57,24 @@ if(NOT TARGET ${PROJECT_NAME})
 	target_link_libraries(${PROJECT_NAME} PUBLIC ${DEPENDENCIES})
 	target_include_directories(${PROJECT_NAME} PUBLIC ${INCLUDE_FOLDERS})
 endif()
+
+# TODO: Use these also in plugins instead of python script
+set(TOOLS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Tools/${CMAKE_SYSTEM_NAME})
+file(GLOB_RECURSE SHADERS CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/Source/*.frag" "${CMAKE_CURRENT_SOURCE_DIR}/Source/*.vert")
+message("Shaders: ${SHADERS}")
+foreach(SHADER ${SHADERS})
+	get_filename_component(SHADER_DIR ${SHADER} DIRECTORY)
+	set(SHADER_SPV "${SHADER}.unopt.spv")
+	set(SHADER_OPT_SPV "${SHADER}.spv")
+	# Rename *_gen_opt.spv.h toQ gen.spv.dat
+	add_custom_command(
+		TARGET ${PROJECT_NAME} PRE_BUILD
+		COMMAND "${TOOLS_DIR}/glslc" "-O" "-g" "-o" "${SHADER_SPV}" "${SHADER}"
+		COMMAND "${TOOLS_DIR}/spirv-opt" "-O" "-o" "${SHADER_OPT_SPV}" "${SHADER_SPV}"
+		COMMAND "${TOOLS_DIR}/bin2header" "${SHADER_OPT_SPV}"
+		COMMAND ${CMAKE_COMMAND} -E rename "${SHADER_OPT_SPV}.h" "${SHADER_OPT_SPV}.dat"
+		# Delete *.spv
+		COMMAND ${CMAKE_COMMAND} -E remove "${SHADER_SPV}"
+		COMMAND ${CMAKE_COMMAND} -E remove "${SHADER_OPT_SPV}"
+		DEPENDS ${SHADER})
+endforeach()
