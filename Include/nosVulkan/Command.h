@@ -6,12 +6,12 @@
 
 #include "Common.h"
 
-namespace mz::vk
+namespace nos::vk
 {
 
 struct Device;
 
-struct mzVulkan_API Queue : SharedFactory<Queue>, VklQueueFunctions
+struct nosVulkan_API Queue : SharedFactory<Queue>, VklQueueFunctions
 {
     u32 Family;
     u32 Idx;
@@ -38,7 +38,7 @@ void EndResourceDependency(rc<T> Resource)
     }
 }
 
-struct mzVulkan_API CommandBuffer : SharedFactory<CommandBuffer>,
+struct nosVulkan_API CommandBuffer : SharedFactory<CommandBuffer>,
                                     VklCommandFunctions
 {
     enum State 
@@ -81,7 +81,7 @@ protected:
     VkResult End();
 };
 
-struct mzVulkan_API CommandPool : SharedFactory<CommandPool>
+struct nosVulkan_API CommandPool : SharedFactory<CommandPool>
 {
     static constexpr u64 DefaultPoolSize = 256;
 
@@ -108,4 +108,4 @@ struct mzVulkan_API CommandPool : SharedFactory<CommandPool>
     void Clear();
 };
 
-} // namespace mz::vk
+} // namespace nos::vk

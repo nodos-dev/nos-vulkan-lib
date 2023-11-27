@@ -6,10 +6,10 @@
 #include <d3d11.h>
 #include <dxgiformat.h>
 
-// mzVulkan
-#include "mzVulkan/NativeAPIDirectx.h"
+// nosVulkan
+#include "nosVulkan/NativeAPIDirectx.h"
 
-namespace mz::vk
+namespace nos::vk
 {
   
 NativeAPID3D11::NativeAPID3D11(Device* Vk)
@@ -22,12 +22,12 @@ NativeAPID3D11::NativeAPID3D11(Device* Vk)
     u64 luid = Vk->GetLuid();
 
     // Find adapter matching LUID
-    MZ_D3D12_ASSERT_SUCCESS(CreateDXGIFactory(__uuidof(IDXGIFactory), reinterpret_cast<void**>(&pDXGIFactory)));
+    NOS_D3D12_ASSERT_SUCCESS(CreateDXGIFactory(__uuidof(IDXGIFactory), reinterpret_cast<void**>(&pDXGIFactory)));
 
     for (uint32_t i = 0; SUCCEEDED(pDXGIFactory->EnumAdapters(i, &pNextDXGIAdapter)); ++i)
     {
         DXGI_ADAPTER_DESC desc;
-        MZ_D3D12_ASSERT_SUCCESS(pNextDXGIAdapter->GetDesc(&desc));
+        NOS_D3D12_ASSERT_SUCCESS(pNextDXGIAdapter->GetDesc(&desc));
         if ((desc.AdapterLuid.HighPart == luid >> 32) && (desc.AdapterLuid.LowPart == (luid & 0xFFFFFFFF)))
         {
             pDXGIAdapter = pNextDXGIAdapter;
@@ -48,8 +48,8 @@ NativeAPID3D11::NativeAPID3D11(Device* Vk)
         D3D_FEATURE_LEVEL_9_1
     };
 
-    MZ_D3D12_ASSERT_SUCCESS(D3D11CreateDevice(0, D3D_DRIVER_TYPE_HARDWARE, 0, 0, featureLevels.data(), featureLevels.size(), D3D11_SDK_VERSION, &Dx11, &featureLevel, &Ctx));
-    MZ_D3D12_ASSERT_SUCCESS(Dx11->QueryInterface(IID_PPV_ARGS(&Dx11_5)));
+    NOS_D3D12_ASSERT_SUCCESS(D3D11CreateDevice(0, D3D_DRIVER_TYPE_HARDWARE, 0, 0, featureLevels.data(), featureLevels.size(), D3D11_SDK_VERSION, &Dx11, &featureLevel, &Ctx));
+    NOS_D3D12_ASSERT_SUCCESS(Dx11->QueryInterface(IID_PPV_ARGS(&Dx11_5)));
     pDXGIFactory->Release();
     pDXGIAdapter->Release();
 }
@@ -66,8 +66,8 @@ void* NativeAPID3D11::CreateSharedSync()
   HANDLE handle = 0;
   ID3D11Fence* pFence = 0;
 
-  MZ_D3D12_ASSERT_SUCCESS(Dx11_5->CreateFence(0, D3D11_FENCE_FLAG_SHARED, IID_PPV_ARGS(&pFence)));
-  MZ_D3D12_ASSERT_SUCCESS(pFence->CreateSharedHandle(0, GENERIC_ALL, 0, &handle));
+  NOS_D3D12_ASSERT_SUCCESS(Dx11_5->CreateFence(0, D3D11_FENCE_FLAG_SHARED, IID_PPV_ARGS(&pFence)));
+  NOS_D3D12_ASSERT_SUCCESS(pFence->CreateSharedHandle(0, GENERIC_ALL, 0, &handle));
 
   pFence->Release();
 
@@ -93,8 +93,8 @@ void* NativeAPID3D11::CreateSharedTexture(VkExtent2D extent, VkFormat format)
     .MiscFlags = D3D11_RESOURCE_MISC_SHARED | D3D11_RESOURCE_MISC_SHARED_NTHANDLE,
   };
 
-  MZ_D3D12_ASSERT_SUCCESS(Dx11_5->CreateTexture2D(&desc, 0, &pTexture));
-  MZ_D3D12_ASSERT_SUCCESS(pTexture->QueryInterface(IID_PPV_ARGS(&pDXGIResource)));
+  NOS_D3D12_ASSERT_SUCCESS(Dx11_5->CreateTexture2D(&desc, 0, &pTexture));
+  NOS_D3D12_ASSERT_SUCCESS(pTexture->QueryInterface(IID_PPV_ARGS(&pDXGIResource)));
 
   pTexture->Release();
   pDXGIResource->Release();
@@ -112,12 +112,12 @@ NativeAPID3D12::NativeAPID3D12(Device* Vk)
     u64 luid = Vk->GetLuid();
 
     // Find adapter matching LUID
-    MZ_D3D12_ASSERT_SUCCESS(CreateDXGIFactory(__uuidof(IDXGIFactory), reinterpret_cast<void**>(&pDXGIFactory)));
+    NOS_D3D12_ASSERT_SUCCESS(CreateDXGIFactory(__uuidof(IDXGIFactory), reinterpret_cast<void**>(&pDXGIFactory)));
 
     for (uint32_t i = 0; SUCCEEDED(pDXGIFactory->EnumAdapters(i, &pNextDXGIAdapter)); ++i)
     {
         DXGI_ADAPTER_DESC desc;
-        MZ_D3D12_ASSERT_SUCCESS(pNextDXGIAdapter->GetDesc(&desc));
+        NOS_D3D12_ASSERT_SUCCESS(pNextDXGIAdapter->GetDesc(&desc));
         if ((desc.AdapterLuid.HighPart == luid >> 32) && (desc.AdapterLuid.LowPart == (luid & 0xFFFFFFFF)))
         {
             pDXGIAdapter = pNextDXGIAdapter;
@@ -177,9 +177,9 @@ void* NativeAPID3D12::CreateSharedMemory(u64 size)
     HRESULT hr = Dx12->CreateHeap(&heapDesc, __uuidof(ID3D12Heap), 0);
 
 
-    MZ_D3D12_ASSERT_SUCCESS(Dx12->CreateHeap(&heapDesc, __uuidof(ID3D12Heap), (void**)&heap));
+    NOS_D3D12_ASSERT_SUCCESS(Dx12->CreateHeap(&heapDesc, __uuidof(ID3D12Heap), (void**)&heap));
 
-    MZ_D3D12_ASSERT_SUCCESS(Dx12->CreateSharedHandle(heap, 0, GENERIC_ALL, 0, &handle));
+    NOS_D3D12_ASSERT_SUCCESS(Dx12->CreateSharedHandle(heap, 0, GENERIC_ALL, 0, &handle));
 
     heap->Release();
 
@@ -222,9 +222,9 @@ void* NativeAPID3D12::CreateSharedTexture(VkExtent2D extent, VkFormat format)
     //    default: break;
     //}
 
-    MZ_D3D12_ASSERT_SUCCESS(Dx12->CreateCommittedResource(&props, D3D12_HEAP_FLAG_SHARED, &desc, state, 0, IID_PPV_ARGS(&res)));
+    NOS_D3D12_ASSERT_SUCCESS(Dx12->CreateCommittedResource(&props, D3D12_HEAP_FLAG_SHARED, &desc, state, 0, IID_PPV_ARGS(&res)));
     
-    MZ_D3D12_ASSERT_SUCCESS(Dx12->CreateSharedHandle(res, 0, GENERIC_ALL, 0, &handle));
+    NOS_D3D12_ASSERT_SUCCESS(Dx12->CreateSharedHandle(res, 0, GENERIC_ALL, 0, &handle));
     
     res->Release();
 
@@ -236,13 +236,13 @@ void* NativeAPID3D12::CreateSharedSync()
     HANDLE handle;
     ID3D12Fence* fence;
 
-    MZ_D3D12_ASSERT_SUCCESS(Dx12->CreateFence(0, D3D12_FENCE_FLAG_SHARED, __uuidof(ID3D12Fence), (void**)(&fence)));
+    NOS_D3D12_ASSERT_SUCCESS(Dx12->CreateFence(0, D3D12_FENCE_FLAG_SHARED, __uuidof(ID3D12Fence), (void**)(&fence)));
 
-    MZ_D3D12_ASSERT_SUCCESS(Dx12->CreateSharedHandle(fence, 0, GENERIC_ALL, 0, &handle));
+    NOS_D3D12_ASSERT_SUCCESS(Dx12->CreateSharedHandle(fence, 0, GENERIC_ALL, 0, &handle));
   
     fence->Release();
 
     return handle;
 }
 
-} // namespace mz::vk
+} // namespace nos::vk

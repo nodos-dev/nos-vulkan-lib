@@ -4,13 +4,13 @@
 // External
 #include <spirv_cross.hpp>
 
-// mzVulkan
-#include "mzVulkan/Pipeline.h"
+// nosVulkan
+#include "nosVulkan/Pipeline.h"
 
 // std
 #include <numeric>
 
-namespace mz::vk
+namespace nos::vk
 {
 static VkFormat MapSpvFormat(spv::ImageFormat format)
 {
@@ -403,4 +403,4 @@ ShaderLayout ShaderLayout::Merge(ShaderLayout const& rhs) const
     return re;
 }
 
-} // namespace mz::vk
+} // namespace nos::vk

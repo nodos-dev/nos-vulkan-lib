@@ -6,7 +6,7 @@
 
 #include "Common.h"
 
-namespace mz::vk
+namespace nos::vk
 {
 
 struct Image;
@@ -15,7 +15,7 @@ struct Buffer;
 template <class T>
 concept TypeClassResource = std::same_as<T, rc<Image>> || std::same_as<T, rc<Buffer>>;
 
-struct mzVulkan_API Binding
+struct nosVulkan_API Binding
 {
     static VkFlags MapTypeToUsage(VkDescriptorType type);
     static VkImageLayout MapTypeToLayout(VkDescriptorType type);
@@ -48,4 +48,4 @@ struct mzVulkan_API Binding
     }
 };
 
-} // namespace mz::vk
+} // namespace nos::vk

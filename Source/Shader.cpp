@@ -1,9 +1,9 @@
 // Copyright MediaZ AS. All Rights Reserved.
 
 
-#include "mzVulkan/Shader.h"
+#include "nosVulkan/Shader.h"
 
-namespace mz::vk
+namespace nos::vk
 {
 
 rc<Shader> Shader::Create(Device* Vk, std::vector<u8> const& src)
@@ -35,7 +35,7 @@ Shader::Shader(Device* Vk, std::vector<u8> const& src)
         .codeSize = src.size(),
         .pCode    = (u32*)src.data(),
     };
-    MZVK_ASSERT(Vk->CreateShaderModule(&info, 0, &Module));
+    NOSVK_ASSERT(Vk->CreateShaderModule(&info, 0, &Module));
 }
 
 Shader::~Shader()
@@ -66,4 +66,4 @@ bool Shader::GetInputLayout(VkPipelineVertexInputStateCreateInfo* info) const
     return true;
 }
 
-} // namespace mz::vk
+} // namespace nos::vk

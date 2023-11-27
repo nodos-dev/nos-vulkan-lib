@@ -1,12 +1,12 @@
-#include "mzVulkan/Allocation.h"
+#include "nosVulkan/Allocation.h"
 
-#include "mzVulkan/Device.h"
+#include "nosVulkan/Device.h"
 
 // External
 #define VMA_IMPLEMENTATION
 #include <vk_mem_alloc.h>
 
-namespace mz::vk
+namespace nos::vk
 {
 VkDeviceSize Allocation::GetOffset() const
 {
@@ -54,7 +54,7 @@ VkResult Allocation::Import(Device* device, std::variant<VkBuffer, VkImage> hand
 
 	VkDeviceMemory mem;
 	VkResult res = device->AllocateMemory(&info, 0, &mem);
-	if (MZ_VULKAN_FAILED(res))
+	if (NOS_VULKAN_FAILED(res))
 		return res;
 	Info = VmaAllocationInfo{
 		.memoryType = typeIndex,

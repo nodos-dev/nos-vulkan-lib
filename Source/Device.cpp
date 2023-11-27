@@ -4,11 +4,11 @@
 // External
 #include <vulkan/vulkan_core.h>
 
-// mzVulkan
-#include "mzVulkan/Common.h"
-#include "mzVulkan/Device.h"
-#include "mzVulkan/Command.h"
-#include "mzVulkan/QueryPool.h"
+// nosVulkan
+#include "nosVulkan/Common.h"
+#include "nosVulkan/Device.h"
+#include "nosVulkan/Command.h"
+#include "nosVulkan/QueryPool.h"
 
 #include <iostream>
 #include <bit>
@@ -42,7 +42,7 @@ static std::vector<const char*> deviceExtensions = {
     // "VK_NV_external_memory_rdma",
 };
 
-namespace mz::vk
+namespace nos::vk
 {
 
 static std::mutex Lock;
@@ -84,9 +84,9 @@ bool Device::CheckSupport(VkPhysicalDevice PhysicalDevice)
     bool supported = true;
 
     u32 count;
-    MZVK_ASSERT(vkEnumerateDeviceExtensionProperties(PhysicalDevice, 0, &count, 0));
+    NOSVK_ASSERT(vkEnumerateDeviceExtensionProperties(PhysicalDevice, 0, &count, 0));
     std::vector<VkExtensionProperties> extensionProps(count);
-    MZVK_ASSERT(vkEnumerateDeviceExtensionProperties(PhysicalDevice, 0, &count, extensionProps.data()));
+    NOSVK_ASSERT(vkEnumerateDeviceExtensionProperties(PhysicalDevice, 0, &count, extensionProps.data()));
     
 #define CHECK_SUPPORT(v, f) if(!v.f) { supported = false; printf("%s does not support feature: "#f"\n", name.c_str());}
 
@@ -152,7 +152,7 @@ void Device::InitializeVMA()
         .vulkanApiVersion = API_VERSION_USED,
 		.pTypeExternalMemoryHandleTypes = handleTypes.data(),
     };
-	MZVK_ASSERT(vmaCreateAllocator(&createInfo, &Allocator));
+	NOSVK_ASSERT(vmaCreateAllocator(&createInfo, &Allocator));
 }
 
 rc<CommandPool> Device::GetPool()
@@ -190,9 +190,9 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice)
 {
     u32 count;
 
-    MZVK_ASSERT(vkEnumerateDeviceExtensionProperties(PhysicalDevice, 0, &count, 0));
+    NOSVK_ASSERT(vkEnumerateDeviceExtensionProperties(PhysicalDevice, 0, &count, 0));
     std::vector<VkExtensionProperties> extensionProps(count);
-    MZVK_ASSERT(vkEnumerateDeviceExtensionProperties(PhysicalDevice, 0, &count, extensionProps.data()));
+    NOSVK_ASSERT(vkEnumerateDeviceExtensionProperties(PhysicalDevice, 0, &count, extensionProps.data()));
 
     std::vector<const char*> deviceExtensionsToAsk;
 
@@ -283,7 +283,7 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice)
         .ppEnabledExtensionNames = deviceExtensionsToAsk.data(),
     };
 
-    MZVK_ASSERT(vkCreateDevice(PhysicalDevice, &info, 0, &handle));
+    NOSVK_ASSERT(vkCreateDevice(PhysicalDevice, &info, 0, &handle));
     vkl_load_device_functions(handle, this);
     Queue = Queue::New(this, family, 0);
 	InitializeVMA();
@@ -347,7 +347,7 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 
 void Context::EnableValidationLayers(bool enable)
 {
-    #ifndef MZ_DEV_BUILD
+    #ifndef NOS_DEV_BUILD
         return;
     #endif
     if(!enable) return layers.clear();
@@ -360,7 +360,7 @@ void Context::EnableValidationLayers(bool enable)
 Context::Context(DebugCallback* debugCallback)
     : Lib(::LoadLibrary("vulkan-1.dll"))
 {
-    MZVK_ASSERT(vkl_init((PFN_vkGetInstanceProcAddr)GetProcAddress((HMODULE)Lib, "vkGetInstanceProcAddr")));
+    NOSVK_ASSERT(vkl_init((PFN_vkGetInstanceProcAddr)GetProcAddress((HMODULE)Lib, "vkGetInstanceProcAddr")));
     u32 count;
 
     VkApplicationInfo app = {
@@ -377,7 +377,7 @@ Context::Context(DebugCallback* debugCallback)
         .ppEnabledExtensionNames = extensions.data(),
     };
 
-    MZVK_ASSERT(vkCreateInstance(&info, 0, &Instance));
+    NOSVK_ASSERT(vkCreateInstance(&info, 0, &Instance));
     vkl_load_instance_functions(Instance);
 
     if(debugCallback)
@@ -395,12 +395,12 @@ Context::Context(DebugCallback* debugCallback)
                             | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
             .pfnUserCallback = debugCallback,
         };
-        MZVK_ASSERT(vkCreateDebugUtilsMessengerEXT(Instance, &msgInfo, 0, &Msger));
+        NOSVK_ASSERT(vkCreateDebugUtilsMessengerEXT(Instance, &msgInfo, 0, &Msger));
     }
 
-    MZVK_ASSERT(vkEnumerateInstanceLayerProperties(&count, 0));
+    NOSVK_ASSERT(vkEnumerateInstanceLayerProperties(&count, 0));
     std::vector<VkLayerProperties> layerProps(count);
-    MZVK_ASSERT(vkEnumerateInstanceLayerProperties(&count, layerProps.data()));
+    NOSVK_ASSERT(vkEnumerateInstanceLayerProperties(&count, layerProps.data()));
 
     for (auto layer : layers)
     {
@@ -413,12 +413,12 @@ Context::Context(DebugCallback* debugCallback)
         }
     }
 
-    MZVK_ASSERT(vkEnumeratePhysicalDevices(Instance, &count, 0));
+    NOSVK_ASSERT(vkEnumeratePhysicalDevices(Instance, &count, 0));
 
     std::vector<VkPhysicalDevice> pdevices(count);
     Devices.reserve(count);
 
-    MZVK_ASSERT(vkEnumeratePhysicalDevices(Instance, &count, pdevices.data()));
+    NOSVK_ASSERT(vkEnumeratePhysicalDevices(Instance, &count, pdevices.data()));
 
     for (auto pdev : pdevices)
     {
@@ -484,7 +484,7 @@ VkSampler Device::GetSampler(VkSamplerCreateInfo const& info)
 {
     auto& sampler = Samplers[info];
     if(!sampler)
-        MZVK_ASSERT(CreateSampler(&info, 0, &sampler));
+        NOSVK_ASSERT(CreateSampler(&info, 0, &sampler));
     return sampler;
 }
 
@@ -510,4 +510,4 @@ VkSampler Device::GetSampler(VkFilter Filter)
     return GetSampler(info);
 }
 
-} // namespace mz::vk
+} // namespace nos::vk

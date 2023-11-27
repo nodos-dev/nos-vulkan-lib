@@ -1,11 +1,11 @@
-#include "mzVulkan/QueryPool.h"
-#include "mzVulkan/Device.h"
-#include "mzVulkan/Command.h"
-#include "mzVulkan/Buffer.h"
+#include "nosVulkan/QueryPool.h"
+#include "nosVulkan/Device.h"
+#include "nosVulkan/Command.h"
+#include "nosVulkan/Buffer.h"
 #include <chrono>
 #include <numeric>
 
-namespace mz::vk
+namespace nos::vk
 {
 
 static f64 GetPeriod(Device* Vk)
@@ -25,7 +25,7 @@ QueryPool::QueryPool(Device* Vk) : DeviceChild(Vk), Results(Buffer::New(Vk, Buff
         .queryType = VK_QUERY_TYPE_TIMESTAMP,
         .queryCount = 1<<16,
     };
-    MZVK_ASSERT(Vk->CreateQueryPool(&info, 0, &Handle));
+    NOSVK_ASSERT(Vk->CreateQueryPool(&info, 0, &Handle));
     Vk->ResetQueryPool(Handle, 0, 1<<16);
 }
 

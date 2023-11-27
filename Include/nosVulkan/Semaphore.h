@@ -6,10 +6,10 @@
 
 #include "Common.h"
 
-namespace mz::vk
+namespace nos::vk
 {
 
-struct mzVulkan_API Semaphore : SharedFactory<Semaphore>, DeviceChild
+struct nosVulkan_API Semaphore : SharedFactory<Semaphore>, DeviceChild
 {
     VkSemaphore Handle;
     HANDLE OSHandle;
@@ -23,4 +23,4 @@ struct mzVulkan_API Semaphore : SharedFactory<Semaphore>, DeviceChild
     u64 GetValue() const;
 };
 
-} // namespace mz::vk
+} // namespace nos::vk

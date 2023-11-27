@@ -9,14 +9,14 @@
 
 
 
-namespace mz::vk
+namespace nos::vk
 {
 
 struct CommandBuffer;
 struct Buffer;
 struct Allocation;
 
-struct mzVulkan_API ImageView  : SharedFactory<ImageView>, DeviceChild
+struct nosVulkan_API ImageView  : SharedFactory<ImageView>, DeviceChild
 {
     friend struct Image;
     VkImageView Handle;
@@ -38,7 +38,7 @@ public:
     VkFormat GetFormat() const { return Format; }
 };
 
-struct mzVulkan_API Image : SharedFactory<Image>, ResourceBase<VkImage>
+struct nosVulkan_API Image : SharedFactory<Image>, ResourceBase<VkImage>
 {
 private:
     VkExtent2D Extent = {0, 0};
@@ -95,4 +95,4 @@ public:
     }
 };
 
-}; // namespace mz::vk
+}; // namespace nos::vk

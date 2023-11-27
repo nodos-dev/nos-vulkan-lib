@@ -1,6 +1,6 @@
 # Copyright MediaZ AS. All Rights Reserved.
 cmake_minimum_required(VERSION 3.24)
-project("mzVulkan")
+project("nosVulkan")
 
 set(CMAKE_CXX_STANDARD 20)
 

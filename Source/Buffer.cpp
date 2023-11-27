@@ -1,11 +1,11 @@
 // Copyright MediaZ AS. All Rights Reserved.
 
 
-#include "mzVulkan/Buffer.h"
-#include "mzVulkan/Device.h"
-#include "mzVulkan/Command.h"
+#include "nosVulkan/Buffer.h"
+#include "nosVulkan/Device.h"
+#include "nosVulkan/Command.h"
 
-namespace mz::vk
+namespace nos::vk
 {
 
 Buffer::Buffer(Device* Vk, BufferCreateInfo const& info) 
@@ -41,8 +41,8 @@ Buffer::Buffer(Device* Vk, BufferCreateInfo const& info)
 
 	if (auto* imported = info.Imported)
 	{
-		MZVK_ASSERT(Vk->CreateBuffer(&bufferCreateInfo, 0, &Handle));
-        MZVK_ASSERT(Allocation.Import(Vk, Handle, *imported, memProps));
+		NOSVK_ASSERT(Vk->CreateBuffer(&bufferCreateInfo, 0, &Handle));
+        NOSVK_ASSERT(Allocation.Import(Vk, Handle, *imported, memProps));
 	}
 	else
 	{
@@ -51,10 +51,10 @@ Buffer::Buffer(Device* Vk, BufferCreateInfo const& info)
 			.usage = VMA_MEMORY_USAGE_AUTO, 
 			.requiredFlags = memProps
 		};
-		MZVK_ASSERT(vmaCreateBuffer(Vk->Allocator, &bufferCreateInfo, &allocCreateInfo, &Handle, &Allocation.Handle, &Allocation.Info));
+		NOSVK_ASSERT(vmaCreateBuffer(Vk->Allocator, &bufferCreateInfo, &allocCreateInfo, &Handle, &Allocation.Handle, &Allocation.Info));
 	}
 
-	MZVK_ASSERT(Allocation.SetExternalMemoryHandleTypes(Vk, info.Type));
+	NOSVK_ASSERT(Allocation.SetExternalMemoryHandleTypes(Vk, info.Type));
 
 	if (info.Data)
 		Copy(info.Size, info.Data);
@@ -132,7 +132,7 @@ void Buffer::Copy(size_t len, void* pp, size_t offset)
 u8* Buffer::Map()
 {
     if (Allocation.Imported)
-        MZVK_ASSERT(Vk->MapMemory(Allocation.GetMemory(), Allocation.GetOffset(), Allocation.GetSize(), 0, &Allocation.Mapping()))
+        NOSVK_ASSERT(Vk->MapMemory(Allocation.GetMemory(), Allocation.GetOffset(), Allocation.GetSize(), 0, &Allocation.Mapping()))
     return (u8*)Allocation.Mapping();
 }
 
@@ -154,4 +154,4 @@ Buffer::~Buffer()
 		vmaDestroyBuffer(Vk->Allocator, Handle, Allocation.Handle);
 }
 
-} // namespace mz::vk
+} // namespace nos::vk

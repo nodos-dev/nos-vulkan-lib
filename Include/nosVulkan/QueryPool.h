@@ -2,10 +2,10 @@
 
 #include "Common.h"
 
-namespace mz::vk
+namespace nos::vk
 {
 
-struct mzVulkan_API QueryPool: SharedFactory<QueryPool>, DeviceChild
+struct nosVulkan_API QueryPool: SharedFactory<QueryPool>, DeviceChild
 {
     VkQueryPool Handle = 0;
     CircularIndex<u64> Queries;

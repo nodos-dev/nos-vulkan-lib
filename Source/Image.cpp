@@ -1,12 +1,12 @@
 // Copyright MediaZ AS. All Rights Reserved.
 
 #include "vulkan/vulkan_core.h"
-#include <mzVulkan/Image.h>
-#include <mzVulkan/Device.h>
-#include <mzVulkan/Command.h>
-#include <mzVulkan/Buffer.h>
+#include <nosVulkan/Image.h>
+#include <nosVulkan/Device.h>
+#include <nosVulkan/Command.h>
+#include <nosVulkan/Buffer.h>
 
-namespace mz::vk
+namespace nos::vk
 {
 
 Image::~Image()
@@ -51,7 +51,7 @@ ImageView::ImageView(struct Image* Src, VkFormat Format, VkImageUsageFlags Usage
         },
     };
 
-    MZVK_ASSERT(Src->GetDevice()->CreateImageView(&viewInfo, 0, &Handle));
+    NOSVK_ASSERT(Src->GetDevice()->CreateImageView(&viewInfo, 0, &Handle));
 }
 
 Image::Image(Device* Vk, ImageCreateInfo const& createInfo, VkResult* re, HANDLE externalSemaphore)
@@ -122,11 +122,11 @@ Image::Image(Device* Vk, ImageCreateInfo const& createInfo, VkResult* re, HANDLE
 	if (auto* imported = createInfo.Imported)
 	{
         result = Vk->CreateImage(&info, 0, &Handle);
-        if (MZ_VULKAN_SUCCEEDED(result))
+        if (NOS_VULKAN_SUCCEEDED(result))
             result = Allocation.Import(Vk, Handle, *imported, memProps);
         
 		if (externalSemaphore)
-			ExtSemaphore = mz::vk::Semaphore::New(Vk, imported->PID, externalSemaphore);
+			ExtSemaphore = nos::vk::Semaphore::New(Vk, imported->PID, externalSemaphore);
 	}
 	else // Exported
 	{
@@ -135,7 +135,7 @@ Image::Image(Device* Vk, ImageCreateInfo const& createInfo, VkResult* re, HANDLE
 			Vk->Allocator, &info, &allocationCreateInfo, &Handle, &Allocation.Handle, &Allocation.Info);
 	}
 
-	if (MZ_VULKAN_SUCCEEDED(result))
+	if (NOS_VULKAN_SUCCEEDED(result))
         result = Allocation.SetExternalMemoryHandleTypes(Vk, createInfo.Type);
 
 	if (re)
@@ -474,4 +474,4 @@ rc<ImageView> Image::GetView(VkFormat Format, VkImageUsageFlags Usage)
 }
 
 
-} // namespace mz::vk
+} // namespace nos::vk

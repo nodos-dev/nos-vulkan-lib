@@ -7,7 +7,7 @@
 #include "Pipeline.h"
 #include <mutex>
 
-namespace mz::vk
+namespace nos::vk
 {
 
 struct Buffer;
@@ -25,7 +25,7 @@ struct VertexData
     VkCompareOp DepthFunc  = VK_COMPARE_OP_NEVER;
 };
 
-struct mzVulkan_API Basepass :  DeviceChild
+struct nosVulkan_API Basepass :  DeviceChild
 {
     std::mutex Mutex;
     rc<Pipeline> PL;
@@ -99,14 +99,14 @@ struct mzVulkan_API Basepass :  DeviceChild
     void UpdateDescriptorSets();
 };
 
-struct mzVulkan_API Computepass : SharedFactory<Computepass>, Basepass
+struct nosVulkan_API Computepass : SharedFactory<Computepass>, Basepass
 {
     Computepass(rc<ComputePipeline> PL) : Basepass(PL) {}
 
     void Dispatch(rc<CommandBuffer> Cmd, u32 x = 8, u32 y = 8, u32 z = 1);
 };
 
-struct mzVulkan_API Renderpass : SharedFactory<Renderpass>, Basepass
+struct nosVulkan_API Renderpass : SharedFactory<Renderpass>, Basepass
 {
     VkFramebuffer FrameBuffer = 0;
     rc<Image> DepthBuffer;

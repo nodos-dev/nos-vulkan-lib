@@ -1,11 +1,11 @@
 // Copyright MediaZ AS. All Rights Reserved.
 
-#include "mzVulkan/Command.h"
-#include "mzVulkan/Device.h"
-#include "mzVulkan/Image.h"
+#include "nosVulkan/Command.h"
+#include "nosVulkan/Device.h"
+#include "nosVulkan/Image.h"
 #include "vkl.h"
 
-namespace mz::vk
+namespace nos::vk
 {
 
 VkResult Queue::Submit(uint32_t submitCount, const VkSubmitInfo* pSubmits, VkFence fence)
@@ -42,7 +42,7 @@ CommandBuffer::CommandBuffer(CommandPool* Pool, VkCommandBuffer Handle)
         .flags = VK_FENCE_CREATE_SIGNALED_BIT,
     };
     
-    MZVK_ASSERT(GetDevice()->CreateFence(&fenceInfo, 0, &Fence));
+    NOSVK_ASSERT(GetDevice()->CreateFence(&fenceInfo, 0, &Fence));
 	Clear();
 }
 
@@ -66,8 +66,8 @@ void CommandBuffer::WaitAndClear()
 
 void CommandBuffer::Clear()
 {
-	MZVK_ASSERT(GetDevice()->ResetFences(1, &Fence));
-	MZVK_ASSERT(VklCommandFunctions::Reset(VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT));
+	NOSVK_ASSERT(GetDevice()->ResetFences(1, &Fence));
+	NOSVK_ASSERT(VklCommandFunctions::Reset(VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT));
     for (auto& fn : Callbacks) fn();
     Callbacks.clear();
     WaitGroup.clear();
@@ -121,7 +121,7 @@ rc<CommandBuffer> CommandBuffer::Submit()
 
     if (Recording == State)
     {
-        MZVK_ASSERT(End());
+        NOSVK_ASSERT(End());
 
     }
     if (Executable != State)
@@ -172,7 +172,7 @@ rc<CommandBuffer> CommandBuffer::Submit()
         .pSignalSemaphores    = Signal.data(),
     };
 
-    MZVK_ASSERT(Pool->Submit(1, &submitInfo, Fence));
+    NOSVK_ASSERT(Pool->Submit(1, &submitInfo, Fence));
     State = Pending;
     return self;
 }
@@ -205,7 +205,7 @@ CommandPool::CommandPool(Device* Vk, rc<vk::Queue> Queue, u64 PoolSize)
         .queueFamilyIndex = Queue->Idx,
     };
 
-    MZVK_ASSERT(Vk->CreateCommandPool(&info, 0, &Handle));
+    NOSVK_ASSERT(Vk->CreateCommandPool(&info, 0, &Handle));
 
     std::vector<VkCommandBuffer> buf(PoolSize);
  
@@ -216,7 +216,7 @@ CommandPool::CommandPool(Device* Vk, rc<vk::Queue> Queue, u64 PoolSize)
         .commandBufferCount = (u32)PoolSize,
     };
 
-    MZVK_ASSERT(Vk->AllocateCommandBuffers(&cmdInfo, buf.data()));
+    NOSVK_ASSERT(Vk->AllocateCommandBuffers(&cmdInfo, buf.data()));
 
     Buffers.reserve(PoolSize);
 
@@ -284,7 +284,7 @@ rc<CommandBuffer> CommandPool::BeginCmd(VkCommandBufferLevel level)
         .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
     };
 
-    MZVK_ASSERT(Cmd->Begin(&beginInfo));
+    NOSVK_ASSERT(Cmd->Begin(&beginInfo));
     return Cmd;
 }
 
@@ -295,4 +295,4 @@ void CommandPool::Clear()
             cmd->WaitAndClear();
 }
 
-} // namespace mz::vk
+} // namespace nos::vk

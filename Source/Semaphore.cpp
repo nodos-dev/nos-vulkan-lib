@@ -1,12 +1,12 @@
 // Copyright MediaZ AS. All Rights Reserved.
 
-#include "mzVulkan/Semaphore.h"
-#include "mzVulkan/Device.h"
-#include "mzVulkan/NativeAPIDirectx.h"
+#include "nosVulkan/Semaphore.h"
+#include "nosVulkan/Device.h"
+#include "nosVulkan/NativeAPIDirectx.h"
 
 #undef CreateSemaphore
 
-namespace mz::vk
+namespace nos::vk
 {
 
 #define HANDLE_TYPE  (VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT)
@@ -37,7 +37,7 @@ Semaphore::Semaphore(Device *Vk, u64 pid, HANDLE ExtHandle) : DeviceChild(Vk)
 		.flags = 0,
     };
 
-    MZVK_ASSERT(Vk->CreateSemaphore(&semaphoreCreateInfo, 0, &Handle));
+    NOSVK_ASSERT(Vk->CreateSemaphore(&semaphoreCreateInfo, 0, &Handle));
 
     if(ExtHandle)
     {
@@ -48,7 +48,7 @@ Semaphore::Semaphore(Device *Vk, u64 pid, HANDLE ExtHandle) : DeviceChild(Vk)
             .handle = PlatformDupeHandle(pid, ExtHandle),
         };
         
-        MZVK_ASSERT(Vk->ImportSemaphoreWin32HandleKHR(&importInfo));
+        NOSVK_ASSERT(Vk->ImportSemaphoreWin32HandleKHR(&importInfo));
     }
 
     VkSemaphoreGetWin32HandleInfoKHR getHandleInfo = {
@@ -57,7 +57,7 @@ Semaphore::Semaphore(Device *Vk, u64 pid, HANDLE ExtHandle) : DeviceChild(Vk)
         .handleType = HANDLE_TYPE,
     };
 
-    MZVK_ASSERT(Vk->GetSemaphoreWin32HandleKHR(&getHandleInfo, &OSHandle));
+    NOSVK_ASSERT(Vk->GetSemaphoreWin32HandleKHR(&getHandleInfo, &OSHandle));
     assert(OSHandle);
     
     DWORD flags;
@@ -94,7 +94,7 @@ Semaphore::operator VkSemaphore() const
 u64 Semaphore::GetValue() const
 {
     u64 val;
-    MZVK_ASSERT(Vk->GetSemaphoreCounterValue(Handle, &val));
+    NOSVK_ASSERT(Vk->GetSemaphoreCounterValue(Handle, &val));
     return val;
 }
 
@@ -104,4 +104,4 @@ Semaphore::~Semaphore()
     Vk->DestroySemaphore(Handle, 0);
 }
 
-} // namespace mz::vk
+} // namespace nos::vk

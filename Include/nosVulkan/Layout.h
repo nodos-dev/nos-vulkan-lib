@@ -8,13 +8,13 @@
 #include "Device.h"
 #include "Image.h"
 
-namespace mz::vk
+namespace nos::vk
 {
 
 template <class T>
 concept TypeClassString = std::same_as<T, std::string> || std::same_as<T, const char*>;
 
-struct mzVulkan_API DescriptorLayout : SharedFactory<DescriptorLayout>, DeviceChild
+struct nosVulkan_API DescriptorLayout : SharedFactory<DescriptorLayout>, DeviceChild
 {
     std::map<u32, NamedDSLBinding> Bindings;
     VkDescriptorSetLayout Handle;
@@ -34,7 +34,7 @@ struct mzVulkan_API DescriptorLayout : SharedFactory<DescriptorLayout>, DeviceCh
     }
 };
 
-struct mzVulkan_API DescriptorPool : SharedFactory<DescriptorPool>
+struct nosVulkan_API DescriptorPool : SharedFactory<DescriptorPool>
 {
     std::mutex Mutex;
     rc<struct PipelineLayout> Layout;
@@ -50,7 +50,7 @@ struct mzVulkan_API DescriptorPool : SharedFactory<DescriptorPool>
     rc<struct DescriptorSet> AllocateSet(u32 set);
 };
 
-struct mzVulkan_API DescriptorSet : SharedFactory<DescriptorSet>
+struct nosVulkan_API DescriptorSet : SharedFactory<DescriptorSet>
 {
     rc<DescriptorPool> Pool;
     DescriptorLayout* Layout;
@@ -66,7 +66,7 @@ struct mzVulkan_API DescriptorSet : SharedFactory<DescriptorSet>
     void Bind(rc<CommandBuffer> Cmd, VkPipelineBindPoint BindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS);
 };
 
-struct mzVulkan_API PipelineLayout : SharedFactory<PipelineLayout>, DeviceChild
+struct nosVulkan_API PipelineLayout : SharedFactory<PipelineLayout>, DeviceChild
 {
     VkPipelineLayout Handle;
     
@@ -99,4 +99,4 @@ struct mzVulkan_API PipelineLayout : SharedFactory<PipelineLayout>, DeviceChild
     }
 };
 
-} // namespace mz::vk
+} // namespace nos::vk

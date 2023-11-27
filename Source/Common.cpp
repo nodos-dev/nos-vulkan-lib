@@ -1,17 +1,17 @@
 // Copyright MediaZ AS. All Rights Reserved.
 
 
-#include "mzVulkan/NativeAPIDirectx.h"
-#include "mzVulkan/Image.h"
-#include "mzVulkan/Device.h"
-#include "mzVulkan/Command.h"
+#include "nosVulkan/NativeAPIDirectx.h"
+#include "nosVulkan/Image.h"
+#include "nosVulkan/Device.h"
+#include "nosVulkan/Command.h"
 
 #include <handleapi.h>
 
 #include <algorithm>
 #include <bit>
 
-namespace mz::vk
+namespace nos::vk
 {
 Log GLog = {};
 
@@ -102,7 +102,7 @@ VkExternalMemoryProperties GetExportProperties(VkPhysicalDevice PhysicalDevice, 
         .pNext = &extProps,
     };
 
-    MZVK_ASSERT(vkGetPhysicalDeviceImageFormatProperties2(PhysicalDevice, &imageFormatInfo, &props));
+    NOSVK_ASSERT(vkGetPhysicalDeviceImageFormatProperties2(PhysicalDevice, &imageFormatInfo, &props));
     return extProps.externalMemoryProperties;
 }
 
@@ -259,7 +259,7 @@ bool IsYCbCr(VkFormat fmt)
     }
 }
 
-bool mzVulkan_API IsFormatSupportedByDevice(const VkFormat& fmt, const VkPhysicalDevice& physicalDevice)
+bool nosVulkan_API IsFormatSupportedByDevice(const VkFormat& fmt, const VkPhysicalDevice& physicalDevice)
 {
 	VkFormatProperties props;
 	VkFormat effectiveFormat = IsYCbCr(fmt) ? VK_FORMAT_R8G8B8A8_UNORM : fmt;
@@ -394,4 +394,4 @@ const char* descriptor_type_to_string(VkDescriptorType ty)
         return "";
     }
 }
-} // namespace mz::vk
+} // namespace nos::vk

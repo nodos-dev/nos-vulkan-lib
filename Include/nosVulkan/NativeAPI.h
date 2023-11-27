@@ -6,10 +6,10 @@
 
 #include "Device.h"
 
-namespace mz::vk
+namespace nos::vk
 {
 
-struct mzVulkan_API NativeAPI : DeviceChild
+struct nosVulkan_API NativeAPI : DeviceChild
 {
     NativeAPI(Device* Vk)
         : DeviceChild(Vk)
@@ -21,4 +21,4 @@ struct mzVulkan_API NativeAPI : DeviceChild
     virtual void* CreateSharedTexture(VkExtent2D extent, VkFormat format) = 0;
 };
 
-} // namespace mz::vk
+} // namespace nos::vk

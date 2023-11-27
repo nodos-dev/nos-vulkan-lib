@@ -6,10 +6,10 @@
 
 #include "Image.h"
 
-namespace mz::vk
+namespace nos::vk
 {
 
-// struct mzVulkan_API Stream : SharedFactory<Stream>, DeviceChild
+// struct nosVulkan_API Stream : SharedFactory<Stream>, DeviceChild
 // {
 //     std::vector<rc<Image>> Images;
 //     std::queue<rc<Image>> Ready;
@@ -29,7 +29,7 @@ namespace mz::vk
 //     void ReleaseRead(rc<Image>);
 // };
 
-struct mzVulkan_API Stream : SharedFactory<Stream>, DeviceChild
+struct nosVulkan_API Stream : SharedFactory<Stream>, DeviceChild
 {
     struct Resource: Image
     {

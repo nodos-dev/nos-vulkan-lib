@@ -1,13 +1,13 @@
 // Copyright MediaZ AS. All Rights Reserved.
 
 
-#include <mzVulkan/Binding.h>
+#include <nosVulkan/Binding.h>
 
-#include <mzVulkan/Image.h>
+#include <nosVulkan/Image.h>
 
-#include <mzVulkan/Buffer.h>
+#include <nosVulkan/Buffer.h>
 
-namespace mz::vk
+namespace nos::vk
 {
 
 Binding::Binding(rc<Buffer> res, u32 binding, u32 bufferOffset, u32 arrayIdx)
@@ -99,4 +99,4 @@ DescriptorResourceInfo Binding::GetDescriptorInfo(VkDescriptorType type) const
 
     return Info;
 }
-} // namespace mz::vk
+} // namespace nos::vk

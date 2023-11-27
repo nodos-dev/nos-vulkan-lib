@@ -9,10 +9,10 @@
 #include "Shader.h"
 #include "Command.h"
 
-namespace mz::vk
+namespace nos::vk
 {
 
-struct mzVulkan_API Pipeline : DeviceChild
+struct nosVulkan_API Pipeline : DeviceChild
 {
     rc<Shader> MainShader;
     rc<PipelineLayout> Layout;
@@ -29,14 +29,14 @@ struct mzVulkan_API Pipeline : DeviceChild
 	}
 };
 
-struct mzVulkan_API ComputePipeline : SharedFactory<ComputePipeline>, Pipeline
+struct nosVulkan_API ComputePipeline : SharedFactory<ComputePipeline>, Pipeline
 {
     ComputePipeline(Device* Vk, std::vector<u8> const& src);
     ComputePipeline(Device* Vk, rc<Shader> CS);
     VkPipeline Handle = 0;
 };
 
-struct mzVulkan_API GraphicsPipeline : SharedFactory<GraphicsPipeline>, Pipeline
+struct nosVulkan_API GraphicsPipeline : SharedFactory<GraphicsPipeline>, Pipeline
 {
     rc<Shader> VS = nullptr;
     bool EnableBlending = false;
@@ -60,4 +60,4 @@ struct mzVulkan_API GraphicsPipeline : SharedFactory<GraphicsPipeline>, Pipeline
     void Recreate(VkFormat fmt);
 };
 
-} // namespace mz::vk
+} // namespace nos::vk

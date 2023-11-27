@@ -1,13 +1,13 @@
 // Copyright MediaZ AS. All Rights Reserved.
 
-#include "mzVulkan/Binding.h"
-#include "mzVulkan/Command.h"
-#include "mzVulkan/Common.h"
-#include "mzVulkan/Renderpass.h"
-#include "mzVulkan/Buffer.h"
+#include "nosVulkan/Binding.h"
+#include "nosVulkan/Command.h"
+#include "nosVulkan/Common.h"
+#include "nosVulkan/Renderpass.h"
+#include "nosVulkan/Buffer.h"
 #include "vulkan/vulkan_core.h"
 
-namespace mz::vk
+namespace nos::vk
 {
 
 Renderpass::Renderpass(Device* Vk, std::vector<u8> const& src) : 
@@ -251,7 +251,7 @@ void Renderpass::Begin(rc<CommandBuffer> Cmd, rc<Image> SrcImage, bool wireframe
                 .layers = 1,
             };
 
-            MZVK_ASSERT(Vk->CreateFramebuffer(&framebufferInfo, nullptr, &FrameBuffer));
+            NOSVK_ASSERT(Vk->CreateFramebuffer(&framebufferInfo, nullptr, &FrameBuffer));
         }
         VkClearValue clear = {.color = {.float32 = {0,0,0,0}}};
         VkRenderPassBeginInfo renderPassInfo = {

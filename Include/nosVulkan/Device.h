@@ -4,7 +4,7 @@
 
 #pragma once
 
-// mzVulkan
+// nosVulkan
 #include "Common.h"
 #include "Allocation.h"
 
@@ -19,7 +19,7 @@ struct std::hash<VkSamplerCreateInfo>
     size_t operator()(VkSamplerCreateInfo const& info) const 
     {
         size_t re = 0;
-        mz::vk::hash_combine(re, 
+        nos::vk::hash_combine(re, 
             info.flags, 
             info.magFilter, 
             info.minFilter, 
@@ -32,8 +32,8 @@ struct std::hash<VkSamplerCreateInfo>
             info.maxLod, 
             info.borderColor, 
             (bool)info.unnormalizedCoordinates);
-            if(info.compareEnable) mz::vk::hash_combine(re, info.compareOp);
-            if(info.anisotropyEnable) mz::vk::hash_combine(re, info.maxAnisotropy);
+            if(info.compareEnable) nos::vk::hash_combine(re, info.compareOp);
+            if(info.anisotropyEnable) nos::vk::hash_combine(re, info.maxAnisotropy);
         return re;
     }
 };
@@ -58,7 +58,7 @@ inline bool operator == (VkSamplerCreateInfo const& a, VkSamplerCreateInfo const
             (a.anisotropyEnable ? a.maxAnisotropy == b.maxAnisotropy : true);
 }
 
-namespace mz::vk
+namespace nos::vk
 {
 
 struct FeatureSet  : 
@@ -100,10 +100,10 @@ struct FeatureSet  :
 };
 
 
-struct mzVulkan_API Device : SharedFactory<Device>,
+struct nosVulkan_API Device : SharedFactory<Device>,
                              VklDeviceFunctions
 {
-    struct mzVulkan_API Global
+    struct nosVulkan_API Global
     {
         u64 Handle;
         void (*Dtor)(Device*, u64);
@@ -257,11 +257,11 @@ struct mzVulkan_API Device : SharedFactory<Device>,
 
 protected:
 	void InitializeVMA();
-}; // namespace mz::vk
+}; // namespace nos::vk
 
 static_assert(Device::IsRC<rc<Device>>);
 
-struct mzVulkan_API Context : SharedFactory<Context>
+struct nosVulkan_API Context : SharedFactory<Context>
 {
     typedef VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(
         VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -281,4 +281,4 @@ struct mzVulkan_API Context : SharedFactory<Context>
     void OrderDevices();
     static void EnableValidationLayers(bool enable);
 };
-} // namespace mz::vk
+} // namespace nos::vk

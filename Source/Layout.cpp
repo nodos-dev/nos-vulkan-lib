@@ -4,12 +4,12 @@
 // External
 #include <spirv_cross.hpp>
 
-// mzVulkan
-#include "mzVulkan/Layout.h"
-#include "mzVulkan/Command.h"
-#include "mzVulkan/Image.h"
+// nosVulkan
+#include "nosVulkan/Layout.h"
+#include "nosVulkan/Command.h"
+#include "nosVulkan/Image.h"
 
-namespace mz::vk
+namespace nos::vk
 {
 
 NamedDSLBinding const& DescriptorLayout::operator[](u32 binding) const
@@ -41,7 +41,7 @@ DescriptorLayout::DescriptorLayout(Device* Vk, std::map<u32, NamedDSLBinding> Na
         .pBindings = bindings.data(),
     };
 
-    MZVK_ASSERT(Vk->CreateDescriptorSetLayout(&info, 0, &Handle));
+    NOSVK_ASSERT(Vk->CreateDescriptorSetLayout(&info, 0, &Handle));
 }
 
 DescriptorLayout::~DescriptorLayout()
@@ -125,7 +125,7 @@ DescriptorSet::DescriptorSet(rc<DescriptorPool> pool, u32 Index)
         .pSetLayouts        = &Layout->Handle,
     };
 
-    MZVK_ASSERT(Layout->Vk->AllocateDescriptorSets(&info, &Handle));
+    NOSVK_ASSERT(Layout->Vk->AllocateDescriptorSets(&info, &Handle));
 }
 
 DescriptorSet::~DescriptorSet()
@@ -187,7 +187,7 @@ DescriptorPool::DescriptorPool(rc<PipelineLayout> Layout, std::vector<VkDescript
         .pPoolSizes    = Sizes.data(),
     };
 
-    MZVK_ASSERT(Layout->Vk->CreateDescriptorPool(&poolInfo, 0, &Handle));
+    NOSVK_ASSERT(Layout->Vk->CreateDescriptorPool(&poolInfo, 0, &Handle));
 }
 
 DescriptorPool::~DescriptorPool()
@@ -255,7 +255,7 @@ PipelineLayout::PipelineLayout(Device* Vk, ShaderLayout layout)
         .pPushConstantRanges    = layout.PushConstantSize ? &pushConstantRange : 0,
     };
 
-    MZVK_ASSERT(Vk->CreatePipelineLayout(&layoutInfo, 0, &Handle));
+    NOSVK_ASSERT(Vk->CreatePipelineLayout(&layoutInfo, 0, &Handle));
 }
 
 void PipelineLayout::Dump()
@@ -312,4 +312,4 @@ rc<DescriptorSet> DescriptorPool::AllocateSet(u32 set)
     return DescriptorSet::New(shared_from_this(), set);
 }
 
-} // namespace mz::vk
+} // namespace nos::vk

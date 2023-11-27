@@ -15,13 +15,13 @@
 #include <d3d11_4.h>
 #include <dxgi.h>
 
-// mzVulkan
+// nosVulkan
 #include "NativeAPI.h"
 
-extern "C" DXGI_FORMAT mzVulkan_API VkFormatToDxgiFormat(VkFormat fmt);
-extern "C" VkFormat mzVulkan_API DxgiFormatToVkFormat(DXGI_FORMAT fmt);
+extern "C" DXGI_FORMAT nosVulkan_API VkFormatToDxgiFormat(VkFormat fmt);
+extern "C" VkFormat nosVulkan_API DxgiFormatToVkFormat(DXGI_FORMAT fmt);
 
-#define MZ_D3D12_ASSERT_SUCCESS(expr)                                                               \
+#define NOS_D3D12_ASSERT_SUCCESS(expr)                                                               \
     {                                                                                               \
         HRESULT re = (expr);                                                                        \
         while (FAILED(re))                                                                          \
@@ -37,14 +37,14 @@ extern "C" VkFormat mzVulkan_API DxgiFormatToVkFormat(DXGI_FORMAT fmt);
     if (!(expr))                                                                                                  \
     {                                                                                                             \
         char errbuf[1024];                                                                                        \
-        std::snprintf(errbuf, 1024, "%s\t(%s:%d)", ::mz::vk::GetLastErrorAsString().c_str(), __FILE__, __LINE__); \
+        std::snprintf(errbuf, 1024, "%s\t(%s:%d)", ::nos::vk::GetLastErrorAsString().c_str(), __FILE__, __LINE__); \
 		assert(false);                                                                                            \
     }
 
-namespace mz::vk
+namespace nos::vk
 {
 
-struct mzVulkan_API NativeAPID3D12 : NativeAPI
+struct nosVulkan_API NativeAPID3D12 : NativeAPI
 {
     ID3D12Device* Dx12;
     NativeAPID3D12(Device* Vk);
@@ -55,7 +55,7 @@ struct mzVulkan_API NativeAPID3D12 : NativeAPI
     virtual void* CreateSharedTexture(VkExtent2D extent, VkFormat format) override;
 };
 
-struct mzVulkan_API NativeAPID3D11 : NativeAPI
+struct nosVulkan_API NativeAPID3D11 : NativeAPI
 {
     ID3D11Device* Dx11;
     ID3D11Device5* Dx11_5;
@@ -66,4 +66,4 @@ struct mzVulkan_API NativeAPID3D11 : NativeAPI
     virtual void* CreateSharedTexture(VkExtent2D extent, VkFormat format) override;
 };
 
-}; // namespace mz::vk
+}; // namespace nos::vk

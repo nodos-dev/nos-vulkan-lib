@@ -6,10 +6,10 @@
 
 #include "Allocation.h"
 
-namespace mz::vk
+namespace nos::vk
 {
 
-struct mzVulkan_API Buffer : SharedFactory<Buffer>, ResourceBase<VkBuffer>
+struct nosVulkan_API Buffer : SharedFactory<Buffer>, ResourceBase<VkBuffer>
 {
     VkBufferUsageFlags Usage;
     
@@ -34,4 +34,4 @@ struct mzVulkan_API Buffer : SharedFactory<Buffer>, ResourceBase<VkBuffer>
 
 };
 
-} // namespace mz::vk
+} // namespace nos::vk

@@ -8,10 +8,10 @@
 // std
 #include <variant>
 
-namespace mz::vk
+namespace nos::vk
 {
 
-struct mzVulkan_API Allocation
+struct nosVulkan_API Allocation
 {
 	VmaAllocation Handle = 0;
 	VmaAllocationInfo Info = {};
@@ -29,7 +29,7 @@ struct mzVulkan_API Allocation
 };
 
 template <typename T>
-struct mzVulkan_API ResourceBase : DeviceChild
+struct nosVulkan_API ResourceBase : DeviceChild
 {
 	T Handle;
 	Allocation Allocation;

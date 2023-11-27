@@ -8,8 +8,8 @@
 #include <vkl.h>
 
 // Framework
-//#include <mzCommon.h>
-//#include <mzUtil/Logger.h>
+//#include <nosCommon.h>
+//#include <nosUtil/Logger.h>
 
 #include <memory>
 #include <unordered_map>
@@ -23,38 +23,38 @@
 #include <set>
 #include <algorithm>
 
-#ifdef mzVulkan_SHARED
-#ifdef mzVulkan_EXPORTS
-#define mzVulkan_API __declspec(dllexport)
+#ifdef nosVulkan_SHARED
+#ifdef nosVulkan_EXPORTS
+#define nosVulkan_API __declspec(dllexport)
 #else
-#define mzVulkan_API __declspec(dllimport)
-#endif // mzVulkan_EXPORTS
+#define nosVulkan_API __declspec(dllimport)
+#endif // nosVulkan_EXPORTS
 #else
-#define mzVulkan_API
-#endif // mzVulkan_SHARED
+#define nosVulkan_API
+#endif // nosVulkan_SHARED
 
-#define MZ_VULKAN_FAILED(expr) (VK_SUCCESS != (expr))
-#define MZ_VULKAN_SUCCEEDED(expr) (!MZ_VULKAN_FAILED(expr))
+#define NOS_VULKAN_FAILED(expr) (VK_SUCCESS != (expr))
+#define NOS_VULKAN_SUCCEEDED(expr) (!NOS_VULKAN_FAILED(expr))
 
 #define MARK_LINE printf("%s:%d\n", __FILE__, __LINE__)
 
-#define MZ_ASSERT(x)                                                                                                   \
+#define NOS_ASSERT(x)                                                                                                   \
 	{                                                                                                                  \
 		if (!(x))                                                                                                      \
 		{                                                                                                              \
-			printf("[MZ] Assertion failed at ");                                                                       \
+			printf("[NOS] Assertion failed at ");                                                                       \
 			MARK_LINE;                                                                                                 \
             assert(false);                                                                                             \
 		}                                                                                                              \
 	}
 
-#define MZVK_ASSERT(expr)                                                                                         \
+#define NOSVK_ASSERT(expr)                                                                                         \
     {                                                                                                             \
         VkResult re = (expr);                                                                                     \
-        if (MZ_VULKAN_FAILED(re))                                                                                 \
+        if (NOS_VULKAN_FAILED(re))                                                                                 \
         {                                                                                                         \
             char errbuf[4096];                                                                                    \
-            std::snprintf(errbuf, 4096, "%s %d (%s:%d)", ::mz::vk::vk_result_string(re), re, __FILE__, __LINE__); \
+            std::snprintf(errbuf, 4096, "%s %d (%s:%d)", ::nos::vk::vk_result_string(re), re, __FILE__, __LINE__); \
             printf("%s\n", errbuf);                                                                               \
             fflush(stdout);                                                                                       \
             assert(false);                                                                                        \
@@ -64,7 +64,7 @@
 inline bool operator == (VkExtent2D a, VkExtent2D b) {return a.width == b.width && a.height == b.height; }
 inline bool operator == (VkExtent3D a, VkExtent3D b) {return a.width == b.width && a.height == b.height && a.depth == b.depth; }
 
-namespace mz::vk
+namespace nos::vk
 {
 
 template <typename T>
@@ -209,9 +209,9 @@ struct HandleExportInfo
     VkExternalMemoryHandleTypeFlagBits Type;
 };
 */
-bool mzVulkan_API IsYCbCr(VkFormat);
+bool nosVulkan_API IsYCbCr(VkFormat);
 
-bool mzVulkan_API IsFormatSupportedByDevice(const VkFormat&, const VkPhysicalDevice&);
+bool nosVulkan_API IsFormatSupportedByDevice(const VkFormat&, const VkPhysicalDevice&);
 
 struct MemoryExportInfo
 {
@@ -250,7 +250,7 @@ struct ImageCreateInfo
     const MemoryExportInfo* Imported = 0;
 };
 
-struct mzVulkan_API SVType
+struct nosVulkan_API SVType
 {
     enum
     {
@@ -295,32 +295,32 @@ struct mzVulkan_API SVType
 }
 
 template<>
-struct std::hash<mz::vk::rc<mz::vk::SVType>>
+struct std::hash<nos::vk::rc<nos::vk::SVType>>
 {
-    size_t operator()(mz::vk::rc<mz::vk::SVType> const& ty) const
+    size_t operator()(nos::vk::rc<nos::vk::SVType> const& ty) const
     {
         size_t seed = 0;
-        mz::vk::hash_combine(seed,
+        nos::vk::hash_combine(seed,
             ty->Tag, ty->x, ty->y, ty->z,
             ty->Img.Depth, ty->Img.Array, ty->Img.MS, 
             ty->Img.Read, ty->Img.Write, ty->Img.Sampled, ty->Img.Fmt,
             ty->Size, ty->Alignment, ty->ArraySize);
 
-        if (mz::vk::SVType::Struct == ty->Tag)
+        if (nos::vk::SVType::Struct == ty->Tag)
         {
-            mz::vk::hash_combine(seed, ty->StructName);
+            nos::vk::hash_combine(seed, ty->StructName);
             for (auto& [n, f] : ty->Members)
-                mz::vk::hash_combine(seed, n, f.Type, f.Idx, f.Size, f.Offset);
+                nos::vk::hash_combine(seed, n, f.Type, f.Idx, f.Size, f.Offset);
         }
 
         return seed;
     }
 };
 
-namespace mz::vk
+namespace nos::vk
 {
 
-struct mzVulkan_API NamedDSLBinding
+struct nosVulkan_API NamedDSLBinding
 {
     uint32_t Binding;
     VkDescriptorType DescriptorType;
@@ -343,7 +343,7 @@ struct mzVulkan_API NamedDSLBinding
 
 };
 
-struct mzVulkan_API ShaderLayout
+struct nosVulkan_API ShaderLayout
 {
     struct Index { u32 set, binding, offset;};
     u32 RTCount;
@@ -353,27 +353,27 @@ struct mzVulkan_API ShaderLayout
     ShaderLayout Merge(ShaderLayout const&) const;
 };
 
-mzVulkan_API ShaderLayout GetShaderLayouts(std::vector<u8> const& src, VkShaderStageFlags& stage, VkVertexInputBindingDescription& binding, std::vector<VkVertexInputAttributeDescription>& attributes);
-mzVulkan_API VkExternalMemoryProperties GetExportProperties(VkPhysicalDevice PhysicalDevice, VkFormat Format, VkImageUsageFlags Usage, VkExternalMemoryHandleTypeFlagBits Type);
-mzVulkan_API bool IsImportable(VkPhysicalDevice PhysicalDevice, VkFormat Format, VkImageUsageFlags Usage, VkExternalMemoryHandleTypeFlagBits Type);
+nosVulkan_API ShaderLayout GetShaderLayouts(std::vector<u8> const& src, VkShaderStageFlags& stage, VkVertexInputBindingDescription& binding, std::vector<VkVertexInputAttributeDescription>& attributes);
+nosVulkan_API VkExternalMemoryProperties GetExportProperties(VkPhysicalDevice PhysicalDevice, VkFormat Format, VkImageUsageFlags Usage, VkExternalMemoryHandleTypeFlagBits Type);
+nosVulkan_API bool IsImportable(VkPhysicalDevice PhysicalDevice, VkFormat Format, VkImageUsageFlags Usage, VkExternalMemoryHandleTypeFlagBits Type);
 
-mzVulkan_API bool PlatformCloseHandle(HANDLE);
-mzVulkan_API HANDLE PlatformDupeHandle(u64 pid, HANDLE);
-mzVulkan_API u64 PlatformGetCurrentProcessId();
+nosVulkan_API bool PlatformCloseHandle(HANDLE);
+nosVulkan_API HANDLE PlatformDupeHandle(u64 pid, HANDLE);
+nosVulkan_API u64 PlatformGetCurrentProcessId();
 
-mzVulkan_API std::string GetLastErrorAsString();
+nosVulkan_API std::string GetLastErrorAsString();
 
-mzVulkan_API std::pair<u32, VkMemoryType> MemoryTypeIndex(VkPhysicalDevice physicalDevice, u32 memoryTypeBits, VkMemoryPropertyFlags requestedProps);
+nosVulkan_API std::pair<u32, VkMemoryType> MemoryTypeIndex(VkPhysicalDevice physicalDevice, u32 memoryTypeBits, VkMemoryPropertyFlags requestedProps);
 
-mzVulkan_API void ImageLayoutTransition(VkImage Image,
+nosVulkan_API void ImageLayoutTransition(VkImage Image,
                                         rc<CommandBuffer> Cmd,
                                         ImageState Src,
                                         ImageState Dst, VkImageAspectFlags Aspect);
-mzVulkan_API void ImageLayoutTransition2(VkImage Image,
+nosVulkan_API void ImageLayoutTransition2(VkImage Image,
                                         rc<CommandBuffer> Cmd,
                                         ImageState Src,
                                         ImageState Dst, VkImageAspectFlags Aspect);
 
-mzVulkan_API const char* vk_result_string(VkResult re);
-mzVulkan_API const char* descriptor_type_to_string(VkDescriptorType ty);
-} // namespace mz::vk
+nosVulkan_API const char* vk_result_string(VkResult re);
+nosVulkan_API const char* descriptor_type_to_string(VkDescriptorType ty);
+} // namespace nos::vk

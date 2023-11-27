@@ -7,10 +7,10 @@
 
 #include "Device.h"
 
-namespace mz::vk
+namespace nos::vk
 {
 
-struct mzVulkan_API Shader : SharedFactory<Shader>, DeviceChild
+struct nosVulkan_API Shader : SharedFactory<Shader>, DeviceChild
 {
     VkShaderModule Module;
     VkShaderStageFlags Stage;
@@ -25,4 +25,4 @@ struct mzVulkan_API Shader : SharedFactory<Shader>, DeviceChild
     static rc<Shader> Create(Device* Vk, std::vector<u8> const& src);
 };
 
-} // namespace mz::vk
+} // namespace nos::vk

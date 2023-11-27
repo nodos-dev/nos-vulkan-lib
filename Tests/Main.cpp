@@ -1,12 +1,12 @@
-#include <mzVulkan/Buffer.h>
-#include <mzVulkan/Common.h>
-#include <mzVulkan/Device.h>
-#include <mzVulkan/Image.h>
+#include <nosVulkan/Buffer.h>
+#include <nosVulkan/Common.h>
+#include <nosVulkan/Device.h>
+#include <nosVulkan/Image.h>
 
 #include <iostream>
 
 int main() {
-  auto vkCtx = mz::vk::Context::New();
+  auto vkCtx = nos::vk::Context::New();
   if (vkCtx->Devices.empty()) {
     return 1;
   }

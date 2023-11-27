@@ -6,11 +6,11 @@
 #include <chrono>
 #include <memory>
 
-// mzVulkan
-#include "mzVulkan/Stream.h"
-#include "mzVulkan/Image.h"
+// nosVulkan
+#include "nosVulkan/Stream.h"
+#include "nosVulkan/Image.h"
 
-namespace mz::vk
+namespace nos::vk
 {
 
 Stream::Resource::Resource(u32 idx, Device* Vk, ImageCreateInfo const& info) : idx(idx), Image(Vk, info) { }
@@ -36,8 +36,8 @@ rc<Image> Stream::AcquireWrite()
         WCV.wait(lock);
     }
 
-    MZ_ASSERT(!Pool[Head]->written);
-    MZ_ASSERT(!Pool[Head]->read);
+    NOS_ASSERT(!Pool[Head]->written);
+    NOS_ASSERT(!Pool[Head]->read);
     Pool[Head]->written = true;
     return Pool[Head++];
 }
@@ -46,8 +46,8 @@ void Stream::ReleaseWrite(rc<Image> Image)
 {
     Resource* img = (Resource*)Image.get();
     std::unique_lock lock(Mutex);
-    MZ_ASSERT(img->written);
-    MZ_ASSERT(!img->read);
+    NOS_ASSERT(img->written);
+    NOS_ASSERT(!img->read);
     img->written = false;
     RCV.notify_one();
 }
@@ -59,8 +59,8 @@ rc<Image> Stream::AcquireRead()
     {
         RCV.wait(lock);
     }
-    MZ_ASSERT(!Pool[Tail]->written);
-    MZ_ASSERT(!Pool[Tail]->read);
+    NOS_ASSERT(!Pool[Tail]->written);
+    NOS_ASSERT(!Pool[Tail]->read);
     Pool[Tail]->read = true;
     return Pool[Tail++];
 }
@@ -69,8 +69,8 @@ void Stream::ReleaseRead(rc<Image> Image)
 {
     Resource* img = (Resource*)Image.get();
     std::unique_lock lock(Mutex);
-    MZ_ASSERT(img->read);
-    MZ_ASSERT(!img->written);
+    NOS_ASSERT(img->read);
+    NOS_ASSERT(!img->written);
     img->read = false;
     WCV.notify_one();
 }

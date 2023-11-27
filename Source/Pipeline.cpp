@@ -1,13 +1,13 @@
 // Copyright MediaZ AS. All Rights Reserved.
 
 
-#include "mzVulkan/Pipeline.h"
-#include "mzVulkan/Common.h"
-#include "mzVulkan/Image.h"
+#include "nosVulkan/Pipeline.h"
+#include "nosVulkan/Common.h"
+#include "nosVulkan/Image.h"
 #include "GlobVS.vert.spv.dat"
 #include "vulkan/vulkan_core.h"
 
-namespace mz::vk
+namespace nos::vk
 {
 
 Pipeline::Pipeline(Device* Vk, std::vector<u8> const& src)
@@ -40,7 +40,7 @@ ComputePipeline::ComputePipeline(Device* Vk, rc<Shader> CS)
         },
         .layout = Layout->Handle,
     };
-    MZVK_ASSERT(Vk->CreateComputePipelines(0, 1, &info, 0, &Handle));
+    NOSVK_ASSERT(Vk->CreateComputePipelines(0, 1, &info, 0, &Handle));
 }
 
 
@@ -180,7 +180,7 @@ void GraphicsPipeline::Recreate(VkFormat fmt)
         renderPassInfo.subpassCount = 1;
         renderPassInfo.pSubpasses = &subpass;
 
-        MZVK_ASSERT(Vk->CreateRenderPass(&renderPassInfo, nullptr, &Handles[fmt].rp));
+        NOSVK_ASSERT(Vk->CreateRenderPass(&renderPassInfo, nullptr, &Handles[fmt].rp));
     }
 
     VkDynamicState states[] = { VK_DYNAMIC_STATE_VIEWPORT, 
@@ -232,10 +232,10 @@ void GraphicsPipeline::Recreate(VkFormat fmt)
         info.pNext = 0;
     }
 
-    MZVK_ASSERT(Vk->CreateGraphicsPipelines(0, 1, &info, 0, &Handles[fmt].pl));
+    NOSVK_ASSERT(Vk->CreateGraphicsPipelines(0, 1, &info, 0, &Handles[fmt].pl));
     rasterizationState.polygonMode = VK_POLYGON_MODE_LINE;
-    MZVK_ASSERT(Vk->CreateGraphicsPipelines(0, 1, &info, 0, &Handles[fmt].wpl));
+    NOSVK_ASSERT(Vk->CreateGraphicsPipelines(0, 1, &info, 0, &Handles[fmt].wpl));
 }
 
 
-} // namespace mz::vk
+} // namespace nos::vk
