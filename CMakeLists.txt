@@ -1,6 +1,11 @@
 # Copyright MediaZ AS. All Rights Reserved.
 cmake_minimum_required(VERSION 3.24)
-project("nosVulkan")
+
+if(NOSVULKAN_FOR_EDITOR)
+	project("nosVulkanForEditor")
+else()
+	project("nosVulkan")
+endif()
 
 set(CMAKE_CXX_STANDARD 20)
 
