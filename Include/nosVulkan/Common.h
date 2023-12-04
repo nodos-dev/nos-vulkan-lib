@@ -38,6 +38,7 @@
 
 #define MARK_LINE printf("%s:%d\n", __FILE__, __LINE__)
 
+#ifndef NOS_ASSERT
 #define NOS_ASSERT(x)                                                                                                   \
 	{                                                                                                                  \
 		if (!(x))                                                                                                      \
@@ -47,6 +48,7 @@
             assert(false);                                                                                             \
 		}                                                                                                              \
 	}
+#endif
 
 #define NOSVK_ASSERT(expr)                                                                                         \
     {                                                                                                             \
