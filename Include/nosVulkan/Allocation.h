@@ -34,6 +34,10 @@ struct nosVulkan_API ResourceBase : DeviceChild
 	T Handle;
 	Allocation Allocation;
 	using DeviceChild::DeviceChild;
+	~ResourceBase()
+	{
+		PlatformCloseHandle(Allocation.OsHandle);
+	}
 };
 
 }
