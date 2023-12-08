@@ -46,7 +46,7 @@ Buffer::Buffer(Device* Vk, BufferCreateInfo const& info)
 	}
 	else
 	{
-		VmaAllocationCreateInfo allocCreateInfo{
+		VmaAllocationCreateInfo allocCreateInfo = {
 			.flags = info.Mapped ? VmaAllocationCreateFlags(VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT) : 0,
 			.usage = VMA_MEMORY_USAGE_AUTO, 
 			.requiredFlags = memProps

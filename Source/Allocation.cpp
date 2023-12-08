@@ -75,18 +75,38 @@ VkResult Allocation::SetExternalMemoryHandleTypes(Device* device, VkExternalMemo
 	ExternalMemoryHandleTypes = handleTypes;
 	if (auto type = PLATFORM_EXTERNAL_MEMORY_HANDLE_TYPE & handleTypes)
 	{
+		device->MemoryBlocksMutex.lock();
+		auto& [handle, ref] = device->MemoryBlocks[Info.deviceMemory];
+		if(!handle)
+		{
 #if _WIN32
 		VkMemoryGetWin32HandleInfoKHR getHandleInfo = {
 			.sType = VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR,
 			.memory = GetMemory(),
 			.handleType = VkExternalMemoryHandleTypeFlagBits(type),
 		};
-		return device->GetMemoryWin32HandleKHR(&getHandleInfo, &OsHandle);
+		return device->GetMemoryWin32HandleKHR(&getHandleInfo, &handle);
 #else
 #pragma error "Unimplemented"
 #endif
+		}
+		OsHandle = handle;
+		++ref;
+		device->MemoryBlocksMutex.unlock();
 	}
 	return VK_SUCCESS;
+}
+
+void Allocation::Release(Device* vk)
+{
+	vk->MemoryBlocksMutex.lock();
+	auto& [handle, ref] = vk->MemoryBlocks[Info.deviceMemory];
+	if (!--ref)
+	{
+		PlatformCloseHandle(handle);
+		vk->MemoryBlocks.erase(Info.deviceMemory);
+	}
+	vk->MemoryBlocksMutex.unlock();
 }
 
 }

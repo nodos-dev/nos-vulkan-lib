@@ -26,6 +26,8 @@ struct nosVulkan_API Allocation
 	VkResult Import(Device* device, std::variant<VkBuffer, VkImage> handle, 
 		vk::MemoryExportInfo const& imported, VkMemoryPropertyFlags memProps);
 	VkResult SetExternalMemoryHandleTypes(Device* device, VkExternalMemoryHandleTypeFlags handleTypes);
+
+	void Release(Device* vk);
 };
 
 template <typename T>
@@ -34,9 +36,10 @@ struct nosVulkan_API ResourceBase : DeviceChild
 	T Handle;
 	Allocation Allocation;
 	using DeviceChild::DeviceChild;
+
 	~ResourceBase()
 	{
-		PlatformCloseHandle(Allocation.OsHandle);
+		Allocation.Release(GetDevice());
 	}
 };
 

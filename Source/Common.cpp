@@ -17,7 +17,8 @@ Log GLog = {};
 
 bool PlatformCloseHandle(HANDLE handle)
 {
-    return CloseHandle(handle);
+    DWORD flags;
+    return /*GetHandleInformation(handle, &flags) && */CloseHandle(handle);
 }
 
 HANDLE PlatformDupeHandle(u64 pid, HANDLE handle)
