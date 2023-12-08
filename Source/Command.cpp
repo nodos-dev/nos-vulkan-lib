@@ -77,6 +77,8 @@ void CommandBuffer::Clear()
 
 VkResult CommandBuffer::Begin(const VkCommandBufferBeginInfo* info)
 {
+    assert(SignalGroup.empty());
+    assert(WaitGroup.empty());
     if(!Pool || Initial != State)
         return VK_INCOMPLETE;
     VkResult re = VklCommandFunctions::Begin(info);

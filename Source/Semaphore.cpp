@@ -82,7 +82,7 @@ void Semaphore::Wait(uint64_t value)
 	waitInfo.pSemaphores = &Handle;
     waitInfo.pValues = &value;
 
-	Vk->WaitSemaphores(&waitInfo, 1292934u);
+    NOSVK_ASSERT(Vk->WaitSemaphores(&waitInfo, UINT64_MAX));
 }
 
 
