@@ -147,7 +147,7 @@ struct nosVulkan_API Device : SharedFactory<Device>,
 
     std::unordered_map<VkSamplerCreateInfo, VkSampler> Samplers;
 
-    std::shared_mutex MemoryBlocksMutex;
+    std::mutex MemoryBlocksMutex;
     std::unordered_map<VkDeviceMemory, std::pair<void*, u32>> MemoryBlocks;
 
     VkSampler GetSampler(VkSamplerCreateInfo const& info);
