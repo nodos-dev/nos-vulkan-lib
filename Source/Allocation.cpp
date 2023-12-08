@@ -85,10 +85,12 @@ VkResult Allocation::SetExternalMemoryHandleTypes(Device* device, VkExternalMemo
 				.memory = GetMemory(),
 				.handleType = VkExternalMemoryHandleTypeFlagBits(type),
 			};
-			device->GetMemoryWin32HandleKHR(&getHandleInfo, &handle);
+			auto ret = device->GetMemoryWin32HandleKHR(&getHandleInfo, &handle);
 #else
 #pragma error "Unimplemented"
 #endif
+			if (VK_SUCCESS != ret)
+				return ret;
 		}
 		OsHandle = handle;
 		++ref;
