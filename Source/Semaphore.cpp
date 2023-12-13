@@ -74,7 +74,7 @@ void Semaphore::Signal(uint64_t value)
 	Vk->SignalSemaphore(&signalInfo);
 }
 
-void Semaphore::Wait(uint64_t value)
+VkResult Semaphore::Wait(uint64_t value, uint64_t timeoutNs)
 {
     VkSemaphoreWaitInfo waitInfo{};
 	waitInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO;
@@ -82,7 +82,7 @@ void Semaphore::Wait(uint64_t value)
 	waitInfo.pSemaphores = &Handle;
     waitInfo.pValues = &value;
 
-    NOSVK_ASSERT(Vk->WaitSemaphores(&waitInfo, UINT64_MAX));
+    return Vk->WaitSemaphores(&waitInfo, timeoutNs);
 }
 
 
