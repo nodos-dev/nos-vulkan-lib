@@ -236,7 +236,6 @@ struct BufferCreateInfo
     u32 VRAM: 1 = 0;
     VkBufferUsageFlags Usage;
     VkExternalMemoryHandleTypeFlags Type = 0;
-    void* Data = 0;
     const MemoryExportInfo* Imported = 0;
 };
 

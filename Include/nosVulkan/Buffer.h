@@ -13,7 +13,7 @@ struct nosVulkan_API Buffer : SharedFactory<Buffer>, ResourceBase<VkBuffer>
 {
     VkBufferUsageFlags Usage;
     
-    void Copy(size_t len, void* pp, size_t offset = 0);
+    void Copy(size_t len, const void* pp, size_t offset = 0);
 
     template <class T>
     void Copy(T const& obj, size_t offset = 0)

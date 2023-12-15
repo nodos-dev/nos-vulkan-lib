@@ -54,10 +54,11 @@ Buffer::Buffer(Device* Vk, BufferCreateInfo const& info)
 		NOSVK_ASSERT(vmaCreateBuffer(Vk->Allocator, &bufferCreateInfo, &allocCreateInfo, &Handle, &Allocation.Handle, &Allocation.Info));
 	}
 
-	NOSVK_ASSERT(Allocation.SetExternalMemoryHandleTypes(Vk, info.Type));
+	VkMemoryRequirements vkMemReq = {};
+	Vk->GetBufferMemoryRequirements(Handle, &vkMemReq);
+	Allocation.Size = vkMemReq.size;
 
-	if (info.Data)
-		Copy(info.Size, info.Data);
+	NOSVK_ASSERT(Allocation.SetExternalMemoryHandleTypes(Vk, info.Type));
 }
 
 void Buffer::Bind(VkDescriptorType type, u32 bind, VkDescriptorSet set)
@@ -123,7 +124,7 @@ void Buffer::Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src, const VkBufferCopy* R
     Cmd->AddDependency(Src, shared_from_this());
 }
 
-void Buffer::Copy(size_t len, void* pp, size_t offset)
+void Buffer::Copy(size_t len, const void* pp, size_t offset)
 {
     assert(offset + len <= Allocation.GetSize());
     memcpy(Map() + offset, pp, len);

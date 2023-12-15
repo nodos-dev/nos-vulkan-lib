@@ -12,10 +12,17 @@ VkDeviceSize Allocation::GetOffset() const
 {
 	return Info.offset;
 }
+
 VkDeviceSize Allocation::GetSize() const
 {
+	return Size; 
+}
+
+VkDeviceSize Allocation::GetAllocationSize() const 
+{ 
 	return Info.size;
 }
+
 VkDeviceMemory Allocation::GetMemory() const
 {
 	return Info.deviceMemory;
