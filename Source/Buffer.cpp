@@ -35,7 +35,7 @@ Buffer::Buffer(Device* Vk, BufferCreateInfo const& info)
 
 	VkMemoryPropertyFlags memProps = 0;
 	if (info.Mapped)
-		memProps |= VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+		memProps |= VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
 	if (info.VRAM)
 		memProps |= VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
@@ -47,7 +47,11 @@ Buffer::Buffer(Device* Vk, BufferCreateInfo const& info)
 	else
 	{
 		VmaAllocationCreateInfo allocCreateInfo = {
-			.flags = info.Mapped ? VmaAllocationCreateFlags(VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT) : 0,
+			.flags = info.Mapped ? VmaAllocationCreateFlags(
+                VMA_ALLOCATION_CREATE_HOST_ACCESS_ALLOW_TRANSFER_INSTEAD_BIT |
+				VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | 
+                VMA_ALLOCATION_CREATE_MAPPED_BIT) : 0
+												   ,
 			.usage = VMA_MEMORY_USAGE_AUTO, 
 			.requiredFlags = memProps
 		};
