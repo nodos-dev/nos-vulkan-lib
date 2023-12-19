@@ -7,6 +7,3 @@
 [submodule "External/SPIRV-Cross"]
 	path = External/SPIRV-Cross
 	url = https://github.com/KhronosGroup/SPIRV-Cross.git
-[submodule "External/Tools"]
-	path = Tools
-	url = https://github.com/mediaz/Tools.git

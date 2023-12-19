@@ -4,7 +4,7 @@
 #include "nosVulkan/Pipeline.h"
 #include "nosVulkan/Common.h"
 #include "nosVulkan/Image.h"
-#include "GlobVS.vert.spv.dat"
+#include "GlobVS.h"
 #include "vulkan/vulkan_core.h"
 
 namespace nos::vk
