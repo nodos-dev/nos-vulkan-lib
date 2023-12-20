@@ -64,13 +64,13 @@ GraphicsPipeline::~GraphicsPipeline()
 }
 
 
-GraphicsPipeline::GraphicsPipeline(Device* Vk, rc<Shader> PS, rc<Shader> VS, bool blend, u32 ms) 
-    : Pipeline(Vk, PS), VS(VS), EnableBlending(blend), MS(ms)
+GraphicsPipeline::GraphicsPipeline(Device* Vk, rc<Shader> PS, rc<Shader> VS, BlendMode blend, u32 ms) 
+    : Pipeline(Vk, PS), VS(VS), Blend(blend), MS(ms)
 {
     Layout = PipelineLayout::New(Vk, PS->Layout.Merge(GetVS()->Layout));
 }
 
-GraphicsPipeline::GraphicsPipeline(Device* Vk, std::vector<u8> const& src, bool blend, u32 ms) :
+GraphicsPipeline::GraphicsPipeline(Device* Vk, std::vector<u8> const& src, BlendMode blend, u32 ms) :
     GraphicsPipeline(Vk, Shader::New(Vk, src), 0, blend, ms)
 {
 
@@ -137,10 +137,10 @@ void GraphicsPipeline::Recreate(VkFormat fmt)
     };
 
     VkPipelineColorBlendAttachmentState attachment = {
-        .blendEnable = EnableBlending,
-        .srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
-        .dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
-        .colorBlendOp = VK_BLEND_OP_ADD,
+        .blendEnable = Blend.SrcFactor && Blend.DstFactor,
+        .srcColorBlendFactor = (VkBlendFactor)Blend.SrcFactor,
+        .dstColorBlendFactor = (VkBlendFactor)Blend.DstFactor,
+        .colorBlendOp = (VkBlendOp)Blend.Op,
         .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
         .dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
         .alphaBlendOp = VK_BLEND_OP_MAX,
