@@ -11,6 +11,7 @@ namespace nos::vk
 
 struct nosVulkan_API Buffer : SharedFactory<Buffer>, ResourceBase<VkBuffer>
 {
+	vk::Buffer* AsBuffer() override { return this; }
     VkBufferUsageFlags Usage;
     
     void Copy(size_t len, const void* pp, size_t offset = 0);

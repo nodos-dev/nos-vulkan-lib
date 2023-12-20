@@ -186,6 +186,8 @@ struct DeviceChild
   DeviceChild(Device* Vk)  : Vk(Vk) {}
   Device* GetDevice() const { return Vk; }
   virtual ~DeviceChild() = default;
+	virtual vk::Image* AsImage() { return nullptr; }
+	virtual vk::Buffer* AsBuffer() { return nullptr; } 
 };
 
 struct ImageState
@@ -217,16 +219,17 @@ bool nosVulkan_API IsFormatSupportedByDevice(const VkFormat&, const VkPhysicalDe
 
 struct MemoryExportInfo
 {
+    uint32_t HandleType;
     u64 PID;
-    HANDLE Memory;
-    VkExternalMemoryHandleTypeFlags Type;
-    VkDeviceSize Offset;
+    HANDLE Handle;
+	uint64_t Offset;
+	uint64_t AllocationSize;
 };
 
 #if _WIN32
-constexpr VkFlags PLATFORM_EXTERNAL_MEMORY_HANDLE_TYPE = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+constexpr auto PLATFORM_EXTERNAL_MEMORY_HANDLE_TYPE = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
 #else
-constexpr VkFlags PLATFORM_EXTERNAL_MEMORY_HANDLE_TYPE = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
+constexpr auto PLATFORM_EXTERNAL_MEMORY_HANDLE_TYPE = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
 #endif
 
 struct BufferCreateInfo
@@ -235,7 +238,7 @@ struct BufferCreateInfo
     u32 Mapped: 1 = 1;
     u32 VRAM: 1 = 0;
     VkBufferUsageFlags Usage;
-    VkExternalMemoryHandleTypeFlags Type = 0;
+    uint32_t ExternalMemoryHandleType = 0;
     const MemoryExportInfo* Imported = 0;
 };
 
@@ -247,7 +250,7 @@ struct ImageCreateInfo
     VkSampleCountFlagBits Samples = VK_SAMPLE_COUNT_1_BIT;
     VkImageTiling Tiling = VK_IMAGE_TILING_OPTIMAL;
     VkImageCreateFlags Flags = VK_IMAGE_CREATE_ALIAS_BIT;
-    VkExternalMemoryHandleTypeFlags Type = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+    uint32_t ExternalMemoryHandleType = PLATFORM_EXTERNAL_MEMORY_HANDLE_TYPE;
     const MemoryExportInfo* Imported = 0;
 };
 

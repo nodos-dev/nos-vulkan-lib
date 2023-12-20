@@ -11,19 +11,11 @@ namespace nos::vk
 Buffer::Buffer(Device* Vk, BufferCreateInfo const& info) 
     : ResourceBase(Vk), Usage(info.Usage)
 {
-	auto type = info.Type;
-	if (!type)
-	{
-#if _WIN32
-		type = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
-#else
-		type = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
-#endif
-	}
+	auto type = info.ExternalMemoryHandleType;
 
 	VkExternalMemoryBufferCreateInfo resourceCreateInfo = {
 		.sType = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_BUFFER_CREATE_INFO,
-		.handleTypes = (VkFlags)type,
+		.handleTypes = type,
 	};
 
 	VkBufferCreateInfo bufferCreateInfo = {
@@ -62,7 +54,7 @@ Buffer::Buffer(Device* Vk, BufferCreateInfo const& info)
 	Vk->GetBufferMemoryRequirements(Handle, &vkMemReq);
 	Allocation.Size = vkMemReq.size;
 
-	NOSVK_ASSERT(Allocation.SetExternalMemoryHandleTypes(Vk, info.Type));
+	NOSVK_ASSERT(Allocation.SetExternalMemoryHandleType(Vk, info.ExternalMemoryHandleType));
 }
 
 void Buffer::Bind(VkDescriptorType type, u32 bind, VkDescriptorSet set)

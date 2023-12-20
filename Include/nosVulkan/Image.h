@@ -44,15 +44,15 @@ private:
     VkExtent2D Extent = {0, 0};
     VkFormat Format = VK_FORMAT_UNDEFINED;
 public:
+	vk::Image* AsImage() override { return this; }
     VkImageUsageFlags Usage = 0;
 
     ImageState State = {};
     std::map<u64, rc<ImageView>> Views;
 	rc<vk::Semaphore> ExtSemaphore;
 
-    Image(Device* Vk, ImageCreateInfo const& createInfo, VkResult* re = 0, HANDLE externalSemaphore = 0);
+    Image(Device* Vk, ImageCreateInfo const& createInfo, VkResult* re = 0);
 
-    MemoryExportInfo GetExportInfo() const;
     void Transition(rc<CommandBuffer> Cmd, ImageState Dst);
     void BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src, VkFilter Filter);
     void CopyFrom(rc<CommandBuffer> Cmd, rc<Image> Src);

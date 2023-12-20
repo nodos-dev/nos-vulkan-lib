@@ -34,28 +34,27 @@ uint32_t Allocation::GetMemoryTypeIndex() const
 
 VkResult Allocation::Import(Device* device, std::variant<VkBuffer, VkImage> handle, vk::MemoryExportInfo const& imported, VkMemoryPropertyFlags memProps)
 {
-	auto memory = PlatformDupeHandle(imported.PID, imported.Memory);
+	auto dupHandle = PlatformDupeHandle(imported.PID, imported.Handle);
 
 	VkMemoryRequirements requirements;
 	if (auto buf = std::get_if<VkBuffer>(&handle))
 		device->GetBufferMemoryRequirements(*buf, &requirements);
 	else
 		device->GetImageMemoryRequirements(std::get<VkImage>(handle), &requirements);
-	const u64 size = imported.Offset + requirements.size;
 	
 	// TODO: Use GetMemoryWin32HandlePropertiesKHR?
 	auto [typeIndex, memType] = MemoryTypeIndex(device->PhysicalDevice, requirements.memoryTypeBits, memProps);
 
 	VkImportMemoryWin32HandleInfoKHR importInfo = {
 		.sType = VK_STRUCTURE_TYPE_IMPORT_MEMORY_WIN32_HANDLE_INFO_KHR,
-		.handleType = VkExternalMemoryHandleTypeFlagBits(imported.Type),
-		.handle = memory,
+		.handleType = VkExternalMemoryHandleTypeFlagBits(imported.HandleType),
+		.handle = dupHandle,
 	};
 
 	VkMemoryAllocateInfo info = {
 		.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
 		.pNext = &importInfo,
-		.allocationSize = size,
+		.allocationSize = imported.AllocationSize,
 		.memoryTypeIndex = typeIndex,
 	};
 
@@ -67,7 +66,7 @@ VkResult Allocation::Import(Device* device, std::variant<VkBuffer, VkImage> hand
 		.memoryType = typeIndex,
 		.deviceMemory = mem,
 		.offset = imported.Offset,
-		.size = size,
+		.size = imported.AllocationSize,
 	};
 	Imported = true;
 	if (auto buf = std::get_if<VkBuffer>(&handle))
@@ -77,10 +76,10 @@ VkResult Allocation::Import(Device* device, std::variant<VkBuffer, VkImage> hand
 	return res;
 }
 
-VkResult Allocation::SetExternalMemoryHandleTypes(Device* device, VkExternalMemoryHandleTypeFlags handleTypes)
+VkResult Allocation::SetExternalMemoryHandleType(Device* device, uint32_t handleType)
 {
-	ExternalMemoryHandleTypes = handleTypes;
-	if (auto type = PLATFORM_EXTERNAL_MEMORY_HANDLE_TYPE & handleTypes)
+	ExternalMemoryHandleType = handleType;
+	if (auto type = PLATFORM_EXTERNAL_MEMORY_HANDLE_TYPE & handleType)
 	{
 		std::unique_lock lock(device->MemoryBlocksMutex);
 		auto& [handle, ref] = device->MemoryBlocks[Info.deviceMemory];

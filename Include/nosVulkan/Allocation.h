@@ -17,7 +17,7 @@ struct nosVulkan_API Allocation
 	VmaAllocationInfo Info = {};
 	void* OsHandle = 0;
 	VkDeviceSize Size = 0;
-	VkExternalMemoryHandleTypeFlags ExternalMemoryHandleTypes;
+	uint32_t ExternalMemoryHandleType;
 	bool Imported = false;
 	void*& Mapping() { return Info.pMappedData; }
 	VkDeviceSize GetOffset() const;
@@ -27,7 +27,7 @@ struct nosVulkan_API Allocation
 	uint32_t GetMemoryTypeIndex() const;
 	VkResult Import(Device* device, std::variant<VkBuffer, VkImage> handle, 
 		vk::MemoryExportInfo const& imported, VkMemoryPropertyFlags memProps);
-	VkResult SetExternalMemoryHandleTypes(Device* device, VkExternalMemoryHandleTypeFlags handleTypes);
+	VkResult SetExternalMemoryHandleType(Device* device, uint32_t handleType);
 
 	void Release(Device* vk);
 };
@@ -38,8 +38,19 @@ struct nosVulkan_API ResourceBase : DeviceChild
 	T Handle;
 	Allocation Allocation;
 	using DeviceChild::DeviceChild;
-
-	~ResourceBase()
+	
+	MemoryExportInfo GetExportInfo() const
+	{
+		return MemoryExportInfo{
+			.HandleType = Allocation.ExternalMemoryHandleType,
+			.PID    = PlatformGetCurrentProcessId(),
+			.Handle = Allocation.OsHandle,
+			.Offset = Allocation.GetOffset(),
+			.AllocationSize = Allocation.GetAllocationSize()
+		};
+	}
+	
+	~ResourceBase() override
 	{
 		Allocation.Release(GetDevice());
 	}

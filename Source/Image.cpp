@@ -54,7 +54,7 @@ ImageView::ImageView(struct Image* Src, VkFormat Format, VkImageUsageFlags Usage
     NOSVK_ASSERT(Src->GetDevice()->CreateImageView(&viewInfo, 0, &Handle));
 }
 
-Image::Image(Device* Vk, ImageCreateInfo const& createInfo, VkResult* re, HANDLE externalSemaphore)
+Image::Image(Device* Vk, ImageCreateInfo const& createInfo, VkResult* re)
     : ResourceBase(Vk),
       Extent(createInfo.Extent),
       Format(createInfo.Format),
@@ -95,7 +95,7 @@ Image::Image(Device* Vk, ImageCreateInfo const& createInfo, VkResult* re, HANDLE
 
 	VkExternalMemoryImageCreateInfo resourceCreateInfo = {
 		.sType = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
-		.handleTypes = createInfo.Type,
+		.handleTypes = createInfo.ExternalMemoryHandleType,
 	};
 
 	VkImageCreateInfo info = {
@@ -124,9 +124,6 @@ Image::Image(Device* Vk, ImageCreateInfo const& createInfo, VkResult* re, HANDLE
         result = Vk->CreateImage(&info, 0, &Handle);
         if (NOS_VULKAN_SUCCEEDED(result))
             result = Allocation.Import(Vk, Handle, *imported, memProps);
-        
-		if (externalSemaphore)
-			ExtSemaphore = nos::vk::Semaphore::New(Vk, imported->PID, externalSemaphore);
 	}
 	else // Exported
 	{
@@ -134,7 +131,6 @@ Image::Image(Device* Vk, ImageCreateInfo const& createInfo, VkResult* re, HANDLE
 		result = vmaCreateImage(
 			Vk->Allocator, &info, &allocationCreateInfo, &Handle, &Allocation.Handle, &Allocation.Info);
     }
-
     
 	if (NOS_VULKAN_SUCCEEDED(result))
 	{
@@ -145,7 +141,7 @@ Image::Image(Device* Vk, ImageCreateInfo const& createInfo, VkResult* re, HANDLE
 	}
 
 	if (NOS_VULKAN_SUCCEEDED(result))
-        result = Allocation.SetExternalMemoryHandleTypes(Vk, createInfo.Type);
+        result = Allocation.SetExternalMemoryHandleType(Vk, createInfo.ExternalMemoryHandleType);
 
 	if (re)
 		*re = result;
@@ -447,16 +443,6 @@ void Image::ResolveFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
     };
 
     Cmd->ResolveImage2(&resolveInfo);
-}
-
-MemoryExportInfo Image::GetExportInfo() const
-{
-    return MemoryExportInfo{
-        .PID    = PlatformGetCurrentProcessId(),
-        .Memory = Allocation.OsHandle,
-        .Type   = Allocation.ExternalMemoryHandleTypes,
-        .Offset = Allocation.GetOffset(),
-    };
 }
 
 DescriptorResourceInfo ImageView::GetDescriptorInfo(VkFilter filter) const
