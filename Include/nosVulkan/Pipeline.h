@@ -40,9 +40,9 @@ struct nosVulkan_API GraphicsPipeline : SharedFactory<GraphicsPipeline>, Pipelin
 {
     struct BlendMode
     {
-        /*VkBlendOp*/     u16 Op: 8 = VK_BLEND_OP_ADD;
-        /*VkBlendFactor*/ u16 SrcFactor : 4 = VK_BLEND_FACTOR_SRC_ALPHA;
-        /*VkBlendFactor*/ u16 DstFactor : 4 = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+        /*VkBlendOp*/     u16 Op: 8 = 0;
+        /*VkBlendFactor*/ u16 SrcFactor : 4 = 0;
+        /*VkBlendFactor*/ u16 DstFactor : 4 = 0;
     };
     
     rc<Shader> VS = nullptr;
