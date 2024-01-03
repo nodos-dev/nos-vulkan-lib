@@ -34,7 +34,7 @@ void Basepass::TransitionInput(rc<vk::CommandBuffer> Cmd, std::string const& nam
 {
     auto& layout = *PL->Layout;
 
-    if (!img && !layout.BindingsByName.contains(name))
+    if (!img || !layout.BindingsByName.contains(name))
         return;
     
     auto idx = layout[name];
