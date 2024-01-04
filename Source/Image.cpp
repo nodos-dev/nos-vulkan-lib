@@ -128,16 +128,14 @@ Image::Image(Device* Vk, ImageCreateInfo const& createInfo, VkResult* re)
 	else // Exported
 	{
 		VmaAllocationCreateInfo allocationCreateInfo{.usage = VMA_MEMORY_USAGE_AUTO, .requiredFlags = memProps};
-		result = vmaCreateImage(
-			Vk->Allocator, &info, &allocationCreateInfo, &Handle, &Allocation.Handle, &Allocation.Info);
+		result = vmaCreateImage(Vk->Allocator, &info, &allocationCreateInfo, &Handle, &Allocation.Handle, &Allocation.Info);
     }
     
 	if (NOS_VULKAN_SUCCEEDED(result))
 	{
-		VkMemoryRequirements vkMemReq = {};
-		
-        Vk->GetImageMemoryRequirements(Handle, &vkMemReq);
-		Allocation.Size = vkMemReq.size;
+		VkMemoryRequirements memReq = {};
+        Vk->GetImageMemoryRequirements(Handle, &memReq);
+		assert(memReq.size == Allocation.GetSize());
 	}
 
 	if (NOS_VULKAN_SUCCEEDED(result))

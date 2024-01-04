@@ -50,9 +50,9 @@ Buffer::Buffer(Device* Vk, BufferCreateInfo const& info)
 		NOSVK_ASSERT(vmaCreateBuffer(Vk->Allocator, &bufferCreateInfo, &allocCreateInfo, &Handle, &Allocation.Handle, &Allocation.Info));
 	}
 
-	VkMemoryRequirements vkMemReq = {};
-	Vk->GetBufferMemoryRequirements(Handle, &vkMemReq);
-	Allocation.Size = vkMemReq.size;
+	VkMemoryRequirements memReq = {};
+	Vk->GetBufferMemoryRequirements(Handle, &memReq);
+	assert(memReq.size == Allocation.GetSize());
 
 	NOSVK_ASSERT(Allocation.SetExternalMemoryHandleType(Vk, info.ExternalMemoryHandleType));
 }

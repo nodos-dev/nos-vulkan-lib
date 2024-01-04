@@ -15,12 +15,19 @@ VkDeviceSize Allocation::GetOffset() const
 
 VkDeviceSize Allocation::GetSize() const
 {
-	return Size; 
+	return Info.size; 
 }
 
 VkDeviceSize Allocation::GetAllocationSize() const 
 { 
-	return Info.size;
+	if (!Handle)
+		return 0;
+	switch (Handle->GetType())
+	{
+	case VmaAllocation_T::ALLOCATION_TYPE_BLOCK: return Handle->GetBlock()->m_pMetadata->GetSize();
+	case VmaAllocation_T::ALLOCATION_TYPE_DEDICATED: return GetSize();
+	default: return 0;
+	}
 }
 
 VkDeviceMemory Allocation::GetMemory() const
@@ -66,7 +73,7 @@ VkResult Allocation::Import(Device* device, std::variant<VkBuffer, VkImage> hand
 		.memoryType = typeIndex,
 		.deviceMemory = mem,
 		.offset = imported.Offset,
-		.size = imported.AllocationSize,
+		.size = imported.Size,
 	};
 	Imported = true;
 	if (auto buf = std::get_if<VkBuffer>(&handle))

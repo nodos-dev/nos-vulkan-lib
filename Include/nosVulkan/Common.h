@@ -223,6 +223,7 @@ struct MemoryExportInfo
     u64 PID;
     HANDLE Handle;
 	uint64_t Offset;
+	uint64_t Size;
 	uint64_t AllocationSize;
 };
 

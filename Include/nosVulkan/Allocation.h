@@ -16,7 +16,6 @@ struct nosVulkan_API Allocation
 	VmaAllocation Handle = 0;
 	VmaAllocationInfo Info = {};
 	void* OsHandle = 0;
-	VkDeviceSize Size = 0;
 	uint32_t ExternalMemoryHandleType;
 	bool Imported = false;
 	void*& Mapping() { return Info.pMappedData; }
@@ -46,6 +45,7 @@ struct nosVulkan_API ResourceBase : DeviceChild
 			.PID    = PlatformGetCurrentProcessId(),
 			.Handle = Allocation.OsHandle,
 			.Offset = Allocation.GetOffset(),
+			.Size = Allocation.GetSize(),
 			.AllocationSize = Allocation.GetAllocationSize()
 		};
 	}
