@@ -73,7 +73,7 @@ VkResult Allocation::Import(Device* device, std::variant<VkBuffer, VkImage> hand
 		.memoryType = typeIndex,
 		.deviceMemory = mem,
 		.offset = imported.Offset,
-		.size = imported.Size,
+		.size = requirements.size,
 	};
 	Imported = true;
 	if (auto buf = std::get_if<VkBuffer>(&handle))
