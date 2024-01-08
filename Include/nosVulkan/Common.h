@@ -239,7 +239,7 @@ struct BufferCreateInfo
     u32 Mapped: 1 = 1;
     u32 VRAM: 1 = 0;
     VkBufferUsageFlags Usage;
-    uint32_t ExternalMemoryHandleType = 0;
+    uint32_t ExternalMemoryHandleType = PLATFORM_EXTERNAL_MEMORY_HANDLE_TYPE;
     const MemoryExportInfo* Imported = 0;
 };
 

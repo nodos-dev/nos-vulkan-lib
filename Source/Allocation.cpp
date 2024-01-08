@@ -19,9 +19,12 @@ VkDeviceSize Allocation::GetSize() const
 }
 
 VkDeviceSize Allocation::GetAllocationSize() const 
-{ 
+{
 	if (!Handle)
-		return 0;
+	{
+		assert(Imported && "GetAllocationSize called on an non-existent allocation!");
+		return Imported->AllocationSize;
+	}
 	switch (Handle->GetType())
 	{
 	case VmaAllocation_T::ALLOCATION_TYPE_BLOCK: return Handle->GetBlock()->m_pMetadata->GetSize();
@@ -49,8 +52,14 @@ VkResult Allocation::Import(Device* device, std::variant<VkBuffer, VkImage> hand
 	else
 		device->GetImageMemoryRequirements(std::get<VkImage>(handle), &requirements);
 	
-	// TODO: Use GetMemoryWin32HandlePropertiesKHR?
-	auto [typeIndex, memType] = MemoryTypeIndex(device->PhysicalDevice, requirements.memoryTypeBits, memProps);
+	// Use GetMemoryWin32HandlePropertiesKHR for memory type bits!
+	// TODO: Cannot use this for opaque handle types!
+	VkMemoryWin32HandlePropertiesKHR extHandleProps{
+		.sType = VK_STRUCTURE_TYPE_MEMORY_WIN32_HANDLE_PROPERTIES_KHR
+	};
+	auto res = device->GetMemoryWin32HandlePropertiesKHR((VkExternalMemoryHandleTypeFlagBits)imported.HandleType, dupHandle, &extHandleProps);
+	NOSVK_ASSERT(res)
+	auto [typeIndex, memType] = MemoryTypeIndex(device->PhysicalDevice, extHandleProps.memoryTypeBits, memProps);
 
 	VkImportMemoryWin32HandleInfoKHR importInfo = {
 		.sType = VK_STRUCTURE_TYPE_IMPORT_MEMORY_WIN32_HANDLE_INFO_KHR,
@@ -66,7 +75,7 @@ VkResult Allocation::Import(Device* device, std::variant<VkBuffer, VkImage> hand
 	};
 
 	VkDeviceMemory mem;
-	VkResult res = device->AllocateMemory(&info, 0, &mem);
+	res = device->AllocateMemory(&info, 0, &mem);
 	if (NOS_VULKAN_FAILED(res))
 		return res;
 	Info = VmaAllocationInfo{
@@ -75,7 +84,7 @@ VkResult Allocation::Import(Device* device, std::variant<VkBuffer, VkImage> hand
 		.offset = imported.Offset,
 		.size = requirements.size,
 	};
-	Imported = true;
+	Imported = {.AllocationSize = imported.AllocationSize};
 	if (auto buf = std::get_if<VkBuffer>(&handle))
 		res = device->BindBufferMemory(*buf, mem, imported.Offset);
 	else

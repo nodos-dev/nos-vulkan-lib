@@ -17,7 +17,11 @@ struct nosVulkan_API Allocation
 	VmaAllocationInfo Info = {};
 	void* OsHandle = 0;
 	uint32_t ExternalMemoryHandleType;
-	bool Imported = false;
+	struct ImportInfo
+	{
+		VkDeviceSize AllocationSize = 0;
+	};
+	std::optional<ImportInfo> Imported = std::nullopt;
 	void*& Mapping() { return Info.pMappedData; }
 	VkDeviceSize GetOffset() const;
 	VkDeviceSize GetSize() const;
