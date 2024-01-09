@@ -84,17 +84,16 @@ DescriptorResourceInfo Binding::GetDescriptorInfo(VkDescriptorType type) const
     AccessFlags = MapTypeToAccess(type);
     DescriptorResourceInfo Info = {};
 
-    if (auto img = std::get_if<rc<Image>>(&Resource))
+    if (auto img = std::get_if<rc<Image>>(&Resource); img && *img)
     {
         Info = (*img)->GetView(usage)->GetDescriptorInfo(Filter);
         Info.Image.imageLayout = MapTypeToLayout(type);
     }
-    else 
+    else if(auto buf = std::get_if<rc<Buffer>>(&Resource); buf && *buf)
     {
-        auto buf = std::get<rc<Buffer>>(Resource);
-        Info = buf->GetDescriptorInfo();
+        Info = (*buf)->GetDescriptorInfo();
         Info.Buffer.offset = BufferOffset;
-        assert(!usage || (buf->Usage & usage));
+        assert(!usage || ((*buf)->Usage & usage));
     }
 
     return Info;

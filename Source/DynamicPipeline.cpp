@@ -265,6 +265,11 @@ static void BuildType(spirv_cross::Compiler const& cc, u32 typeId, SVType* ty)
         }
 
         break;
+    case SPIRType::Sampler:
+    {
+        assert("We dont support seperate samplers yet" && 0);
+    }
+        break;
     case SPIRType::Image:
     case SPIRType::SampledImage:
         ty->Tag  = SVType::Image;
@@ -340,6 +345,7 @@ ShaderLayout GetShaderLayouts(std::vector<u8> const& src, VkShaderStageFlags& st
         std::pair{VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, &resources.storage_buffers},
         std::pair{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, &resources.uniform_buffers},
         std::pair{VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, &resources.subpass_inputs},
+        // std::pair{VK_DESCRIPTOR_TYPE_SAMPLER, &resources.separate_samplers},
     };
 
     for (auto& [ty, desc] : res)

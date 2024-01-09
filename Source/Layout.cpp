@@ -51,7 +51,7 @@ DescriptorLayout::~DescriptorLayout()
 
 void DescriptorSet::Update(std::set<Binding> const& res)
 {
-    BindStates.clear();
+    // BindStates.clear();
  
     std::map<u32, std::vector<DescriptorResourceInfo>> infos;
     std::vector<VkWriteDescriptorSet> writes(Layout->Bindings.size());
@@ -98,13 +98,13 @@ void DescriptorSet::Write(Binding const& res, DescriptorResourceInfo* info, VkWr
             info[i] = *info;
     }
 
-    if (rc<Image> const* ppImg = std::get_if<rc<Image>>(&res.Resource))
+    if (rc<Image> const* ppImg = std::get_if<rc<Image>>(&res.Resource); ppImg && *ppImg)
     {
-        BindStates[(*ppImg)->shared_from_this()] = ImageState{
-                                      .StageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                                      .AccessMask = res.AccessFlags,
-                                      .Layout = info->Image.imageLayout,
-        };
+        //BindStates[(*ppImg)->shared_from_this()] = ImageState{
+        //                              .StageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+        //                              .AccessMask = res.AccessFlags,
+        //                              .Layout = info->Image.imageLayout,
+        //};
     }
 
 }

@@ -42,12 +42,12 @@ void Basepass::TransitionInput(rc<vk::CommandBuffer> Cmd, std::string const& nam
 
     if (dsl.Type->Tag == vk::SVType::Image)
     {
-        VkFilter filter;
-        img->Transition(Cmd, {
+        ImageState state = {
             .StageMask = GetStage(),
             .AccessMask = vk::Binding::MapTypeToAccess(dsl.DescriptorType),
             .Layout = vk::Binding::MapTypeToLayout(dsl.DescriptorType),
-        });
+        };
+        img->Transition(Cmd, state);
         return;
     }
 }
@@ -206,14 +206,14 @@ void Renderpass::Begin(rc<CommandBuffer> Cmd, rc<Image> SrcImage, bool wireframe
                                            .Layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
                                        });
 
-    // for (auto &set : DescriptorSets)
-    // {
-    //     for (auto [img, state] : set->BindStates)
-    //     {
-    //         img->Transition(Cmd, state);
-    //     }
-    //     set->Bind(Cmd);
-    // }
+     //for (auto &set : DescriptorSets)
+     //{
+     //    for (auto [img, state] : set->BindStates)
+     //    {
+     //        img->Transition(Cmd, state);
+     //    }
+     //    set->Bind(Cmd);
+     //}
 
     VkViewport viewport = {
         .width = (f32)extent.width,

@@ -65,7 +65,7 @@ GraphicsPipeline::~GraphicsPipeline()
 
 
 GraphicsPipeline::GraphicsPipeline(Device* Vk, rc<Shader> PS, rc<Shader> VS, BlendMode blend, u32 ms) 
-    : Pipeline(Vk, PS), VS(VS), Blend(blend), MS(ms)
+    : Pipeline(Vk, PS), VS(VS), Blend(blend), MS(std::max(ms, 1u))
 {
     Layout = PipelineLayout::New(Vk, PS->Layout.Merge(GetVS()->Layout));
 }

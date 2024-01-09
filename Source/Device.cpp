@@ -18,6 +18,8 @@
 #include <Windows.h>
 
 static std::vector<const char*> layers = {
+    "VK_LAYER_KHRONOS_validation",
+    "VK_LAYER_KHRONOS_synchronization2",
 };
 
 static std::vector<const char*> extensions = {
@@ -337,9 +339,15 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
     VkDebugUtilsMessageTypeFlagsEXT messageType,
     const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-    void* pUserData) {
+    void* pUserData) 
+{
 
-    std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
+    if(messageSeverity & (VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT))
+    {
+
+        std::string msg = pCallbackData->pMessage;
+        std::cerr << "validation layer: " << msg << std::endl;
+    }
 
     return VK_FALSE;
 }
@@ -380,7 +388,7 @@ Context::Context(DebugCallback* debugCallback)
     NOSVK_ASSERT(vkCreateInstance(&info, 0, &Instance));
     vkl_load_instance_functions(Instance);
 
-    if(debugCallback)
+    if(true||debugCallback)
     {
         VkDebugUtilsMessengerCreateInfoEXT msgInfo = {
             .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
@@ -393,7 +401,7 @@ Context::Context(DebugCallback* debugCallback)
                             VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT
                             | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
                             | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
-            .pfnUserCallback = debugCallback,
+            .pfnUserCallback = vk::debugCallback,
         };
         NOSVK_ASSERT(vkCreateDebugUtilsMessengerEXT(Instance, &msgInfo, 0, &Msger));
     }

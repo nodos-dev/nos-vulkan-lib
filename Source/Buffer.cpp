@@ -42,8 +42,7 @@ Buffer::Buffer(Device* Vk, BufferCreateInfo const& info)
 			.flags = info.Mapped ? VmaAllocationCreateFlags(
                 VMA_ALLOCATION_CREATE_HOST_ACCESS_ALLOW_TRANSFER_INSTEAD_BIT |
 				VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | 
-                VMA_ALLOCATION_CREATE_MAPPED_BIT) : 0
-												   ,
+                VMA_ALLOCATION_CREATE_MAPPED_BIT) : 0,
 			.usage = VMA_MEMORY_USAGE_AUTO, 
 			.requiredFlags = memProps
 		};

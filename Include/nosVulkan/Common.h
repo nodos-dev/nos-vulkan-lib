@@ -264,6 +264,7 @@ struct nosVulkan_API SVType
         Float,
         Image,
         Struct,
+        Sampler,
     } Tag;
 
     u32 x = 1; // width
@@ -280,6 +281,11 @@ struct nosVulkan_API SVType
         u32 Sampled;
         VkFormat Fmt;
     } Img = {};
+
+    struct Sampler
+    {
+
+    };
 
     struct Member
     {
