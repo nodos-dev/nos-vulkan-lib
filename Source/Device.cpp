@@ -18,8 +18,8 @@
 #include <Windows.h>
 
 static std::vector<const char*> layers = {
-    "VK_LAYER_KHRONOS_validation",
-    "VK_LAYER_KHRONOS_synchronization2",
+    // "VK_LAYER_KHRONOS_validation",
+    // "VK_LAYER_KHRONOS_synchronization2",
 };
 
 static std::vector<const char*> extensions = {
