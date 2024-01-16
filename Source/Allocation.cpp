@@ -22,6 +22,8 @@ VkDeviceSize Allocation::GetAllocationSize() const
 {
 	if (!Handle)
 	{
+		if (!Imported)
+			return 0;
 		assert(Imported && "GetAllocationSize called on an non-existent allocation!");
 		return Imported->AllocationSize;
 	}

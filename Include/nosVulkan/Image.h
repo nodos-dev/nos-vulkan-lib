@@ -50,8 +50,10 @@ public:
     ImageState State = {};
     std::map<u64, rc<ImageView>> Views;
 	rc<vk::Semaphore> ExtSemaphore;
+	bool Owned = true;
 
     Image(Device* Vk, ImageCreateInfo const& createInfo, VkResult* re = 0);
+	Image(Device* Vk, VkImage img);
 
     void Transition(rc<CommandBuffer> Cmd, ImageState Dst);
     void BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src, VkFilter Filter);

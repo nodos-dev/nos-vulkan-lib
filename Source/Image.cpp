@@ -12,10 +12,13 @@ namespace nos::vk
 Image::~Image()
 {
     Views.clear();
-    if (Allocation.Imported)
-        Vk->DestroyImage(Handle, 0);
-    else if (Allocation.Handle)
-        vmaDestroyImage(Vk->Allocator, Handle, Allocation.Handle);
+    if (Owned)
+    {
+        if (Allocation.Imported)
+            Vk->DestroyImage(Handle, 0);
+        else if (Allocation.Handle)
+            vmaDestroyImage(Vk->Allocator, Handle, Allocation.Handle);
+    }
 };
 
 ImageView::~ImageView()
@@ -55,15 +58,13 @@ ImageView::ImageView(struct Image* Src, VkFormat Format, VkImageUsageFlags Usage
 }
 
 Image::Image(Device* Vk, ImageCreateInfo const& createInfo, VkResult* re)
-    : ResourceBase(Vk),
-      Extent(createInfo.Extent),
-      Format(createInfo.Format),
-      Usage(createInfo.Usage),
-      State{
-          .StageMask  = VK_PIPELINE_STAGE_NONE,
-          .AccessMask = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT,
-          .Layout     = VK_IMAGE_LAYOUT_UNDEFINED,
-      }
+	: ResourceBase(Vk), Extent(createInfo.Extent), Format(createInfo.Format), Usage(createInfo.Usage),
+	  State{
+		  .StageMask = VK_PIPELINE_STAGE_NONE,
+		  .AccessMask = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT,
+		  .Layout = VK_IMAGE_LAYOUT_UNDEFINED,
+	  },
+	  Owned(true)
 {
 	if (createInfo.Imported)
 		State.Layout = VK_IMAGE_LAYOUT_PREINITIALIZED;
@@ -143,6 +144,19 @@ Image::Image(Device* Vk, ImageCreateInfo const& createInfo, VkResult* re)
 
 	if (re)
 		*re = result;
+}
+
+Image::Image(Device* vk, VkImage img)
+	: ResourceBase(vk), Extent({800, 600}), Format(VkFormat::VK_FORMAT_R8G8B8A8_UNORM), Usage(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT),
+	  State{
+		  .StageMask = VK_PIPELINE_STAGE_NONE,
+		  .AccessMask = 0,
+		  .Layout = VK_IMAGE_LAYOUT_UNDEFINED,
+	  },
+	  Owned(false)
+{
+    Handle = img;
+
 }
 
 void Image::Transition(
