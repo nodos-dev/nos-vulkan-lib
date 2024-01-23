@@ -47,7 +47,7 @@ public:
 	vk::Image* AsImage() override { return this; }
     VkImageUsageFlags Usage = 0;
 
-    ImageState State = {};
+    ImageState State = {}; // This is not thread safe.
     std::map<u64, rc<ImageView>> Views;
 	rc<vk::Semaphore> ExtSemaphore;
 

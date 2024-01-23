@@ -116,20 +116,12 @@ void Renderpass::Draw(rc<vk::CommandBuffer> Cmd, const VertexData* Verts)
     }
 }
 
-void Renderpass::Exec(rc<vk::CommandBuffer> cmd,
-					  rc<vk::Image> output,
-					  const VertexData* Verts,
-					  bool clear,
-					  u32 frameNumber,
-					  float deltaSeconds,
-					  std::array<float, 4> clearCol)
+void Renderpass::Exec(rc<vk::CommandBuffer> cmd, const ExecPassInfo& info)
 {
-
     BindResources(cmd);
-    Begin(cmd, output, Verts && Verts->Wireframe, clear, frameNumber, deltaSeconds, clearCol);
-    Draw(cmd, Verts);
+    Begin(cmd, info.BeginInfo);
+    Draw(cmd, info.VtxData);
     End(cmd);
-
 }
 
 void Basepass::BindResources(rc<vk::CommandBuffer> Cmd)
@@ -143,11 +135,11 @@ void Basepass::BindResources(rc<vk::CommandBuffer> Cmd)
     RefreshBuffer(Cmd);
 }
 
-void Renderpass::Begin(rc<CommandBuffer> Cmd, rc<Image> SrcImage, bool wireframe, bool clear, u32 frameNumber, float deltaSeconds, std::array<float, 4> clearCol)
+void Renderpass::Begin(rc<CommandBuffer> cmd, const BeginPassInfo& info)
 {
-    assert(SrcImage);
+    assert(info.OutImage);
     
-    rc<ImageView> img = SrcImage->GetView(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
+    rc<ImageView> img = info.OutImage->GetView(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
 
     auto PL = ((GraphicsPipeline*)this->PL.get());
 
@@ -158,14 +150,15 @@ void Renderpass::Begin(rc<CommandBuffer> Cmd, rc<Image> SrcImage, bool wireframe
     
     if(PL->MS > 1)
     {
-        rc<Image> tmp  = Image::New(SrcImage->GetDevice(), ImageCreateInfo {
-            .Extent = SrcImage->GetEffectiveExtent(),
-            .Format = SrcImage->GetEffectiveFormat(),
-            .Usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-            .Samples = (VkSampleCountFlagBits)PL->MS,
-        });
-        Cmd->AddDependency(tmp);
-        tmp->Transition(Cmd, ImageState{
+		rc<Image> tmp = Image::New(info.OutImage->GetDevice(),
+								   ImageCreateInfo{
+									   .Extent = info.OutImage->GetEffectiveExtent(),
+									   .Format = info.OutImage->GetEffectiveFormat(),
+									   .Usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+									   .Samples = (VkSampleCountFlagBits)PL->MS,
+								   });
+        cmd->AddDependency(tmp);
+        tmp->Transition(cmd, ImageState{
                                             .StageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                                             .AccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                                             .Layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
@@ -179,32 +172,45 @@ void Renderpass::Begin(rc<CommandBuffer> Cmd, rc<Image> SrcImage, bool wireframe
     
     PL->Recreate(img->GetEffectiveFormat());
 
-    img->Src->Transition(Cmd, ImageState{
+    img->Src->Transition(cmd, ImageState{
                                            .StageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                                            .AccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                                            .Layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                                        });
 
     auto extent = img->Src->GetEffectiveExtent();
-    if(!DepthBuffer || (DepthBuffer->GetEffectiveExtent().width != extent.width || 
-                      DepthBuffer->GetEffectiveExtent().height != extent.height))
-    {
-        if (DepthBuffer)
-        {
-            Cmd->AddDependency(DepthBuffer);
-        }
-        DepthBuffer = vk::Image::New(GetDevice(), vk::ImageCreateInfo {
-            .Extent = extent,
-            .Format = VK_FORMAT_D32_SFLOAT,
-            .Usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-        });
+	rc<Image> selectedDepthBuf = info.DepthAttachment ? info.DepthAttachment->DepthBuffer : nullptr;
+	bool depthClear = true;
+	float depthClearVal = 1.0f;
+	if (!selectedDepthBuf)
+	{
+	    if (!DepthBuffer || (DepthBuffer->GetEffectiveExtent().width != extent.width ||
+						     DepthBuffer->GetEffectiveExtent().height != extent.height))
+	    {
+		    if (DepthBuffer)
+		    {
+			    cmd->AddDependency(DepthBuffer);
+		    }
+		    DepthBuffer = vk::Image::New(GetDevice(),
+									     vk::ImageCreateInfo{
+										     .Extent = extent,
+										     .Format = VK_FORMAT_D32_SFLOAT,
+										     .Usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+									     });
+		}
+		selectedDepthBuf = DepthBuffer;
+	}
+	else
+	{
+		depthClear = info.DepthAttachment->Clear;
+		depthClearVal = info.DepthAttachment->ClearValue;
     }
     
-    DepthBuffer->Transition(Cmd, ImageState{
-                                           .StageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
-                                           .AccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-                                           .Layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-                                       });
+    selectedDepthBuf->Transition(cmd, ImageState{
+                                            .StageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+											.AccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+                                            .Layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                                        });
 
      //for (auto &set : DescriptorSets)
      //{
@@ -223,11 +229,11 @@ void Renderpass::Begin(rc<CommandBuffer> Cmd, rc<Image> SrcImage, bool wireframe
 
     VkRect2D scissor = {.extent = extent};
 
-    Cmd->SetViewport(0, 1, &viewport);
-    Cmd->SetScissor(0, 1, &scissor);
-    Cmd->SetDepthTestEnable(false);
-    Cmd->SetDepthWriteEnable(false);
-    Cmd->SetDepthCompareOp(VK_COMPARE_OP_NEVER);
+    cmd->SetViewport(0, 1, &viewport);
+    cmd->SetScissor(0, 1, &scissor);
+    cmd->SetDepthTestEnable(false);
+    cmd->SetDepthWriteEnable(false);
+    cmd->SetDepthCompareOp(VK_COMPARE_OP_NEVER);
 
     if (!Vk->Features.dynamicRendering)
     {
@@ -263,7 +269,7 @@ void Renderpass::Begin(rc<CommandBuffer> Cmd, rc<Image> SrcImage, bool wireframe
             .pClearValues = &clear,
         };
 
-        Cmd->BeginRenderPass(&renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+        cmd->BeginRenderPass(&renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
     }
     else
     {
@@ -275,18 +281,19 @@ void Renderpass::Begin(rc<CommandBuffer> Cmd, rc<Image> SrcImage, bool wireframe
             .resolveMode = resolveMode,
             .resolveImageView = resolveImageView,
             .resolveImageLayout = resolveImageLayout,
-            .loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD,
+            .loadOp = info.Clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD,
             .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-			.clearValue = {.color = {.float32 = {clearCol[0], clearCol[1], clearCol[2], clearCol[3]}}},
+			.clearValue =
+				{.color = {.float32 = {info.ClearCol[0], info.ClearCol[1], info.ClearCol[2], info.ClearCol[3]}}},
             };
 
         VkRenderingAttachmentInfo DepthAttachment = {
             .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-            .imageView = DepthBuffer->GetView()->Handle,
+            .imageView = selectedDepthBuf->GetView()->Handle,
             .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+			.loadOp = depthClear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD,
             .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-            .clearValue = {.depthStencil = { .depth = 1.f }},
+            .clearValue = {.depthStencil = { .depth = depthClearVal }},
         };
         
         VkRenderingInfo renderInfo = {
@@ -295,24 +302,24 @@ void Renderpass::Begin(rc<CommandBuffer> Cmd, rc<Image> SrcImage, bool wireframe
             .layerCount = 1,
             .colorAttachmentCount = 1,
             .pColorAttachments = &Attachment,
-            // .pDepthAttachment = &DepthAttachment,
+            .pDepthAttachment = &DepthAttachment,
         };
 
-        Cmd->BeginRendering(&renderInfo);
+        cmd->BeginRendering(&renderInfo);
     }
 
     auto& handle = PL->Handles[img->GetEffectiveFormat()];
-    Cmd->BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, wireframe ? handle.wpl : handle.pl);
-    Cmd->AddDependency(shared_from_this());
+    cmd->BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, info.Wireframe ? handle.wpl : handle.pl);
+    cmd->AddDependency(shared_from_this());
 	
     struct Constants
 	{
 		VkExtent2D Extent;
-		u32 FrameNumber;
-		float deltaSeconds;
+		u64 FrameNumber;
+		float DeltaSeconds;
 	}
-	constants = { img->Src->GetExtent(), frameNumber, deltaSeconds };
-	PL->PushConstants(Cmd, constants);
+	constants = { img->Src->GetExtent(), info.FrameNumber, info.DeltaSeconds };
+	PL->PushConstants(cmd, constants);
 }
 
 void Renderpass::End(rc<CommandBuffer> Cmd)

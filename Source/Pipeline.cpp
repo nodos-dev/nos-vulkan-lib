@@ -98,7 +98,7 @@ void GraphicsPipeline::Recreate(VkFormat fmt)
         .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
         .colorAttachmentCount = Layout->RTCount,
         .pColorAttachmentFormats = &fmt,
-        // .depthAttachmentFormat = VK_FORMAT_D32_SFLOAT,
+        .depthAttachmentFormat = VK_FORMAT_D32_SFLOAT,
     };
 
     VkPipelineVertexInputStateCreateInfo inputLayout = {};
@@ -137,15 +137,14 @@ void GraphicsPipeline::Recreate(VkFormat fmt)
     };
 
     VkPipelineColorBlendAttachmentState attachment = {
-        .blendEnable = Blend.SrcFactor && Blend.DstFactor,
-        .srcColorBlendFactor = (VkBlendFactor)Blend.SrcFactor,
-        .dstColorBlendFactor = (VkBlendFactor)Blend.DstFactor,
-        .colorBlendOp = (VkBlendOp)Blend.Op,
-        .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
-        .dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
-        .alphaBlendOp = VK_BLEND_OP_MAX,
-        .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
-                          VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT,
+        .blendEnable = Blend.Enable,
+        .srcColorBlendFactor = (VkBlendFactor)Blend.SrcColorFactor,
+        .dstColorBlendFactor = (VkBlendFactor)Blend.DstColorFactor,
+        .colorBlendOp = (VkBlendOp)Blend.ColorOp,
+		.srcAlphaBlendFactor = (VkBlendFactor)Blend.SrcAlphaFactor,
+		.dstAlphaBlendFactor = (VkBlendFactor)Blend.DstAlphaFactor,
+		.alphaBlendOp = (VkBlendOp)Blend.AlphaOp,
+		.colorWriteMask = (VkColorComponentFlags)Blend.ColorMask,
     };
 
     VkPipelineColorBlendStateCreateInfo colorBlendState = {
