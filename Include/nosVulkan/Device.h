@@ -100,7 +100,6 @@ struct FeatureSet  :
     
 };
 
-
 struct nosVulkan_API Device : SharedFactory<Device>,
                              VklDeviceFunctions
 {

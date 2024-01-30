@@ -14,7 +14,7 @@ namespace nos::vk
 template <typename ResourceT, typename CreationInfoT,
 		  typename CreationInfoHasherT = std::hash<CreationInfoT>,
 		  typename CreationInfoEqualsT = std::equal_to<CreationInfoT>,
-		  typename ResourceReleasePolicyT = KeepNFreeSlots<12>>
+		  typename ResourceReleasePolicyT = KeepFreeSlots<12>>
 class ResourcePool
 {
 public:
@@ -144,7 +144,7 @@ protected:
 };
 
 template <size_t FreeSlotsPerCreationInfo>
-struct KeepNFreeSlots
+struct KeepFreeSlots
 {
 	static bool ShouldRelease(size_t currentlyFree, size_t allocatedCount)
 	{
@@ -154,12 +154,12 @@ struct KeepNFreeSlots
 	}
 };
 
-template <float MaxLoadFactor>
-struct KeepDynamic
+template <size_t MinCount, float MaxLoadFactor>
+struct MaintainLoadFactor
 {
 	static bool ShouldRelease(size_t currentlyFree, size_t allocatedCount)
 	{
-		if (!currentlyFree || (allocatedCount / static_cast<float>(allocatedCount - currentlyFree)) < MaxLoadFactor)
+		if (currentlyFree < MinCount || (allocatedCount / static_cast<float>(allocatedCount - currentlyFree)) < MaxLoadFactor)
 			return false;
 		return true;
 	}
@@ -207,7 +207,7 @@ struct BufferCreateInfoEquals
 };
 } // namespace detail
 
-using ImagePool = ResourcePool<vk::Image, vk::ImageCreateInfo, detail::ImageCreateInfoHasher, detail::ImageCreateInfoEquals, KeepDynamic<1.5>>;
-using BufferPool = ResourcePool<vk::Buffer, vk::BufferCreateInfo, detail::BufferCreateInfoHasher, detail::BufferCreateInfoEquals, KeepDynamic<1.5>>;
+using ImagePool = ResourcePool<vk::Image, vk::ImageCreateInfo, detail::ImageCreateInfoHasher, detail::ImageCreateInfoEquals, MaintainLoadFactor<12, 1.5>>;
+using BufferPool = ResourcePool<vk::Buffer, vk::BufferCreateInfo, detail::BufferCreateInfoHasher, detail::BufferCreateInfoEquals, MaintainLoadFactor<12, 1.5>>;
 
 }

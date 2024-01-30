@@ -109,7 +109,6 @@ struct nosVulkan_API Computepass : SharedFactory<Computepass>, Basepass
 struct nosVulkan_API Renderpass : SharedFactory<Renderpass>, Basepass
 {
     VkFramebuffer FrameBuffer = 0;
-    rc<Image> DepthBuffer;
     rc<ImageView> ImgView;
 
     Renderpass(rc<GraphicsPipeline> PL);

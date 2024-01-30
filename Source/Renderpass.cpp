@@ -148,17 +148,15 @@ void Renderpass::Begin(rc<CommandBuffer> cmd, const BeginPassInfo& info)
     VkImageView           resolveImageView   = 0;
     VkImageLayout         resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     
+	rc<Image> localMsBuffer = nullptr;
     if(PL->MS > 1)
     {
-		rc<Image> tmp = Image::New(info.OutImage->GetDevice(),
-								   ImageCreateInfo{
+		localMsBuffer = GetDevice()->ResourcePools.Image.Get(ImageCreateInfo{
 									   .Extent = info.OutImage->GetEffectiveExtent(),
 									   .Format = info.OutImage->GetEffectiveFormat(),
 									   .Usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-									   .Samples = (VkSampleCountFlagBits)PL->MS,
-								   });
-        cmd->AddDependency(tmp);
-        tmp->Transition(cmd, ImageState{
+									   .Samples = (VkSampleCountFlagBits)PL->MS }, "Temporary Multisample Resource");
+        localMsBuffer->Transition(cmd, ImageState{
                                             .StageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                                             .AccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                                             .Layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
@@ -167,7 +165,7 @@ void Renderpass::Begin(rc<CommandBuffer> cmd, const BeginPassInfo& info)
         resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
         resolveImageView = imageView;
         resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
-        imageView = tmp->GetView(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)->Handle;
+        imageView = localMsBuffer->GetView(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)->Handle;
     }
     
     PL->Recreate(img->GetEffectiveFormat());
@@ -182,23 +180,14 @@ void Renderpass::Begin(rc<CommandBuffer> cmd, const BeginPassInfo& info)
 	rc<Image> selectedDepthBuf = info.DepthAttachment ? info.DepthAttachment->DepthBuffer : nullptr;
 	bool depthClear = true;
 	float depthClearVal = 1.0f;
+	rc<Image> localDepthBuf = nullptr;
 	if (!selectedDepthBuf)
 	{
-	    if (!DepthBuffer || (DepthBuffer->GetEffectiveExtent().width != extent.width ||
-						     DepthBuffer->GetEffectiveExtent().height != extent.height))
-	    {
-		    if (DepthBuffer)
-		    {
-			    cmd->AddDependency(DepthBuffer);
-		    }
-		    DepthBuffer = vk::Image::New(GetDevice(),
-									     vk::ImageCreateInfo{
-										     .Extent = extent,
-										     .Format = VK_FORMAT_D32_SFLOAT,
-										     .Usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-									     });
-		}
-		selectedDepthBuf = DepthBuffer;
+		localDepthBuf = GetDevice()->ResourcePools.Image.Get(vk::ImageCreateInfo{
+											 .Extent = extent,
+											 .Format = VK_FORMAT_D32_SFLOAT,
+											 .Usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT }, "Depth Buffer");
+		selectedDepthBuf = localDepthBuf;
 	}
 	else
 	{
@@ -319,6 +308,11 @@ void Renderpass::Begin(rc<CommandBuffer> cmd, const BeginPassInfo& info)
 	}
 	constants = { img->Src->GetExtent(), info.FrameNumber, info.DeltaSeconds };
 	PL->PushConstants(cmd, constants);
+	if (localDepthBuf)
+		GetDevice()->ResourcePools.Image.Release(uint64_t(localDepthBuf->Handle));
+	if (localMsBuffer)
+		GetDevice()->ResourcePools.Image.Release(uint64_t(localMsBuffer->Handle));
+
 }
 
 void Renderpass::End(rc<CommandBuffer> Cmd)
