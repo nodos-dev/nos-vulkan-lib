@@ -7,6 +7,7 @@
 
 // std
 #include <unordered_map>
+#include <shared_mutex>
 
 namespace nos::vk
 {
@@ -35,13 +36,14 @@ public:
 	
 	rc<ResourceT> Get(CreationInfoT const& info, std::string tag)
 	{
+		std::unique_lock guard(Mutex);
 		auto freeIt = Free.find(info);
 		if (freeIt == Free.end())
 		{
 			auto res = typename ResourceT::New(Device, info);
 			if (!res)
-				return nullptr;	
-			Used[uint64_t(res->Handle)] = {tag, info, res};
+				return nullptr;
+			Used[uint64_t(res->Handle)] = { tag, info, res };
 			++Counts[info];
 			return res;
 		}
@@ -50,12 +52,13 @@ public:
 		resources.pop_back();
 		if (resources.empty())
 			Free.erase(freeIt);
-		Used[uint64_t(res->Handle)] = {tag, info, res};
+		Used[uint64_t(res->Handle)] = { tag, info, res };
 		return res;
 	}
 
 	bool Release(uint64_t handle)
 	{
+		std::unique_lock guard(Mutex);
 		auto usedIt = Used.find(handle);
 		if (usedIt == Used.end())
 		{
@@ -66,28 +69,27 @@ public:
 		Used.erase(usedIt);
 		auto& freeList = Free[info];
 		if (!ResourceReleasePolicyT::ShouldRelease(freeList.size(), Counts[info]))
-		{
 			Free[info].push_back(std::move(res));
-		}
 		else
-		{
 			--Counts[info];
-		}
 		return true;
 	}
 
 	void Purge()
 	{
+		std::unique_lock guard(Mutex);
 		Free.clear();
 	}
 
 	bool IsUsed(uint64_t handle) const
 	{
+		std::shared_lock guard(Mutex);
 		return Used.contains(handle);
 	}
 
 	ResourceT* FindUsed(uint64_t handle) const
 	{
+		std::shared_lock guard(Mutex);
 		auto it = Used.find(handle);
 		if (it == Used.end())
 			return nullptr;
@@ -96,18 +98,28 @@ public:
 
 	uint64_t GetAvailableResourceCount() const
 	{
+		std::shared_lock guard(Mutex);
 		uint64_t ret = 0;
 		for (auto& [info, freeList] : Free)
 			ret += freeList.size();
 		return ret;
 	}
 
-	uint64_t GetUsedResourceCount() const { return Used.size(); }
+	uint64_t GetUsedResourceCount() const
+	{
+		std::shared_lock guard(Mutex);
+		return Used.size();
+	}
 
-	uint64_t GetTotalMemoryUsage() const { return GetAvailableResourceMemoryUsage() + GetUsedResourceMemoryUsage();	}
+	uint64_t GetTotalMemoryUsage() const
+	{
+		std::shared_lock guard(Mutex);
+		return GetAvailableResourceMemoryUsage() + GetUsedResourceMemoryUsage();
+	}
 
 	uint64_t GetAvailableResourceMemoryUsage() const
 	{
+		std::shared_lock guard(Mutex);
 		uint64_t ret = 0;
 		for (auto& [info, freeList] : Free)
 			for (auto& free : freeList)
@@ -117,6 +129,7 @@ public:
 
 	uint64_t GetUsedResourceMemoryUsage() const
 	{
+		std::shared_lock guard(Mutex);
 		uint64_t ret = 0;
 		for (auto& [handle, info] : Used)
 			ret += info.Resource->Allocation.GetSize();
@@ -125,6 +138,7 @@ public:
 	
 	void ChangedUsedResourceTag(uint64_t handle, std::string tag)
 	{ 
+		std::unique_lock guard(Mutex);
 		auto it = Used.find(handle);
 		if (it == Used.end())
 		{
@@ -134,13 +148,14 @@ public:
 		it->second.Tag = std::move(tag);
 	}
 
-	UsedMap const& GetUsed() const { return Used; }
-	FreeMap const& GetFree() const { return Free; }
+	UsedMap GetUsed() const { return Used; }
+	FreeMap GetFree() const { return Free; }
 protected:
 	vk::Device* Device;
 	UsedMap Used;
 	FreeMap Free;
 	CountsPerType Counts;
+	std::shared_mutex Mutex;
 };
 
 template <size_t FreeSlotsPerCreationInfo>
