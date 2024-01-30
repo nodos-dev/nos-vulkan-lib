@@ -188,7 +188,7 @@ rc<QueryPool> Device::GetQPool()
 }
 
 Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice)
-    : Instance(Instance), PhysicalDevice(PhysicalDevice), Features(PhysicalDevice)
+	: Instance(Instance), PhysicalDevice(PhysicalDevice), Features(PhysicalDevice), ResourcePools({ .Image = ImagePool(this), .Buffer = BufferPool(this) })
 {
     u32 count;
 

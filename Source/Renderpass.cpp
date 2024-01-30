@@ -273,7 +273,6 @@ void Renderpass::Begin(rc<CommandBuffer> cmd, const BeginPassInfo& info)
     }
     else
     {
-    
         VkRenderingAttachmentInfo Attachment = {
             .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
             .imageView = imageView,
