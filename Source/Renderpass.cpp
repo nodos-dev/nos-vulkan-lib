@@ -151,7 +151,7 @@ void Renderpass::Begin(rc<CommandBuffer> cmd, const BeginPassInfo& info)
 	rc<Image> localMsBuffer = nullptr;
     if(PL->MS > 1)
     {
-		localMsBuffer = GetDevice()->ResourcePools.Image.Get(ImageCreateInfo{
+		localMsBuffer = GetDevice()->ResourcePools.Image->Get(ImageCreateInfo{
 									   .Extent = info.OutImage->GetEffectiveExtent(),
 									   .Format = info.OutImage->GetEffectiveFormat(),
 									   .Usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
@@ -183,7 +183,7 @@ void Renderpass::Begin(rc<CommandBuffer> cmd, const BeginPassInfo& info)
 	rc<Image> localDepthBuf = nullptr;
 	if (!selectedDepthBuf)
 	{
-		localDepthBuf = GetDevice()->ResourcePools.Image.Get(vk::ImageCreateInfo{
+		localDepthBuf = GetDevice()->ResourcePools.Image->Get(vk::ImageCreateInfo{
 											 .Extent = extent,
 											 .Format = VK_FORMAT_D32_SFLOAT,
 											 .Usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT }, "Depth Buffer");
@@ -309,9 +309,9 @@ void Renderpass::Begin(rc<CommandBuffer> cmd, const BeginPassInfo& info)
 	constants = { img->Src->GetExtent(), info.FrameNumber, info.DeltaSeconds };
 	PL->PushConstants(cmd, constants);
 	if (localDepthBuf)
-		GetDevice()->ResourcePools.Image.Release(uint64_t(localDepthBuf->Handle));
+		GetDevice()->ResourcePools.Image->Release(uint64_t(localDepthBuf->Handle));
 	if (localMsBuffer)
-		GetDevice()->ResourcePools.Image.Release(uint64_t(localMsBuffer->Handle));
+		GetDevice()->ResourcePools.Image->Release(uint64_t(localMsBuffer->Handle));
 
 }
 

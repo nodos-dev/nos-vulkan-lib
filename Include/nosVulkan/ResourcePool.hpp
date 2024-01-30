@@ -81,13 +81,13 @@ public:
 		Free.clear();
 	}
 
-	bool IsUsed(uint64_t handle) const
+	bool IsUsed(uint64_t handle)
 	{
 		std::shared_lock guard(Mutex);
 		return Used.contains(handle);
 	}
 
-	ResourceT* FindUsed(uint64_t handle) const
+	ResourceT* FindUsed(uint64_t handle)
 	{
 		std::shared_lock guard(Mutex);
 		auto it = Used.find(handle);
@@ -96,7 +96,7 @@ public:
 		return it->second.Resource.get();
 	}
 
-	uint64_t GetAvailableResourceCount() const
+	uint64_t GetAvailableResourceCount()
 	{
 		std::shared_lock guard(Mutex);
 		uint64_t ret = 0;
@@ -105,19 +105,19 @@ public:
 		return ret;
 	}
 
-	uint64_t GetUsedResourceCount() const
+	uint64_t GetUsedResourceCount()
 	{
 		std::shared_lock guard(Mutex);
 		return Used.size();
 	}
 
-	uint64_t GetTotalMemoryUsage() const
+	uint64_t GetTotalMemoryUsage()
 	{
 		std::shared_lock guard(Mutex);
 		return GetAvailableResourceMemoryUsage() + GetUsedResourceMemoryUsage();
 	}
 
-	uint64_t GetAvailableResourceMemoryUsage() const
+	uint64_t GetAvailableResourceMemoryUsage()
 	{
 		std::shared_lock guard(Mutex);
 		uint64_t ret = 0;
@@ -127,7 +127,7 @@ public:
 		return ret;
 	}
 
-	uint64_t GetUsedResourceMemoryUsage() const
+	uint64_t GetUsedResourceMemoryUsage()
 	{
 		std::shared_lock guard(Mutex);
 		uint64_t ret = 0;
@@ -148,8 +148,8 @@ public:
 		it->second.Tag = std::move(tag);
 	}
 
-	UsedMap GetUsed() const { return Used; }
-	FreeMap GetFree() const { return Free; }
+	UsedMap GetUsed() { std::shared_lock guard(Mutex); return Used; }
+	FreeMap GetFree() { std::shared_lock guard(Mutex); return Free; }
 protected:
 	vk::Device* Device;
 	UsedMap Used;

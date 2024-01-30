@@ -13,8 +13,12 @@
 #include <iostream>
 #include <bit>
 
+#ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
 #define NOMINMAX
+#endif
 #include <Windows.h>
 
 static std::vector<const char*> layers = {
@@ -188,7 +192,7 @@ rc<QueryPool> Device::GetQPool()
 }
 
 Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice)
-	: Instance(Instance), PhysicalDevice(PhysicalDevice), Features(PhysicalDevice), ResourcePools({ .Image = ImagePool(this), .Buffer = BufferPool(this) })
+	: Instance(Instance), PhysicalDevice(PhysicalDevice), Features(PhysicalDevice), ResourcePools({ .Image = MakeShared<ImagePool>(this), .Buffer = MakeShared<BufferPool>(this) })
 {
     u32 count;
 

@@ -152,8 +152,8 @@ struct nosVulkan_API Device : SharedFactory<Device>,
 
 	struct
 	{
-		ImagePool Image;
-		BufferPool Buffer;
+		rc<ImagePool> Image;
+		rc<BufferPool> Buffer;
 	} ResourcePools;
 
     VkSampler GetSampler(VkSamplerCreateInfo const& info);
