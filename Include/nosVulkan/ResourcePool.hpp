@@ -117,9 +117,9 @@ public:
 		return GetAvailableResourceMemoryUsage() + GetUsedResourceMemoryUsage();
 	}
 
+	/// Not thread safe.
 	uint64_t GetAvailableResourceMemoryUsage()
 	{
-		std::shared_lock guard(Mutex);
 		uint64_t ret = 0;
 		for (auto& [info, freeList] : Free)
 			for (auto& free : freeList)
@@ -127,9 +127,9 @@ public:
 		return ret;
 	}
 
+	/// Not thread safe.
 	uint64_t GetUsedResourceMemoryUsage()
 	{
-		std::shared_lock guard(Mutex);
 		uint64_t ret = 0;
 		for (auto& [handle, info] : Used)
 			ret += info.Resource->Allocation.GetSize();
@@ -155,7 +155,7 @@ protected:
 	UsedMap Used;
 	FreeMap Free;
 	CountsPerType Counts;
-	std::shared_mutex Mutex;
+	std::shared_mutex Mutex{};
 };
 
 template <size_t FreeSlotsPerCreationInfo>
