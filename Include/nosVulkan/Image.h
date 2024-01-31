@@ -52,6 +52,7 @@ public:
 	rc<vk::Semaphore> ExtSemaphore;
 
     Image(Device* Vk, ImageCreateInfo const& createInfo, VkResult* re = 0);
+	Image(Device* Vk, VkImage img, VkExtent2D extent, VkFormat format, VkImageUsageFlags usage);
 
     void Transition(rc<CommandBuffer> Cmd, ImageState Dst);
     void BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src, VkFilter Filter);

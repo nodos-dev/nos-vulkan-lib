@@ -123,7 +123,7 @@ public:
 		uint64_t ret = 0;
 		for (auto& [info, freeList] : Free)
 			for (auto& free : freeList)
-				ret += free->Allocation.GetSize();
+				ret += free->Size;
 		return ret;
 	}
 
@@ -132,7 +132,7 @@ public:
 	{
 		uint64_t ret = 0;
 		for (auto& [handle, info] : Used)
-			ret += info.Resource->Allocation.GetSize();
+			ret += info.Resource->Size;
 		return ret;
 	}
 	

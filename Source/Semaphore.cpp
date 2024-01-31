@@ -11,7 +11,8 @@ namespace nos::vk
 
 #define HANDLE_TYPE  (VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT)
 
-Semaphore::Semaphore(Device *Vk, u64 pid, HANDLE ExtHandle) : DeviceChild(Vk)
+Semaphore::Semaphore(Device* Vk, bool timeline, u64 pid, HANDLE ExtHandle) 
+    : DeviceChild(Vk), Timeline(timeline)
 {
     VkExportSemaphoreWin32HandleInfoKHR handleInfo = {
         .sType = VK_STRUCTURE_TYPE_EXPORT_SEMAPHORE_WIN32_HANDLE_INFO_KHR,
@@ -24,18 +25,23 @@ Semaphore::Semaphore(Device *Vk, u64 pid, HANDLE ExtHandle) : DeviceChild(Vk)
         .handleTypes = HANDLE_TYPE,
     };
 
-    VkSemaphoreTypeCreateInfo semaphoreTypeInfo = {
-        .sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
-        .pNext = &exportInfo,
-        .semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE,
-		.initialValue = 0,
-    };
+    
 
     VkSemaphoreCreateInfo semaphoreCreateInfo = {
         .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-        .pNext = &semaphoreTypeInfo,
 		.flags = 0,
     };
+
+    if (timeline)
+    {
+		VkSemaphoreTypeCreateInfo semaphoreTypeInfo = {
+			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
+			.pNext = &exportInfo,
+			.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE,
+			.initialValue = 0,
+		};
+        semaphoreCreateInfo.pNext = &semaphoreTypeInfo;
+    }
 
     NOSVK_ASSERT(Vk->CreateSemaphore(&semaphoreCreateInfo, 0, &Handle));
 
@@ -56,12 +62,14 @@ Semaphore::Semaphore(Device *Vk, u64 pid, HANDLE ExtHandle) : DeviceChild(Vk)
         .semaphore = Handle,
         .handleType = HANDLE_TYPE,
     };
-
-    NOSVK_ASSERT(Vk->GetSemaphoreWin32HandleKHR(&getHandleInfo, &OSHandle));
-    assert(OSHandle);
+    if (timeline)
+    {
+        NOSVK_ASSERT(Vk->GetSemaphoreWin32HandleKHR(&getHandleInfo, &OSHandle));
+        assert(OSHandle);
     
-    DWORD flags;
-    WIN32_ASSERT(GetHandleInformation(OSHandle, &flags));
+        DWORD flags;
+        WIN32_ASSERT(GetHandleInformation(OSHandle, &flags));
+    }
 }
 
 void Semaphore::Signal(uint64_t value)
@@ -100,7 +108,8 @@ u64 Semaphore::GetValue() const
 
 Semaphore::~Semaphore()
 {
-    PlatformCloseHandle(OSHandle);
+	if (OSHandle)
+        PlatformCloseHandle(OSHandle);
     Vk->DestroySemaphore(Handle, 0);
 }
 

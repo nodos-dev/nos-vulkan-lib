@@ -12,10 +12,13 @@ namespace nos::vk
 Image::~Image()
 {
     Views.clear();
-    if (Allocation.Imported)
-        Vk->DestroyImage(Handle, 0);
-    else if (Allocation.Handle)
-        vmaDestroyImage(Vk->Allocator, Handle, Allocation.Handle);
+    if (Allocation)
+    {
+        if (Allocation->Imported)
+            Vk->DestroyImage(Handle, 0);
+        else if (Allocation->Handle)
+            vmaDestroyImage(Vk->Allocator, Handle, Allocation->Handle);
+    }
 };
 
 ImageView::~ImageView()
@@ -55,16 +58,14 @@ ImageView::ImageView(struct Image* Src, VkFormat Format, VkImageUsageFlags Usage
 }
 
 Image::Image(Device* Vk, ImageCreateInfo const& createInfo, VkResult* re)
-    : ResourceBase(Vk),
-      Extent(createInfo.Extent),
-      Format(createInfo.Format),
-      Usage(createInfo.Usage),
-      State{
-          .StageMask  = VK_PIPELINE_STAGE_NONE,
-          .AccessMask = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT,
-          .Layout     = VK_IMAGE_LAYOUT_UNDEFINED,
-      }
+	: ResourceBase(Vk), Extent(createInfo.Extent), Format(createInfo.Format), Usage(createInfo.Usage),
+	  State{
+		  .StageMask = VK_PIPELINE_STAGE_NONE,
+		  .AccessMask = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT,
+		  .Layout = VK_IMAGE_LAYOUT_UNDEFINED,
+	  }
 {
+	Allocation = vk::Allocation{};
 	if (createInfo.Imported)
 		State.Layout = VK_IMAGE_LAYOUT_PREINITIALIZED;
 
@@ -123,26 +124,41 @@ Image::Image(Device* Vk, ImageCreateInfo const& createInfo, VkResult* re)
 	{
         result = Vk->CreateImage(&info, 0, &Handle);
         if (NOS_VULKAN_SUCCEEDED(result))
-            result = Allocation.Import(Vk, Handle, *imported, memProps);
+            result = Allocation->Import(Vk, Handle, *imported, memProps);
 	}
 	else // Exported
 	{
 		VmaAllocationCreateInfo allocationCreateInfo{.usage = VMA_MEMORY_USAGE_AUTO, .requiredFlags = memProps};
-		result = vmaCreateImage(Vk->Allocator, &info, &allocationCreateInfo, &Handle, &Allocation.Handle, &Allocation.Info);
+		result = vmaCreateImage(Vk->Allocator, &info, &allocationCreateInfo, &Handle, &Allocation->Handle, &Allocation->Info);
     }
     
 	if (NOS_VULKAN_SUCCEEDED(result))
 	{
 		VkMemoryRequirements memReq = {};
         Vk->GetImageMemoryRequirements(Handle, &memReq);
-		assert(memReq.size == Allocation.GetSize());
+		assert(memReq.size == Allocation->GetSize());
 	}
 
 	if (NOS_VULKAN_SUCCEEDED(result))
-        result = Allocation.SetExternalMemoryHandleType(Vk, createInfo.ExternalMemoryHandleType);
+        result = Allocation->SetExternalMemoryHandleType(Vk, createInfo.ExternalMemoryHandleType);
 
 	if (re)
 		*re = result;
+	Size = Allocation->GetSize();
+}
+
+Image::Image(Device* vk, VkImage img, VkExtent2D extent, VkFormat format, VkImageUsageFlags usage)
+	: ResourceBase(vk), Extent(extent), Format(format), Usage(usage),
+	  State{
+		  .StageMask = VK_PIPELINE_STAGE_NONE,
+		  .AccessMask = 0,
+		  .Layout = VK_IMAGE_LAYOUT_UNDEFINED,
+	  }
+{
+    Handle = img;
+	VkMemoryRequirements memReq = {};
+	Vk->GetImageMemoryRequirements(Handle, &memReq);
+	Size = memReq.size;
 }
 
 void Image::Transition(
@@ -254,7 +270,7 @@ rc<Buffer> Image::Download(rc<CommandBuffer> Cmd)
     assert(Usage & VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
 
     rc<Buffer> StagingBuffer = Buffer::New(Vk, BufferCreateInfo { 
-        .Size = (u32)Allocation.GetSize(), 
+        .Size = (u32)Size, 
         .Usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT, 
     });
     
@@ -368,7 +384,7 @@ void Image::CopyFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
 
     assert(
         (Dst->Extent.width == Src->Extent.width && Dst->Extent.height == Src->Extent.height) ||
-        Dst->Allocation.GetSize() >= Src->Allocation.GetSize()
+        Dst->Size >= Src->Size
     );
 
     Src->Transition(Cmd, ImageState{
