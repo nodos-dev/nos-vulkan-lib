@@ -12,6 +12,7 @@
 
 #include <iostream>
 #include <bit>
+#include <memory>
 
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -192,7 +193,7 @@ rc<QueryPool> Device::GetQPool()
 }
 
 Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice)
-	: Instance(Instance), PhysicalDevice(PhysicalDevice), Features(PhysicalDevice), ResourcePools({ .Image = MakeShared<ImagePool>(this), .Buffer = MakeShared<BufferPool>(this) })
+	: Instance(Instance), PhysicalDevice(PhysicalDevice), Features(PhysicalDevice), ResourcePools({ .Image = std::make_unique<ImagePool>(this), .Buffer = std::make_unique<BufferPool>(this) })
 {
     u32 count;
 
@@ -315,6 +316,7 @@ void Context::OrderDevices()
 
 Device::~Device()
 {
+	ResourcePools = {};
     {
         std::lock_guard lock(Lock);
         Devices.erase(this);
