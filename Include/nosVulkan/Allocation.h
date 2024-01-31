@@ -39,24 +39,28 @@ template <typename T>
 struct nosVulkan_API ResourceBase : DeviceChild
 {
 	T Handle;
-	Allocation Allocation;
+	VkDeviceSize Size;
+	std::optional<Allocation> Allocation = std::nullopt;
 	using DeviceChild::DeviceChild;
 	
 	MemoryExportInfo GetExportInfo() const
 	{
+		if (!Allocation)
+			return {};
 		return MemoryExportInfo{
-			.HandleType = Allocation.ExternalMemoryHandleType,
+			.HandleType = Allocation->ExternalMemoryHandleType,
 			.PID    = PlatformGetCurrentProcessId(),
-			.Handle = Allocation.OsHandle,
-			.Offset = Allocation.GetOffset(),
-			.Size = Allocation.GetSize(),
-			.AllocationSize = Allocation.GetAllocationSize()
+			.Handle = Allocation->OsHandle,
+			.Offset = Allocation->GetOffset(),
+			.Size = Size,
+			.AllocationSize = Allocation->GetAllocationSize()
 		};
 	}
 	
 	~ResourceBase() override
 	{
-		Allocation.Release(GetDevice());
+		if (Allocation)
+			Allocation->Release(GetDevice());
 	}
 };
 

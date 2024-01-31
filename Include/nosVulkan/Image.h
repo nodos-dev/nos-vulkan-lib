@@ -50,10 +50,9 @@ public:
     ImageState State = {}; // This is not thread safe.
     std::map<u64, rc<ImageView>> Views;
 	rc<vk::Semaphore> ExtSemaphore;
-	bool Owned = true;
 
     Image(Device* Vk, ImageCreateInfo const& createInfo, VkResult* re = 0);
-	Image(Device* Vk, VkImage img);
+	Image(Device* Vk, VkImage img, VkExtent2D extent, VkFormat format, VkImageUsageFlags usage);
 
     void Transition(rc<CommandBuffer> Cmd, ImageState Dst);
     void BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src, VkFilter Filter);

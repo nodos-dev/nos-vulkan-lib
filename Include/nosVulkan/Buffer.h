@@ -28,7 +28,7 @@ struct nosVulkan_API Buffer : SharedFactory<Buffer>, ResourceBase<VkBuffer>
     DescriptorResourceInfo GetDescriptorInfo() const;
 
     Buffer(Device* Vk, BufferCreateInfo const& info);
-
+	Buffer(Device* Vk, VkBuffer handle, VkBufferUsageFlags Usage);
     ~Buffer();
 
     void Upload(rc<CommandBuffer> Cmd, rc<Buffer> Buffer, const VkBufferCopy* Region = 0);

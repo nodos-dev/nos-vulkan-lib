@@ -11,6 +11,8 @@ namespace nos::vk
 Buffer::Buffer(Device* Vk, BufferCreateInfo const& info) 
     : ResourceBase(Vk), Usage(info.Usage)
 {
+	Size = info.Size;
+	Allocation = vk::Allocation{};
 	auto type = info.ExternalMemoryHandleType;
 
 	VkExternalMemoryBufferCreateInfo resourceCreateInfo = {
@@ -34,7 +36,7 @@ Buffer::Buffer(Device* Vk, BufferCreateInfo const& info)
 	if (auto* imported = info.Imported)
 	{
 		NOSVK_ASSERT(Vk->CreateBuffer(&bufferCreateInfo, 0, &Handle));
-        NOSVK_ASSERT(Allocation.Import(Vk, Handle, *imported, memProps));
+        NOSVK_ASSERT(Allocation->Import(Vk, Handle, *imported, memProps));
 	}
 	else
 	{
@@ -46,14 +48,22 @@ Buffer::Buffer(Device* Vk, BufferCreateInfo const& info)
 			.usage = VMA_MEMORY_USAGE_AUTO, 
 			.requiredFlags = memProps
 		};
-		NOSVK_ASSERT(vmaCreateBuffer(Vk->Allocator, &bufferCreateInfo, &allocCreateInfo, &Handle, &Allocation.Handle, &Allocation.Info));
+		NOSVK_ASSERT(vmaCreateBuffer(Vk->Allocator, &bufferCreateInfo, &allocCreateInfo, &Handle, &Allocation->Handle, &Allocation->Info));
 	}
 
 	VkMemoryRequirements memReq = {};
 	Vk->GetBufferMemoryRequirements(Handle, &memReq);
-	assert(memReq.size == Allocation.GetSize());
+	assert(memReq.size == Allocation->GetSize());
 
-	NOSVK_ASSERT(Allocation.SetExternalMemoryHandleType(Vk, info.ExternalMemoryHandleType));
+	NOSVK_ASSERT(Allocation->SetExternalMemoryHandleType(Vk, info.ExternalMemoryHandleType));
+}
+
+Buffer::Buffer(Device* Vk, VkBuffer handle, VkBufferUsageFlags Usage) : ResourceBase(Vk), Usage(Usage)
+{
+	Handle = handle;
+	VkMemoryRequirements memReq = {};
+	Vk->GetBufferMemoryRequirements(Handle, &memReq);
+    Size = memReq.size;
 }
 
 void Buffer::Bind(VkDescriptorType type, u32 bind, VkDescriptorSet set)
@@ -97,7 +107,7 @@ void Buffer::Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src, const VkBufferCopy* R
     VkBufferCopy DefaultRegion = {
         .srcOffset = 0,
         .dstOffset = 0,
-        .size      = Src->Allocation.GetSize(),
+        .size      = Src->Size,
     };
 
     if (!Region)
@@ -121,15 +131,17 @@ void Buffer::Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src, const VkBufferCopy* R
 
 void Buffer::Copy(size_t len, const void* pp, size_t offset)
 {
-    assert(offset + len <= Allocation.GetSize());
+    assert(offset + len <= Size);
     memcpy(Map() + offset, pp, len);
 }
 
 u8* Buffer::Map()
 {
-    if (Allocation.Imported)
-        NOSVK_ASSERT(Vk->MapMemory(Allocation.GetMemory(), Allocation.GetOffset(), Allocation.GetSize(), 0, &Allocation.Mapping()))
-    return (u8*)Allocation.Mapping();
+	if (!Allocation)
+		return nullptr;
+    if (Allocation->Imported)
+        NOSVK_ASSERT(Vk->MapMemory(Allocation->GetMemory(), Allocation->GetOffset(), Allocation->GetSize(), 0, &Allocation->Mapping()))
+    return (u8*)Allocation->Mapping();
 }
 
 DescriptorResourceInfo Buffer::GetDescriptorInfo() const
@@ -144,10 +156,13 @@ DescriptorResourceInfo Buffer::GetDescriptorInfo() const
 
 Buffer::~Buffer()
 {
-	if (Allocation.Imported)
-		Vk->DestroyBuffer(Handle, 0);
-	else if (Allocation.Handle)
-		vmaDestroyBuffer(Vk->Allocator, Handle, Allocation.Handle);
+    if (Allocation)
+    {
+        if (Allocation->Imported)
+		    Vk->DestroyBuffer(Handle, 0);
+	    else if (Allocation->Handle)
+		    vmaDestroyBuffer(Vk->Allocator, Handle, Allocation->Handle);
+    }
 }
 
 } // namespace nos::vk
