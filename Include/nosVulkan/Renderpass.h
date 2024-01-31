@@ -109,29 +109,39 @@ struct nosVulkan_API Computepass : SharedFactory<Computepass>, Basepass
 struct nosVulkan_API Renderpass : SharedFactory<Renderpass>, Basepass
 {
     VkFramebuffer FrameBuffer = 0;
-    rc<Image> DepthBuffer;
     rc<ImageView> ImgView;
 
     Renderpass(rc<GraphicsPipeline> PL);
     Renderpass(Device* Vk, std::vector<u8> const& src);
     ~Renderpass();
-    
+	
+    struct DepthAttachmentInfo
+	{
+		rc<Image> DepthBuffer;
+		bool Clear;
+		float ClearValue;
+	};
+
+    struct BeginPassInfo
+    {
+		rc<Image> OutImage;
+		std::optional<DepthAttachmentInfo> DepthAttachment;
+		bool Wireframe = false;
+		bool Clear = true;
+		u64 FrameNumber = 0;
+		float DeltaSeconds = .0f;
+		std::array<float, 4> ClearCol = {0.0f};
+    };
+
     rc<GraphicsPipeline> GetPL() const { return ((GraphicsPipeline*)PL.get())->shared_from_this(); }
-	void Begin(rc<CommandBuffer> Cmd,
-			   rc<Image> Image,
-			   bool wireframe = false,
-			   bool clear = true,
-			   u32 frameNumber = 0,
-			   float deltaSeconds = .0f,
-			   std::array<float, 4> clearCol = {0.0f});
+	void Begin(rc<CommandBuffer> cmd, const BeginPassInfo& info);
     void End(rc<CommandBuffer> Cmd);
-	void Exec(rc<vk::CommandBuffer> Cmd,
-			  rc<vk::Image> Output,
-			  const VertexData* = 0,
-			  bool clear = true,
-			  u32 frameNumber = 0,
-			  float deltaSeconds = .0f,
-			  std::array<float, 4> clearCol = {0.0f});
+	struct ExecPassInfo
+	{
+		BeginPassInfo BeginInfo = {};
+		const VertexData* VtxData = 0;
+	};
+    void Exec(rc<vk::CommandBuffer> Cmd, const ExecPassInfo& info);
     void Draw(rc<vk::CommandBuffer> Cmd, const VertexData* Verts = 0);
 };
 }

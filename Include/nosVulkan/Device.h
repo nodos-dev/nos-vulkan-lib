@@ -7,6 +7,7 @@
 // nosVulkan
 #include "Common.h"
 #include "Allocation.h"
+#include "ResourcePool.hpp"
 
 // std
 #include <thread>
@@ -99,7 +100,6 @@ struct FeatureSet  :
     
 };
 
-
 struct nosVulkan_API Device : SharedFactory<Device>,
                              VklDeviceFunctions
 {
@@ -149,6 +149,12 @@ struct nosVulkan_API Device : SharedFactory<Device>,
 
     std::mutex MemoryBlocksMutex;
     std::unordered_map<VkDeviceMemory, std::pair<void*, u32>> MemoryBlocks;
+
+	struct
+	{
+		std::unique_ptr<ImagePool> Image;
+		std::unique_ptr<BufferPool> Buffer;
+	} ResourcePools;
 
     VkSampler GetSampler(VkSamplerCreateInfo const& info);
     VkSampler GetSampler(VkFilter);
@@ -282,6 +288,6 @@ struct nosVulkan_API Context : SharedFactory<Context>
     ~Context();
     Context(DebugCallback* = 0);
     void OrderDevices();
-    static void EnableValidationLayers(bool enable);
+	static void EnableValidationLayers(bool enable);
 };
 } // namespace nos::vk
