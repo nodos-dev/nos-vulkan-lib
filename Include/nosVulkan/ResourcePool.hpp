@@ -14,8 +14,7 @@ namespace nos::vk
 
 template <typename ResourceT, typename CreationInfoT,
 		  typename CreationInfoHasherT = std::hash<CreationInfoT>,
-		  typename CreationInfoEqualsT = std::equal_to<CreationInfoT>,
-		  typename ResourceReleasePolicyT = KeepFreeSlots<12>>
+		  typename CreationInfoEqualsT = std::equal_to<CreationInfoT>>
 class ResourcePool
 {
 public:
@@ -25,26 +24,37 @@ public:
 		CreationInfoT CreationInfo;
 		rc<ResourceT> Resource;
 	};
+	template <typename T>
+	using MapWithCreationInfoAsKey = std::unordered_map<CreationInfoT, T, CreationInfoHasherT, CreationInfoEqualsT>;
+
 	using UsedMap = std::unordered_map<uint64_t, UsedResourceInfo>;
 	using CountsPerType = std::unordered_map<CreationInfoT, uint64_t, CreationInfoHasherT, CreationInfoEqualsT>;
-	using FreeList = std::vector<rc<ResourceT>>;
-	using FreeMap = std::unordered_map<CreationInfoT, FreeList, CreationInfoHasherT, CreationInfoEqualsT>;
+	using FreeList = std::list<rc<ResourceT>>;
+	using FreeMap = MapWithCreationInfoAsKey<FreeList>;
 
-	ResourcePool(vk::Device* device) : Device(device)
-	{
-	}
+	ResourcePool(vk::Device* device)
+		: Device(device) {}
+
+	ResourcePool(vk::Device* device,
+	             size_t minCountPerType,
+	             float maxLoadFactorPerType,
+	             float maxFree2BudgetRatio)
+		: Device(device), MinCountPerType(minCountPerType),
+		  MaxLoadFactorPerType(maxLoadFactorPerType),
+		  MaxFree2BudgetRatio(maxFree2BudgetRatio) {}
 	
 	rc<ResourceT> Get(CreationInfoT const& info, std::string tag)
 	{
 		std::unique_lock guard(Mutex);
 		auto freeIt = Free.find(info);
-		if (freeIt == Free.end())
+		if (freeIt == Free.end() || freeIt->second.empty())
 		{
 			auto res = typename ResourceT::New(Device, info);
 			if (!res)
 				return nullptr;
 			Used[uint64_t(res->Handle)] = { tag, info, res };
 			++Counts[info];
+			CheckAndClean();
 			return res;
 		}
 		auto& resources = freeIt->second;
@@ -53,6 +63,7 @@ public:
 		if (resources.empty())
 			Free.erase(freeIt);
 		Used[uint64_t(res->Handle)] = { tag, info, res };
+		CheckAndClean();
 		return res;
 	}
 
@@ -67,18 +78,49 @@ public:
 		}
 		auto [tag, info, res] = usedIt->second;
 		Used.erase(usedIt);
-		auto& freeList = Free[info];
-		if (!ResourceReleasePolicyT::ShouldRelease(freeList.size(), Counts[info]))
-			Free[info].push_back(std::move(res));
-		else
-			--Counts[info];
+		Free[info].push_back(std::move(res));
+		CheckAndClean();
 		return true;
 	}
 
-	void Purge()
+	virtual bool ShouldRelease(CreationInfoT const& info)
+	{
+		auto mem = Device->GetCurrentMemoryUsage();
+		auto freeUsage = GetAvailableResourceMemoryUsage();
+		float c = freeUsage / float(mem.Budget);
+		if (c > MaxFree2BudgetRatio)
+			return true;
+		const auto currentlyFree = Free[info].size();
+		const auto allocatedCount = Counts[info];
+		if (currentlyFree < MinCountPerType || (allocatedCount / static_cast<float>(allocatedCount - currentlyFree)) < MaxLoadFactorPerType)
+			return false;
+		return true;
+	}
+	
+	virtual void CheckAndClean()
+	{
+		for (auto& [info, freeList] : Free)
+		{
+			while (!freeList.empty() && ShouldRelease(info))
+			{
+				freeList.pop_back();
+				--Counts[info];
+			}
+		}
+		for (auto it = Free.begin(); it != Free.end();)
+		{
+			if (it->second.empty())
+				it = Free.erase(it);
+			else
+				++it;
+		}
+	}
+
+	void GarbageCollect()
 	{
 		std::unique_lock guard(Mutex);
 		Free.clear();
+		Counts.clear();
 	}
 
 	bool IsUsed(uint64_t handle)
@@ -156,28 +198,11 @@ protected:
 	FreeMap Free;
 	CountsPerType Counts;
 	std::shared_mutex Mutex{};
-};
 
-template <size_t FreeSlotsPerCreationInfo>
-struct KeepFreeSlots
-{
-	static bool ShouldRelease(size_t currentlyFree, size_t allocatedCount)
-	{
-		if (currentlyFree < FreeSlotsPerCreationInfo)
-			return false;
-		return true;
-	}
-};
-
-template <size_t MinCount, float MaxLoadFactor>
-struct MaintainLoadFactor
-{
-	static bool ShouldRelease(size_t currentlyFree, size_t allocatedCount)
-	{
-		if (currentlyFree < MinCount || (allocatedCount / static_cast<float>(allocatedCount - currentlyFree)) < MaxLoadFactor)
-			return false;
-		return true;
-	}
+	// Options
+	size_t MinCountPerType = 12;
+	float MaxLoadFactorPerType = 1.5f; // Per type, All / Free.
+	float MaxFree2BudgetRatio = .5f; // Memory, Free resources / Remaining budget.
 };
 
 // TODO: Move below to ResourceManager.cpp after if/when ResourcePool is fully generic
@@ -222,7 +247,7 @@ struct BufferCreateInfoEquals
 };
 } // namespace detail
 
-using ImagePool = ResourcePool<vk::Image, vk::ImageCreateInfo, detail::ImageCreateInfoHasher, detail::ImageCreateInfoEquals, MaintainLoadFactor<12, 1.5>>;
-using BufferPool = ResourcePool<vk::Buffer, vk::BufferCreateInfo, detail::BufferCreateInfoHasher, detail::BufferCreateInfoEquals, MaintainLoadFactor<12, 1.5>>;
+using ImagePool = ResourcePool<vk::Image, vk::ImageCreateInfo, detail::ImageCreateInfoHasher, detail::ImageCreateInfoEquals>;
+using BufferPool = ResourcePool<vk::Buffer, vk::BufferCreateInfo, detail::BufferCreateInfoHasher, detail::BufferCreateInfoEquals>;
 
 }
