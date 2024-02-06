@@ -33,6 +33,7 @@ static std::vector<const char*> extensions = {
     "VK_KHR_external_memory_capabilities",
 	"VK_KHR_external_semaphore_capabilities",
 	"VK_EXT_debug_utils",
+	"VK_KHR_get_physical_device_properties2",
 };
 
 static std::vector<const char*> deviceExtensions = {
@@ -46,6 +47,7 @@ static std::vector<const char*> deviceExtensions = {
     "VK_EXT_host_query_reset",
     "VK_KHR_shader_float16_int8",
     "VK_KHR_16bit_storage",
+	"VK_EXT_memory_budget",
     // "VK_NV_external_memory_rdma",
 };
 
@@ -192,9 +194,27 @@ rc<QueryPool> Device::GetQPool()
 	return res.second;
 }
 
+Device::MemoryUsage Device::GetCurrentMemoryUsage() const
+{
+	MemoryUsage res{};
+	VmaBudget budgets[VK_MAX_MEMORY_HEAPS]{};
+	vmaGetHeapBudgets(Allocator, budgets);
+	for (uint32_t i = 0; i < MemoryProps.memoryProperties.memoryHeapCount; ++i)
+	{
+		if (MemoryProps.memoryProperties.memoryHeaps[i].flags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+		{
+			res.Usage += budgets[i].usage;
+			res.Budget += budgets[i].budget;
+		}
+	}
+	return res;
+}
+
 Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice)
 	: Instance(Instance), PhysicalDevice(PhysicalDevice), Features(PhysicalDevice), ResourcePools({ .Image = std::make_unique<ImagePool>(this), .Buffer = std::make_unique<BufferPool>(this) })
 {
+	vkGetPhysicalDeviceMemoryProperties2(PhysicalDevice, &MemoryProps);
+
     u32 count;
 
     NOSVK_ASSERT(vkEnumerateDeviceExtensionProperties(PhysicalDevice, 0, &count, 0));

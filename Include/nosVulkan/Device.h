@@ -129,7 +129,8 @@ struct nosVulkan_API Device : SharedFactory<Device>,
     };
 
     VkInstance Instance;
-    VkPhysicalDevice PhysicalDevice;
+    VkPhysicalDevice PhysicalDevice{};
+	VkPhysicalDeviceMemoryProperties2 MemoryProps{};
 
     VmaAllocator Allocator;
 
@@ -138,6 +139,13 @@ struct nosVulkan_API Device : SharedFactory<Device>,
     
     rc<CommandPool> GetPool();
     rc<QueryPool> GetQPool();
+
+	struct MemoryUsage
+	{
+		size_t Usage;
+		size_t Budget;
+	};
+	MemoryUsage GetCurrentMemoryUsage() const;
     
     rc<Queue> Queue;
     FeatureSet Features;
@@ -154,6 +162,7 @@ struct nosVulkan_API Device : SharedFactory<Device>,
 	{
 		std::unique_ptr<ImagePool> Image;
 		std::unique_ptr<BufferPool> Buffer;
+		void GarbageCollect() { Image->GarbageCollect(); Buffer->GarbageCollect(); }
 	} ResourcePools;
 
     VkSampler GetSampler(VkSamplerCreateInfo const& info);
