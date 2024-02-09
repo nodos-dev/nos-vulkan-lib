@@ -130,7 +130,7 @@ struct nosVulkan_API Device : SharedFactory<Device>,
 
     VkInstance Instance;
     VkPhysicalDevice PhysicalDevice{};
-	VkPhysicalDeviceMemoryProperties2 MemoryProps{};
+	VkPhysicalDeviceMemoryProperties2 MemoryProps{.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PROPERTIES_2};
 
     VmaAllocator Allocator;
 

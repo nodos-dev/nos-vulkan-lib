@@ -25,23 +25,18 @@ Semaphore::Semaphore(Device* Vk, bool timeline, u64 pid, HANDLE ExtHandle)
         .handleTypes = HANDLE_TYPE,
     };
 
-    
+	VkSemaphoreTypeCreateInfo semaphoreTypeInfo = {
+		.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
+		.pNext = &exportInfo,
+		.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE,
+		.initialValue = 0,
+	};
 
     VkSemaphoreCreateInfo semaphoreCreateInfo = {
         .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+        .pNext = timeline ? &semaphoreTypeInfo : nullptr,
 		.flags = 0,
     };
-
-    if (timeline)
-    {
-		VkSemaphoreTypeCreateInfo semaphoreTypeInfo = {
-			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
-			.pNext = &exportInfo,
-			.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE,
-			.initialValue = 0,
-		};
-        semaphoreCreateInfo.pNext = &semaphoreTypeInfo;
-    }
 
     NOSVK_ASSERT(Vk->CreateSemaphore(&semaphoreCreateInfo, 0, &Handle));
 
