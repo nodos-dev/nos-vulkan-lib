@@ -53,15 +53,27 @@ VkResult Allocation::Import(Device* device, std::variant<VkBuffer, VkImage> hand
 		device->GetBufferMemoryRequirements(*buf, &requirements);
 	else
 		device->GetImageMemoryRequirements(std::get<VkImage>(handle), &requirements);
-	
-	// Use GetMemoryWin32HandlePropertiesKHR for memory type bits!
-	// TODO: Cannot use this for opaque handle types!
-	VkMemoryWin32HandlePropertiesKHR extHandleProps{
+
+	VkResult res = VK_SUCCESS;
+
+	// TODO: Get memory type bits from MemoryExportInfo.
+	auto memoryTypeBits = requirements.memoryTypeBits;
+	auto handleType = VkExternalMemoryHandleTypeFlagBits(imported.HandleType);
+	if (handleType > VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT)
+	{
+#if _WIN32 // TODO: Other platforms.
+		VkMemoryWin32HandlePropertiesKHR extHandleProps{
 		.sType = VK_STRUCTURE_TYPE_MEMORY_WIN32_HANDLE_PROPERTIES_KHR
-	};
-	auto res = device->GetMemoryWin32HandlePropertiesKHR((VkExternalMemoryHandleTypeFlagBits)imported.HandleType, dupHandle, &extHandleProps);
-	NOSVK_ASSERT(res)
-	auto [typeIndex, memType] = MemoryTypeIndex(device->PhysicalDevice, extHandleProps.memoryTypeBits, memProps);
+		};
+		res = device->GetMemoryWin32HandlePropertiesKHR(VkExternalMemoryHandleTypeFlagBits(imported.HandleType), dupHandle, &extHandleProps);
+#else
+#pragma error "Unimplemented"
+#endif
+		if (NOS_VULKAN_FAILED(res))
+			return res;
+		memoryTypeBits = extHandleProps.memoryTypeBits;
+	}
+	auto [typeIndex, memType] = MemoryTypeIndex(device->PhysicalDevice, memoryTypeBits, memProps);
 
 	VkImportMemoryWin32HandleInfoKHR importInfo = {
 		.sType = VK_STRUCTURE_TYPE_IMPORT_MEMORY_WIN32_HANDLE_INFO_KHR,
