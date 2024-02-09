@@ -11,7 +11,7 @@ namespace nos::vk
 
 struct nosVulkan_API Semaphore : SharedFactory<Semaphore>, DeviceChild
 {
-    VkSemaphore Handle;
+	VkSemaphore Handle = VK_NULL_HANDLE;
 	bool Timeline;
 	HANDLE OSHandle{};
     Semaphore(Device *Vk, bool timeline, u64 pid = 0, HANDLE OSHandle = 0);
