@@ -1,3 +1,5 @@
+// Copyright MediaZ AS. All Rights Reserved.
+
 ﻿#pragma once
 
 // Vulkan base
@@ -92,7 +94,8 @@ public:
 			return true;
 		const auto currentlyFree = Free[info].size();
 		const auto allocatedCount = Counts[info];
-		if (currentlyFree < MinCountPerType || (allocatedCount / static_cast<float>(allocatedCount - currentlyFree)) < MaxLoadFactorPerType)
+		const auto loadFactor = allocatedCount / static_cast<float>(allocatedCount - currentlyFree);
+		if (currentlyFree < MinCountPerType || loadFactor < MaxLoadFactorPerType)
 			return false;
 		return true;
 	}
@@ -103,7 +106,7 @@ public:
 		{
 			while (!freeList.empty() && ShouldRelease(info))
 			{
-				freeList.pop_back();
+				freeList.pop_front();
 				--Counts[info];
 			}
 		}
