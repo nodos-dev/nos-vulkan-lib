@@ -1,3 +1,5 @@
+// Copyright MediaZ AS. All Rights Reserved.
+
 #include "nosVulkan/Allocation.h"
 
 #include "nosVulkan/Device.h"

@@ -1,3 +1,5 @@
+// Copyright MediaZ AS. All Rights Reserved.
+
 #include "nosVulkan/QueryPool.h"
 #include "nosVulkan/Device.h"
 #include "nosVulkan/Command.h"

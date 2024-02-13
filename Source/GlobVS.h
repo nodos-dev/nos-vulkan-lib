@@ -1,3 +1,7 @@
+/*
+ * Copyright MediaZ AS. All Rights Reserved.
+ */
+
 #ifndef GLOBVS_VERT_SPV_H
 #define GLOBVS_VERT_SPV_H
 
