@@ -1,3 +1,5 @@
+// Copyright MediaZ AS. All Rights Reserved.
+
 #include <nosVulkan/Buffer.h>
 #include <nosVulkan/Common.h>
 #include <nosVulkan/Device.h>

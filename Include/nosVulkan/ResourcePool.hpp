@@ -1,6 +1,6 @@
-// Copyright MediaZ AS. All Rights Reserved.
+﻿// Copyright MediaZ AS. All Rights Reserved.
 
-﻿#pragma once
+#pragma once
 
 // Vulkan base
 #include <nosVulkan/Common.h>
