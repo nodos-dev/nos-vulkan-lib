@@ -9,7 +9,7 @@ namespace nos::vk
 {
 
 Buffer::Buffer(Device* Vk, BufferCreateInfo const& info) 
-    : ResourceBase(Vk), Usage(info.Usage)
+    : ResourceBase(Vk), Usage(info.Usage), ElementType(info.ElementType)
 {
 	Size = info.Size;
 	Allocation = vk::Allocation{};
@@ -56,14 +56,6 @@ Buffer::Buffer(Device* Vk, BufferCreateInfo const& info)
 	assert(memReq.size == Allocation->GetSize());
 
 	NOSVK_ASSERT(Allocation->SetExternalMemoryHandleType(Vk, info.ExternalMemoryHandleType));
-}
-
-Buffer::Buffer(Device* Vk, VkBuffer handle, VkBufferUsageFlags Usage) : ResourceBase(Vk), Usage(Usage)
-{
-	Handle = handle;
-	VkMemoryRequirements memReq = {};
-	Vk->GetBufferMemoryRequirements(Handle, &memReq);
-    Size = memReq.size;
 }
 
 void Buffer::Bind(VkDescriptorType type, u32 bind, VkDescriptorSet set)

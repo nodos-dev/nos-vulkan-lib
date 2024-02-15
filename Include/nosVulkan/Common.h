@@ -241,6 +241,7 @@ struct BufferCreateInfo
     VkBufferUsageFlags Usage;
     uint32_t ExternalMemoryHandleType = PLATFORM_EXTERNAL_MEMORY_HANDLE_TYPE;
     const MemoryExportInfo* Imported = 0;
+	int ElementType = 0;
 };
 
 struct ImageCreateInfo
