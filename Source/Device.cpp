@@ -361,7 +361,7 @@ Device::~Device()
     DestroyDevice(0);
 }
 
-static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
+static VKAPI_ATTR VkBool32 VKAPI_CALL DefaultDebugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
     VkDebugUtilsMessageTypeFlagsEXT messageType,
     const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
@@ -414,23 +414,23 @@ Context::Context(DebugCallback* debugCallback)
     NOSVK_ASSERT(vkCreateInstance(&info, 0, &Instance));
     vkl_load_instance_functions(Instance);
 
-    if(true||debugCallback)
-    {
-        VkDebugUtilsMessengerCreateInfoEXT msgInfo = {
-            .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
+    if(!debugCallback)
+		debugCallback = DefaultDebugCallback;
 
-            .messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT
-                            | VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT
-                            | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
-                            | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT,
-            .messageType = 
-                            VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT
-                            | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
-                            | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
-            .pfnUserCallback = vk::debugCallback,
-        };
-        NOSVK_ASSERT(vkCreateDebugUtilsMessengerEXT(Instance, &msgInfo, 0, &Msger));
-    }
+	VkDebugUtilsMessengerCreateInfoEXT msgInfo = {
+		.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
+
+		.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT
+						| VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT
+						| VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
+						| VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT,
+		.messageType =
+						VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT
+						| VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
+						| VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
+		.pfnUserCallback = debugCallback,
+	};
+	NOSVK_ASSERT(vkCreateDebugUtilsMessengerEXT(Instance, &msgInfo, 0, &Msger));
 
     NOSVK_ASSERT(vkEnumerateInstanceLayerProperties(&count, 0));
     std::vector<VkLayerProperties> layerProps(count);
