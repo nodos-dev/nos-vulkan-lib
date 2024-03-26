@@ -217,6 +217,15 @@ bool nosVulkan_API IsYCbCr(VkFormat);
 
 bool nosVulkan_API IsFormatSupportedByDevice(const VkFormat&, const VkPhysicalDevice&);
 
+struct MemoryProperties
+{
+	bool Mapped = 0;
+	bool VRAM = 0;
+	bool Download = 0;
+
+    auto operator<=>(const MemoryProperties&) const = default;
+};
+
 struct MemoryExportInfo
 {
     uint32_t HandleType;
@@ -225,6 +234,7 @@ struct MemoryExportInfo
 	uint64_t Offset;
 	uint64_t Size;
 	uint64_t AllocationSize;
+	MemoryProperties MemProps;
 };
 
 #if _WIN32
@@ -235,10 +245,9 @@ constexpr auto PLATFORM_EXTERNAL_MEMORY_HANDLE_TYPE = VK_EXTERNAL_MEMORY_HANDLE_
 
 struct BufferCreateInfo
 {
-    u32 Size: 30 = 0;
-    u32 Mapped: 1 = 1;
-    u32 VRAM: 1 = 0;
+    u64 Size = 0;
     VkBufferUsageFlags Usage;
+	MemoryProperties MemProps;
     uint32_t ExternalMemoryHandleType = PLATFORM_EXTERNAL_MEMORY_HANDLE_TYPE;
     const MemoryExportInfo* Imported = 0;
 	int ElementType = 0;

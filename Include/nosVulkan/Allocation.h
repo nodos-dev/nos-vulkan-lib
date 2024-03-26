@@ -19,6 +19,7 @@ struct nosVulkan_API Allocation
 {
 	VmaAllocation Handle = 0;
 	VmaAllocationInfo Info = {};
+	MemoryProperties MemProps;
 	void* OsHandle = 0;
 	uint32_t ExternalMemoryHandleType;
 	struct ImportInfo
@@ -57,7 +58,8 @@ struct nosVulkan_API ResourceBase : DeviceChild
 			.Handle = Allocation->OsHandle,
 			.Offset = Allocation->GetOffset(),
 			.Size = Size,
-			.AllocationSize = Allocation->GetAllocationSize()
+			.AllocationSize = Allocation->GetAllocationSize(),
+			.MemProps = Allocation->MemProps,
 		};
 	}
 	

@@ -236,7 +236,7 @@ struct BufferCreateInfoHasher
 	size_t operator()(vk::BufferCreateInfo const& info) const
 	{
 		size_t result = 0;
-		vk::hash_combine(result, info.Size, info.Mapped, info.VRAM, info.Usage, info.ExternalMemoryHandleType);
+		vk::hash_combine(result, info.Size, info.MemProps.Mapped, info.MemProps.VRAM, info.MemProps.Download, info.Usage, info.ExternalMemoryHandleType);
 		return result;
 	}
 };
@@ -245,7 +245,7 @@ struct BufferCreateInfoEquals
 {
 	bool operator()(vk::BufferCreateInfo const& l, vk::BufferCreateInfo const& r) const
 	{
-		return l.Size == r.Size && l.Mapped == r.Mapped && l.VRAM == r.VRAM && l.Usage == r.Usage && l.ExternalMemoryHandleType == r.ExternalMemoryHandleType;
+		return l.Size == r.Size && l.MemProps == r.MemProps && l.Usage == r.Usage && l.ExternalMemoryHandleType == r.ExternalMemoryHandleType;
 	}
 };
 } // namespace detail

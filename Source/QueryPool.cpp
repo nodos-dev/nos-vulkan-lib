@@ -20,6 +20,7 @@ static f64 GetPeriod(Device* Vk)
 QueryPool::QueryPool(Device* Vk) : DeviceChild(Vk), Results(Buffer::New(Vk, BufferCreateInfo {
         .Size = (1<<16)*8,
         .Usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+        .MemProps = { .Mapped = true, .Download = true },
     })), Period(GetPeriod(Vk)), Queries(1<<16)
 {
     VkQueryPoolCreateInfo info = {

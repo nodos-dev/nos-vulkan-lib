@@ -8,11 +8,12 @@
 namespace nos::vk
 {
 
-Buffer::Buffer(Device* Vk, BufferCreateInfo const& info) 
-    : ResourceBase(Vk), Usage(info.Usage), VRAM(info.VRAM), Mapped(info.Mapped), ElementType(info.ElementType)
+Buffer::Buffer(Device* Vk, BufferCreateInfo const& info)
+	: ResourceBase(Vk), Usage(info.Usage), ElementType(info.ElementType)
 {
 	Size = info.Size;
 	Allocation = vk::Allocation{};
+	Allocation->MemProps = info.MemProps;
 	auto type = info.ExternalMemoryHandleType;
 
 	VkExternalMemoryBufferCreateInfo resourceCreateInfo = {
@@ -28,26 +29,31 @@ Buffer::Buffer(Device* Vk, BufferCreateInfo const& info)
 	};
 
 	VkMemoryPropertyFlags memProps = 0;
-	if (Mapped)
-		memProps |= VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-	if (VRAM)
+	if (info.MemProps.VRAM)
 		memProps |= VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+	if (info.MemProps.Mapped)
+		memProps |= VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
 
 	if (auto* imported = info.Imported)
 	{
 		NOSVK_ASSERT(Vk->CreateBuffer(&bufferCreateInfo, 0, &Handle));
-        NOSVK_ASSERT(Allocation->Import(Vk, Handle, *imported, memProps));
+		NOSVK_ASSERT(Allocation->Import(Vk, Handle, *imported, memProps));
 	}
 	else
 	{
 		VmaAllocationCreateInfo allocCreateInfo = {
-			.flags = Mapped ? VmaAllocationCreateFlags(
-                VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
-                VMA_ALLOCATION_CREATE_MAPPED_BIT) : 0,
-			.usage = VMA_MEMORY_USAGE_AUTO, 
-			.requiredFlags = memProps
-		};
-		NOSVK_ASSERT(vmaCreateBuffer(Vk->Allocator, &bufferCreateInfo, &allocCreateInfo, &Handle, &Allocation->Handle, &Allocation->Info));
+			.flags = info.MemProps.Mapped ? VMA_ALLOCATION_CREATE_MAPPED_BIT : (VmaAllocationCreateFlags)0,
+												   .usage = (info.MemProps.Download && info.MemProps.Mapped)
+																? VMA_MEMORY_USAGE_AUTO_PREFER_HOST
+																: VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
+												   .requiredFlags = memProps};
+		if (info.MemProps.Mapped)
+		{
+			allocCreateInfo.flags |= info.MemProps.Download ? VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT
+															: VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+		}
+		NOSVK_ASSERT(vmaCreateBuffer(
+			Vk->Allocator, &bufferCreateInfo, &allocCreateInfo, &Handle, &Allocation->Handle, &Allocation->Info));
 	}
 
 	VkMemoryRequirements memReq = {};

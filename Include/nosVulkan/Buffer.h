@@ -13,8 +13,6 @@ struct nosVulkan_API Buffer : SharedFactory<Buffer>, ResourceBase<VkBuffer>
 {
 	vk::Buffer* AsBuffer() override { return this; }
     VkBufferUsageFlags Usage;
-	bool VRAM;
-    bool Mapped;
     
     void Copy(size_t len, const void* pp, size_t offset = 0);
 

@@ -26,6 +26,7 @@ Basepass::Basepass(rc<Pipeline> PL) : DeviceChild(PL->GetDevice()), PL(PL), Desc
         UniformBuffer = vk::Buffer::New(GetDevice(), vk::BufferCreateInfo {
             .Size = PL->Layout->UniformSize,
             .Usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+            .MemProps = {.Mapped = true},
         });
     }
 }
@@ -329,10 +330,12 @@ void Renderpass::End(rc<CommandBuffer> Cmd)
     if (UniformBuffer) // Get a new buffer so it's not overwritten by next pass
     {
         Cmd->AddDependency(UniformBuffer);
-        UniformBuffer = vk::Buffer::New(GetDevice(), vk::BufferCreateInfo {
-            .Size = PL->Layout->UniformSize,
-                .Usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-        });
+		UniformBuffer = vk::Buffer::New(GetDevice(),
+										vk::BufferCreateInfo{
+											.Size = PL->Layout->UniformSize,
+											.Usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+											.MemProps = {.Mapped = true},
+										});
     }
     Bindings.clear();
 }
@@ -346,6 +349,7 @@ void Basepass::RefreshBuffer(rc<vk::CommandBuffer> Cmd)
         auto tmp = vk::Buffer::New(GetDevice(), vk::BufferCreateInfo {
             .Size = PL->Layout->UniformSize,
             .Usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+			.MemProps = {.Mapped = true},
         });
         memcpy(tmp->Map(), UniformBuffer->Map(), PL->Layout->UniformSize);
         UniformBuffer = tmp;
