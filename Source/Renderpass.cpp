@@ -19,16 +19,19 @@ Renderpass::Renderpass(rc<GraphicsPipeline> PL) : Basepass(PL)
 {
 }
 
+rc<Buffer> Basepass::CreateUniformSizedBuffer()
+{
+	return Buffer::New(Vk, vk::BufferCreateInfo{
+						   .Size = PL->Layout->UniformSize,
+						   .Usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+						   .MemProps = {.Mapped = true},
+					   });
+}
+
 Basepass::Basepass(rc<Pipeline> PL) : DeviceChild(PL->GetDevice()), PL(PL), DescriptorPool(PL->Layout->CreatePool())
 {
     if(PL->Layout->UniformSize)
-    {
-        UniformBuffer = vk::Buffer::New(GetDevice(), vk::BufferCreateInfo {
-            .Size = PL->Layout->UniformSize,
-            .Usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-            .MemProps = {.Mapped = true},
-        });
-    }
+		UniformBuffer = CreateUniformSizedBuffer();
 }
 
 void Basepass::TransitionInput(rc<vk::CommandBuffer> Cmd, std::string const& name, rc<Image> img)
@@ -330,12 +333,7 @@ void Renderpass::End(rc<CommandBuffer> Cmd)
     if (UniformBuffer) // Get a new buffer so it's not overwritten by next pass
     {
         Cmd->AddDependency(UniformBuffer);
-		UniformBuffer = vk::Buffer::New(GetDevice(),
-										vk::BufferCreateInfo{
-											.Size = PL->Layout->UniformSize,
-											.Usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-											.MemProps = {.Mapped = true},
-										});
+		UniformBuffer = CreateUniformSizedBuffer();
     }
     Bindings.clear();
 }
@@ -346,11 +344,7 @@ void Basepass::RefreshBuffer(rc<vk::CommandBuffer> Cmd)
     {
         BufferDirty = false;
         Cmd->AddDependency(UniformBuffer);
-        auto tmp = vk::Buffer::New(GetDevice(), vk::BufferCreateInfo {
-            .Size = PL->Layout->UniformSize,
-            .Usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-			.MemProps = {.Mapped = true},
-        });
+        auto tmp = CreateUniformSizedBuffer();
         memcpy(tmp->Map(), UniformBuffer->Map(), PL->Layout->UniformSize);
         UniformBuffer = tmp;
     }

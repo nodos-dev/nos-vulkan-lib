@@ -13,13 +13,19 @@ Buffer::Buffer(Device* Vk, BufferCreateInfo const& info)
 {
 	Size = info.Size;
 	Allocation = vk::Allocation{};
-	Allocation->MemProps = info.MemProps;
 	auto type = info.ExternalMemoryHandleType;
+	Allocation->MemProps = info.MemProps;
+    if (type && info.MemProps.VRAM && info.MemProps.Mapped)
+    {
+        assert(!"Memory on BAR cannot be bound to external memory");
+		Allocation->MemProps.VRAM = false;
+    }
 
 	VkExternalMemoryBufferCreateInfo resourceCreateInfo = {
 		.sType = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_BUFFER_CREATE_INFO,
 		.handleTypes = type,
 	};
+
 
 	VkBufferCreateInfo bufferCreateInfo = {
 		.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
@@ -29,9 +35,9 @@ Buffer::Buffer(Device* Vk, BufferCreateInfo const& info)
 	};
 
 	VkMemoryPropertyFlags memProps = 0;
-	if (info.MemProps.VRAM)
+	if (Allocation->MemProps.VRAM)
 		memProps |= VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-	if (info.MemProps.Mapped)
+	if (Allocation->MemProps.Mapped)
 		memProps |= VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
 
 	if (auto* imported = info.Imported)
@@ -42,13 +48,15 @@ Buffer::Buffer(Device* Vk, BufferCreateInfo const& info)
 	else
 	{
 		VmaAllocationCreateInfo allocCreateInfo = {
-			.flags = info.MemProps.Mapped ? VMA_ALLOCATION_CREATE_MAPPED_BIT : (VmaAllocationCreateFlags)0,
-			.usage = (info.MemProps.Download && info.MemProps.Mapped) ? VMA_MEMORY_USAGE_AUTO_PREFER_HOST
-																	  : VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
-			.requiredFlags = memProps};
-		if (info.MemProps.Mapped)
+			.flags = Allocation->MemProps.Mapped ? VMA_ALLOCATION_CREATE_MAPPED_BIT : (VmaAllocationCreateFlags)0,
+			.usage = (Allocation->MemProps.Download && Allocation->MemProps.Mapped)
+																? VMA_MEMORY_USAGE_AUTO_PREFER_HOST
+																: VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
+												   .requiredFlags = memProps};
+		if (Allocation->MemProps.Mapped)
 		{
-			allocCreateInfo.flags |= info.MemProps.Download ? VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT
+			allocCreateInfo.flags |= Allocation->MemProps.Download
+										 ? VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT
 															: VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
 		}
 		NOSVK_ASSERT(vmaCreateBuffer(

@@ -151,7 +151,15 @@ void Device::InitializeVMA()
 	vkGetPhysicalDeviceMemoryProperties(PhysicalDevice, &props);
 	std::vector<VkExternalMemoryHandleTypeFlagsKHR> handleTypes(props.memoryTypeCount);
 	for (int i = 0; i < props.memoryTypeCount; ++i)
-        handleTypes[i] = PLATFORM_EXTERNAL_MEMORY_HANDLE_TYPE;
+	{
+		// If the memory type is not BAR/ReBAR memory, we can create memory with external memory handle types
+		if (!(props.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT &&
+			  props.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT &&
+			  props.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT))
+			handleTypes[i] = PLATFORM_EXTERNAL_MEMORY_HANDLE_TYPE;
+		else
+			handleTypes[i] = 0;
+	}
 
     VmaDeviceMemoryCallbacks deviceMemoryCallbacks = {
 		.pfnFree = [](VmaAllocator allocator, uint32_t memoryType, VkDeviceMemory memory, VkDeviceSize size, void* pUserData) {

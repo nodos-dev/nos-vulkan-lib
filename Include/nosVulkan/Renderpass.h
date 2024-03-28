@@ -33,6 +33,7 @@ struct nosVulkan_API Basepass :  DeviceChild
     std::vector<rc<DescriptorSet>> DescriptorSets;
     std::map<u32, std::set<vk::Binding>> Bindings;
     rc<Buffer> UniformBuffer;
+	rc<Buffer> CreateUniformSizedBuffer();
     bool BufferDirty = false;
 
     Basepass(rc<Pipeline> PL);
