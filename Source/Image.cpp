@@ -183,6 +183,7 @@ void Image::Clear(rc<CommandBuffer> Cmd, VkClearColorValue value)
 {
     assert(Usage & VK_IMAGE_USAGE_TRANSFER_DST_BIT);
     Transition(Cmd, ImageState{
+                        .StageMask = VK_PIPELINE_STAGE_TRANSFER_BIT,
                         .AccessMask = VK_ACCESS_MEMORY_WRITE_BIT,
                         .Layout     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                     });
