@@ -153,9 +153,23 @@ void Device::InitializeVMA()
 	for (int i = 0; i < props.memoryTypeCount; ++i)
         handleTypes[i] = PLATFORM_EXTERNAL_MEMORY_HANDLE_TYPE;
 
+    VmaDeviceMemoryCallbacks deviceMemoryCallbacks = {
+		.pfnFree = [](VmaAllocator allocator, uint32_t memoryType, VkDeviceMemory memory, VkDeviceSize size, void* pUserData) {
+            auto* Vk = reinterpret_cast<Device*>(pUserData);
+            std::lock_guard lock(Vk->MemoryBlocksMutex);
+			if (auto it = Vk->MemoryBlocks.find(memory); it != Vk->MemoryBlocks.end())
+			{
+			    PlatformCloseHandle(it->second);
+			    Vk->MemoryBlocks.erase(it);
+            }
+		}, 
+        .pUserData = this
+	};
+
     VmaAllocatorCreateInfo createInfo = {
         .physicalDevice = PhysicalDevice,
         .device = handle,
+		.pDeviceMemoryCallbacks = &deviceMemoryCallbacks,
         .pVulkanFunctions = &funcs,
         .instance = Instance,
         .vulkanApiVersion = API_VERSION_USED,

@@ -114,7 +114,7 @@ VkResult Allocation::SetExternalMemoryHandleType(Device* device, uint32_t handle
 	if (auto type = PLATFORM_EXTERNAL_MEMORY_HANDLE_TYPE & handleType)
 	{
 		std::unique_lock lock(device->MemoryBlocksMutex);
-		auto& [handle, ref] = device->MemoryBlocks[Info.deviceMemory];
+		auto& handle= device->MemoryBlocks[Info.deviceMemory];
 		if(!handle)
 		{
 #if _WIN32
@@ -131,20 +131,8 @@ VkResult Allocation::SetExternalMemoryHandleType(Device* device, uint32_t handle
 				return ret;
 		}
 		OsHandle = handle;
-		++ref;
 	}
 	return VK_SUCCESS;
-}
-
-void Allocation::Release(Device* vk)
-{
-	std::unique_lock lock(vk->MemoryBlocksMutex);
-	auto& [handle, ref] = vk->MemoryBlocks[Info.deviceMemory];
-	if (!--ref)
-	{
-		PlatformCloseHandle(handle);
-		vk->MemoryBlocks.erase(Info.deviceMemory);
-	}
 }
 
 }

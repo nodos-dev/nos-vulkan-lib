@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <bit>
+#include <iostream>
 
 namespace nos::vk
 {
@@ -17,7 +18,7 @@ Log GLog = {};
 
 bool PlatformCloseHandle(HANDLE handle)
 {
-    DWORD flags;
+	DWORD flags;
     return /*GetHandleInformation(handle, &flags) && */CloseHandle(handle);
 }
 

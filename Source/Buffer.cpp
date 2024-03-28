@@ -43,10 +43,9 @@ Buffer::Buffer(Device* Vk, BufferCreateInfo const& info)
 	{
 		VmaAllocationCreateInfo allocCreateInfo = {
 			.flags = info.MemProps.Mapped ? VMA_ALLOCATION_CREATE_MAPPED_BIT : (VmaAllocationCreateFlags)0,
-												   .usage = (info.MemProps.Download && info.MemProps.Mapped)
-																? VMA_MEMORY_USAGE_AUTO_PREFER_HOST
-																: VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
-												   .requiredFlags = memProps};
+			.usage = (info.MemProps.Download && info.MemProps.Mapped) ? VMA_MEMORY_USAGE_AUTO_PREFER_HOST
+																	  : VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
+			.requiredFlags = memProps};
 		if (info.MemProps.Mapped)
 		{
 			allocCreateInfo.flags |= info.MemProps.Download ? VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT

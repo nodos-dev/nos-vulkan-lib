@@ -36,8 +36,6 @@ struct nosVulkan_API Allocation
 	VkResult Import(Device* device, std::variant<VkBuffer, VkImage> handle, 
 		vk::MemoryExportInfo const& imported, VkMemoryPropertyFlags memProps);
 	VkResult SetExternalMemoryHandleType(Device* device, uint32_t handleType);
-
-	void Release(Device* vk);
 };
 
 template <typename T>
@@ -61,12 +59,6 @@ struct nosVulkan_API ResourceBase : DeviceChild
 			.AllocationSize = Allocation->GetAllocationSize(),
 			.MemProps = Allocation->MemProps,
 		};
-	}
-	
-	~ResourceBase() override
-	{
-		if (Allocation)
-			Allocation->Release(GetDevice());
 	}
 };
 
