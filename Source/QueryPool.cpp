@@ -32,6 +32,11 @@ QueryPool::QueryPool(Device* Vk) : DeviceChild(Vk), Results(Buffer::New(Vk, Buff
     Vk->ResetQueryPool(Handle, 0, 1<<16);
 }
 
+QueryPool::~QueryPool() 
+{
+	Vk->DestroyQueryPool(Handle, 0);
+}
+
 std::optional<std::chrono::nanoseconds>  QueryPool::PerfScope(u64 frames,std::string const& key, rc<CommandBuffer> Cmd, std::function<void(rc<CommandBuffer>)>&& f)
 {
     const u64 idx = Queries;

@@ -18,6 +18,7 @@ struct nosVulkan_API QueryPool: SharedFactory<QueryPool>, DeviceChild
     std::unordered_map<std::string, std::vector<std::chrono::nanoseconds>> ReadyQueries;
     
     QueryPool(Device* Vk);
+    ~QueryPool();
     std::optional<std::chrono::nanoseconds> PerfScope(u64 frames, std::string const& key, rc<CommandBuffer> Cmd, std::function<void(rc<CommandBuffer>)>&& f);
 };
 }
