@@ -222,6 +222,7 @@ struct MemoryProperties
 	bool Mapped = 0;
 	bool VRAM = 0;
 	bool Download = 0;
+	uint32_t Alignment = 0;
 
     auto operator<=>(const MemoryProperties&) const = default;
 };

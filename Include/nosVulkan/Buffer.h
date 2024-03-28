@@ -31,6 +31,7 @@ struct nosVulkan_API Buffer : SharedFactory<Buffer>, ResourceBase<VkBuffer>
     ~Buffer();
 
     void Upload(rc<CommandBuffer> Cmd, rc<Buffer> Buffer, const VkBufferCopy* Region = 0);
+	uint32_t Alignment;
 	int ElementType;
 };
 

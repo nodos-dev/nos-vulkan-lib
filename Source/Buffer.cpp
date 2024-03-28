@@ -9,7 +9,7 @@ namespace nos::vk
 {
 
 Buffer::Buffer(Device* Vk, BufferCreateInfo const& info)
-	: ResourceBase(Vk), Usage(info.Usage), ElementType(info.ElementType)
+	: ResourceBase(Vk), Alignment(info.MemProps.Alignment), Usage(info.Usage), ElementType(info.ElementType)
 {
 	Size = info.Size;
 	Allocation = vk::Allocation{};
@@ -59,8 +59,7 @@ Buffer::Buffer(Device* Vk, BufferCreateInfo const& info)
 										 ? VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT
 															: VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
 		}
-		NOSVK_ASSERT(vmaCreateBuffer(
-			Vk->Allocator, &bufferCreateInfo, &allocCreateInfo, &Handle, &Allocation->Handle, &Allocation->Info));
+		NOSVK_ASSERT(vmaCreateBufferWithAlignment(Vk->Allocator, &bufferCreateInfo, &allocCreateInfo, Alignment, &Handle, &Allocation->Handle, &Allocation->Info));
 	}
 
 	VkMemoryRequirements memReq = {};
