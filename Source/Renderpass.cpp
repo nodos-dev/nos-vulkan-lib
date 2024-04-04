@@ -36,24 +36,48 @@ Basepass::Basepass(rc<Pipeline> PL) : DeviceChild(PL->GetDevice()), PL(PL), Desc
 
 void Basepass::TransitionInput(rc<vk::CommandBuffer> Cmd, std::string const& name, rc<Image> img)
 {
-    auto& layout = *PL->Layout;
+	auto& layout = *PL->Layout;
 
-    if (!img || !layout.BindingsByName.contains(name))
-        return;
+	if (!img || !layout.BindingsByName.contains(name))
+		return;
     
-    auto idx = layout[name];
-    auto& dsl = layout[idx];
+	auto idx = layout[name];
+	auto& dsl = layout[idx];
 
-    if (dsl.Type->Tag == vk::SVType::Image)
-    {
-        ImageState state = {
-            .StageMask = GetStage(),
-            .AccessMask = vk::Binding::MapTypeToAccess(dsl.DescriptorType),
-            .Layout = vk::Binding::MapTypeToLayout(dsl.DescriptorType),
-        };
-        img->Transition(Cmd, state);
-        return;
-    }
+	if (dsl.Type->Tag == vk::SVType::Image)
+	{
+		ImageState state = {
+			.StageMask = GetStage(),
+			.AccessMask = vk::Binding::MapTypeToAccess(dsl.DescriptorType), // TODO: Look into access flags to optimize image memory barriers for VK_DESCRIPTOR_TYPE_STORAGE_IMAGEs
+			.Layout = vk::Binding::MapTypeToLayout(dsl.DescriptorType),
+		};
+		img->Transition(Cmd, state);
+	}
+}
+
+void Basepass::TransitionInput(rc<vk::CommandBuffer> cmd, std::string const& name, rc<Buffer> buf)
+{
+	auto& layout = *PL->Layout;
+
+	if (!buf || !layout.BindingsByName.contains(name))
+		return;
+    
+	auto idx = layout[name];
+	auto& dsl = layout[idx];
+	
+	if (dsl.Type->Tag == vk::SVType::Struct)
+	{
+		auto access = dsl.Access;
+		vk::BufferMemoryState newState {
+			.StageMask = GetStage(),
+			.AccessMask = 0
+		};
+		if (vk::AccessFlagRead & access)
+			newState.AccessMask |= VK_ACCESS_2_MEMORY_READ_BIT;
+		if (vk::AccessFlagWrite & access)
+			newState.AccessMask |= VK_ACCESS_2_MEMORY_WRITE_BIT;
+		buf->Transition(cmd, newState, 0, buf->Size);
+	}
 }
 
 static void UpdateOrInsert(std::set<vk::Binding>& bindings, vk::Binding&& binding)
@@ -71,21 +95,20 @@ void Basepass::BindResource(std::string const& name, rc<Image> res, VkFilter fil
     UpdateOrInsert(Bindings[idx.set], vk::Binding(res, idx.binding, filter, 0));
 }
 
-void Basepass::BindResource(std::string const& name, std::vector<rc<Image>> res, VkFilter filter)
+void Basepass::BindResource(std::string const& name, std::vector<std::pair<rc<Image>, VkFilter>> res)
 {
     assert(IMAGE_ARRAY == GetUniformClass(name));
     auto [binding, idx, type] = GetBindingAndType(name);
     auto& set = Bindings[idx.set];
     for (u32 i = 0; i < res.size(); ++i)
-        UpdateOrInsert(set, vk::Binding(res[i], idx.binding, filter, i));
+        UpdateOrInsert(set, vk::Binding(res[i].first, idx.binding, res[i].second, i));
 }
 
-AccessFlags Basepass::BindResource(std::string const& name, rc<Buffer> res)
+void Basepass::BindResource(std::string const& name, rc<Buffer> res)
 {
     assert(BUFFER == GetUniformClass(name));
     auto [binding, idx, type] = GetBindingAndType(name);
     UpdateOrInsert(Bindings[idx.set], vk::Binding(res, idx.binding, 0, 0));
-	return binding->Access;
 }
 
 void Basepass::BindData(std::string const& name, const void* data, uint32_t sz)
