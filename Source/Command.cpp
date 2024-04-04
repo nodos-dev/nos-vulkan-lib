@@ -174,7 +174,8 @@ rc<CommandBuffer> CommandBuffer::Submit()
         .pSignalSemaphores    = Signal.data(),
     };
 
-    NOSVK_ASSERT(Pool->Submit(1, &submitInfo, Fence));
+	auto res = Pool->Submit(1, &submitInfo, Fence);
+    NOSVK_ASSERT(res);
     State = Pending;
     return self;
 }
