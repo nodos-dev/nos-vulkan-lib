@@ -80,11 +80,12 @@ void Basepass::BindResource(std::string const& name, std::vector<rc<Image>> res,
         UpdateOrInsert(set, vk::Binding(res[i], idx.binding, filter, i));
 }
 
-void Basepass::BindResource(std::string const& name, rc<Buffer> res)
+AccessFlags Basepass::BindResource(std::string const& name, rc<Buffer> res)
 {
     assert(BUFFER == GetUniformClass(name));
     auto [binding, idx, type] = GetBindingAndType(name);
     UpdateOrInsert(Bindings[idx.set], vk::Binding(res, idx.binding, 0, 0));
+	return binding->Access;
 }
 
 void Basepass::BindData(std::string const& name, const void* data, uint32_t sz)

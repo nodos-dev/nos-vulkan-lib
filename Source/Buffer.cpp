@@ -9,23 +9,24 @@ namespace nos::vk
 {
 
 Buffer::Buffer(Device* Vk, BufferCreateInfo const& info)
-	: ResourceBase(Vk), Alignment(info.MemProps.Alignment), Usage(info.Usage), ElementType(info.ElementType)
+	: ResourceBase(Vk), Alignment(info.MemProps.Alignment), Usage(info.Usage),
+	  State{.StageMask = VK_PIPELINE_STAGE_2_NONE,
+	        .AccessMask = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT}, ElementType(info.ElementType)
 {
 	Size = info.Size;
 	Allocation = vk::Allocation{};
 	auto type = info.ExternalMemoryHandleType;
 	Allocation->MemProps = info.MemProps;
-    if (type && info.MemProps.VRAM && info.MemProps.Mapped)
-    {
-        assert(!"Memory on BAR cannot be bound to external memory");
+	if (type && info.MemProps.VRAM && info.MemProps.Mapped)
+	{
+		assert(!"Memory on BAR cannot be bound to external memory");
 		Allocation->MemProps.VRAM = false;
-    }
+	}
 
 	VkExternalMemoryBufferCreateInfo resourceCreateInfo = {
 		.sType = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_BUFFER_CREATE_INFO,
 		.handleTypes = type,
 	};
-
 
 	VkBufferCreateInfo bufferCreateInfo = {
 		.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
@@ -113,23 +114,43 @@ void Buffer::Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src, const VkBufferCopy* R
         .size      = Src->Size,
     };
 
-    if (!Region)
-    {
-        Region = &DefaultRegion;
-    }
-
-    VkBufferMemoryBarrier bufferMemoryBarrier = {
-        .sType  = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-        .buffer = this->Handle,
-        .size   = Region->size,
-    };
-
-    Cmd->PipelineBarrier(VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, 0, 1, &bufferMemoryBarrier, 0, 0);
-
+	if (!Region)
+		Region = &DefaultRegion;
+	
+	Src->Transition(Cmd, BufferMemoryState{.StageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT, .AccessMask = VK_ACCESS_2_TRANSFER_READ_BIT}, Region->srcOffset, Region->size);
+	Transition(Cmd, BufferMemoryState{.StageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT, .AccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT}, Region->dstOffset, Region->size);
+	
     Cmd->CopyBuffer(Src->Handle, this->Handle, 1, Region);
+}
 
-    // make sure the buffers are alive until after the command buffer has finished
-    Cmd->AddDependency(Src, shared_from_this());
+void Buffer::Transition(rc<CommandBuffer> cmd, BufferMemoryState dst, VkDeviceSize offset, VkDeviceSize size)
+{
+	if (Vk->Features.synchronization2)
+	{
+		VkBufferMemoryBarrier2 barrier {
+			.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
+			.srcStageMask = State.StageMask,
+			.srcAccessMask = State.AccessMask,
+			.dstStageMask = dst.StageMask,
+			.dstAccessMask = dst.AccessMask,
+			.buffer = this->Handle,
+			.offset = offset,
+			.size = size,
+		};
+		VkDependencyInfo depInfo = {
+			.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+			.dependencyFlags = VK_DEPENDENCY_DEVICE_GROUP_BIT,
+			.bufferMemoryBarrierCount = 1,
+			.pBufferMemoryBarriers = &barrier,
+		};
+		cmd->PipelineBarrier2(&depInfo);
+	}
+	else
+	{
+		GLog.E("BufferTransition: Memory barriers are currently only implemented for synchronization2!");
+	}
+	State = dst;
+	cmd->AddDependency(shared_from_this());
 }
 
 void Buffer::Copy(size_t len, const void* pp, size_t offset)

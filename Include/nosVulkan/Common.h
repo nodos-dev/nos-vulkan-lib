@@ -341,6 +341,13 @@ struct std::hash<nos::vk::rc<nos::vk::SVType>>
 
 namespace nos::vk
 {
+enum AccessFlags : int
+{
+	AccessFlagNone = 0,
+	AccessFlagWrite = 1,
+	AccessFlagRead = 2,
+	AccessFlagReadWrite = 3
+};
 
 struct nosVulkan_API NamedDSLBinding
 {
@@ -350,6 +357,7 @@ struct nosVulkan_API NamedDSLBinding
     std::string Name;
     rc<SVType> Type;
     VkShaderStageFlags StageMask;
+	AccessFlags Access;
     
     bool SSBO() const
     {

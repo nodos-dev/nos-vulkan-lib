@@ -9,10 +9,17 @@
 namespace nos::vk
 {
 
+struct BufferMemoryState
+{
+	VkPipelineStageFlags2 StageMask;
+	VkAccessFlags2 AccessMask; // Assumes VkAccessFlagsBits same as 2
+};
+
 struct nosVulkan_API Buffer : SharedFactory<Buffer>, ResourceBase<VkBuffer>
 {
 	vk::Buffer* AsBuffer() override { return this; }
     VkBufferUsageFlags Usage;
+	BufferMemoryState State;
     
     void Copy(size_t len, const void* pp, size_t offset = 0);
 
@@ -31,6 +38,8 @@ struct nosVulkan_API Buffer : SharedFactory<Buffer>, ResourceBase<VkBuffer>
     ~Buffer();
 
     void Upload(rc<CommandBuffer> Cmd, rc<Buffer> Buffer, const VkBufferCopy* Region = 0);
+
+	void Transition(rc<CommandBuffer> cmd, BufferMemoryState dst, VkDeviceSize offset, VkDeviceSize size);
 	uint32_t Alignment;
 	int ElementType;
 };

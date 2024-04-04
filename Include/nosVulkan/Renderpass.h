@@ -51,7 +51,7 @@ struct nosVulkan_API Basepass :  DeviceChild
 
     void BindResource(std::string const& name, rc<Image> res, VkFilter filter);
     void BindResource(std::string const& name, std::vector<rc<Image>> res, VkFilter filter);
-    void BindResource(std::string const& name, rc<Buffer> res);
+    AccessFlags BindResource(std::string const& name, rc<Buffer> res);
     void BindData(std::string const& name, const void*, uint32_t sz);
 
     enum UniformClass

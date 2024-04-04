@@ -244,7 +244,6 @@ static void BuildType(spirv_cross::Compiler const& cc, u32 typeId, SVType* ty)
 
     case SPIRType::Struct:
         ty->Tag = SVType::Struct;
-
         // ty->members.resize(type.member_types.size());
         ty->Size = cc.get_declared_struct_size(type);
         for (u32 i = 0; i < type.member_types.size(); ++i)
@@ -354,8 +353,7 @@ ShaderLayout GetShaderLayouts(std::vector<u8> const& src, VkShaderStageFlags& st
         {
 
             SPIRType const& type = cc.get_type(res.type_id);
-            type.array;
-            u32 set     = cc.get_decoration(res.id, spv::DecorationDescriptorSet);
+            u32 set = cc.get_decoration(res.id, spv::DecorationDescriptorSet);
             u32 binding = cc.get_decoration(res.id, spv::DecorationBinding);
             u32 count = std::accumulate(type.array.begin(), type.array.end(), 1u, [](u32 a, u32 b) { return a * b; });
             NamedDSLBinding dsl = {
@@ -364,22 +362,27 @@ ShaderLayout GetShaderLayouts(std::vector<u8> const& src, VkShaderStageFlags& st
                 .DescriptorCount = count ? count : 16,
                 .Name            = cc.get_name(res.id),
                 .Type            = GetType(cc, res.type_id),
-                .StageMask       = stage,
+                .StageMask       = stage
             };
             
             ShaderLayout::Index idx = {set, binding, 0};
             layout.BindingsByName[cc.get_name(res.id)] = idx;
-            layout.DescriptorSets[set][binding] = dsl;
             if(SVType::Struct == dsl.Type->Tag)
             {
+				auto flags = cc.get_buffer_block_flags(res.id);
+				auto nonReadable = flags.get(spv::DecorationNonReadable);
+				auto nonWriteable = flags.get(spv::DecorationNonWritable);
+				auto access = AccessFlags((nonReadable ? 0 : AccessFlagRead) | (nonWriteable ? 0 : AccessFlagWrite));
+				dsl.Access = access; // TODO: Non-buffer accesses, improve Image::TransitionInput
                 for(auto& [name, member] : dsl.Type->Members)
                 {
                     ShaderLayout::Index idx = {set, binding, member.Offset};
                     layout.BindingsByName[name] = idx;
                 }
-            }
+			}
+			layout.DescriptorSets[set][binding] = dsl;
         }
-    };
+    }
 
     return layout;
 }
