@@ -174,7 +174,8 @@ rc<CommandBuffer> CommandBuffer::Submit()
         .pSignalSemaphores    = Signal.data(),
     };
 
-    NOSVK_ASSERT(Pool->Submit(1, &submitInfo, Fence));
+	auto res = Pool->Submit(1, &submitInfo, Fence);
+    NOSVK_ASSERT(res);
     State = Pending;
     return self;
 }
@@ -264,6 +265,7 @@ rc<CommandBuffer> CommandPool::AllocCommandBuffer(VkCommandBufferLevel level)
 		auto cmd = Buffers[NextBuffer];
 		if (cmd->IsFree())
 			break;
+
 		NextBuffer++;
 		auto elapsed = NowInUs() - now;
 		if (elapsed > 1e4) // log if exhausted for 10ms
