@@ -60,7 +60,8 @@ VkResult Allocation::Import(Device* device, std::variant<VkBuffer, VkImage> hand
 		.sType = VK_STRUCTURE_TYPE_MEMORY_WIN32_HANDLE_PROPERTIES_KHR
 	};
 	auto res = device->GetMemoryWin32HandlePropertiesKHR((VkExternalMemoryHandleTypeFlagBits)imported.HandleType, dupHandle, &extHandleProps);
-	NOSVK_ASSERT(res)
+	if (NOS_VULKAN_FAILED(res))
+		return res;
 	auto [typeIndex, memType] = MemoryTypeIndex(device->PhysicalDevice, extHandleProps.memoryTypeBits, memProps);
 
 	VkImportMemoryWin32HandleInfoKHR importInfo = {
