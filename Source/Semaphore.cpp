@@ -11,8 +11,8 @@ namespace nos::vk
 
 #define HANDLE_TYPE  (VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT)
 
-Semaphore::Semaphore(Device* Vk, bool timeline, u64 pid, HANDLE ExtHandle) 
-    : DeviceChild(Vk), Timeline(timeline)
+Semaphore::Semaphore(Device* Vk, VkSemaphoreType type, u64 pid, HANDLE ExtHandle) 
+    : DeviceChild(Vk), Type(type)
 {
     VkExportSemaphoreWin32HandleInfoKHR handleInfo = {
         .sType = VK_STRUCTURE_TYPE_EXPORT_SEMAPHORE_WIN32_HANDLE_INFO_KHR,
@@ -28,13 +28,13 @@ Semaphore::Semaphore(Device* Vk, bool timeline, u64 pid, HANDLE ExtHandle)
 	VkSemaphoreTypeCreateInfo semaphoreTypeInfo = {
 		.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
 		.pNext = &exportInfo,
-		.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE,
+		.semaphoreType = type,
 		.initialValue = 0,
 	};
 
     VkSemaphoreCreateInfo semaphoreCreateInfo = {
         .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-        .pNext = timeline ? &semaphoreTypeInfo : nullptr,
+        .pNext = &semaphoreTypeInfo,
 		.flags = 0,
     };
 
@@ -57,14 +57,21 @@ Semaphore::Semaphore(Device* Vk, bool timeline, u64 pid, HANDLE ExtHandle)
         .semaphore = Handle,
         .handleType = HANDLE_TYPE,
     };
-    if (timeline)
-    {
-        NOSVK_ASSERT(Vk->GetSemaphoreWin32HandleKHR(&getHandleInfo, &OSHandle));
-        assert(OSHandle);
-    
-        DWORD flags;
-        WIN32_ASSERT(GetHandleInformation(OSHandle, &flags));
-    }
+
+	NOSVK_ASSERT(Vk->GetSemaphoreWin32HandleKHR(&getHandleInfo, &OSHandle));
+	assert(OSHandle);
+
+	DWORD flags;
+	WIN32_ASSERT(GetHandleInformation(OSHandle, &flags));
+
+	if (!pid) {
+#if _WIN32
+		pid = GetCurrentProcessId();
+#else
+		pid = getpid();
+#endif
+	}
+	PID = pid;
 }
 
 void Semaphore::Signal(uint64_t value)

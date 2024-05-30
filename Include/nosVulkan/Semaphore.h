@@ -12,9 +12,10 @@ namespace nos::vk
 struct nosVulkan_API Semaphore : SharedFactory<Semaphore>, DeviceChild
 {
 	VkSemaphore Handle = VK_NULL_HANDLE;
-	bool Timeline;
+	VkSemaphoreType Type;
 	HANDLE OSHandle{};
-    Semaphore(Device *Vk, bool timeline, u64 pid = 0, HANDLE OSHandle = 0);
+	u64 PID{};
+    Semaphore(Device *Vk, VkSemaphoreType type, u64 pid = 0, HANDLE OSHandle = 0);
 
     void Signal(uint64_t value);
     VkResult Wait(uint64_t value, uint64_t timeoutNs = UINT64_MAX);
