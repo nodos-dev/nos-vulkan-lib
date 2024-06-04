@@ -48,6 +48,7 @@ uint32_t Allocation::GetMemoryTypeIndex() const
 
 VkResult Allocation::Import(Device* device, std::variant<VkBuffer, VkImage> handle, vk::MemoryExportInfo const& imported, VkMemoryPropertyFlags memProps)
 {
+	OsHandle = imported.Handle;
 	auto dupHandle = PlatformDupeHandle(imported.PID, imported.Handle);
 
 	VkMemoryRequirements requirements;
@@ -100,7 +101,7 @@ VkResult Allocation::Import(Device* device, std::variant<VkBuffer, VkImage> hand
 		.offset = imported.Offset,
 		.size = requirements.size,
 	};
-	Imported = {.AllocationSize = imported.AllocationSize};
+	Imported = {.AllocationSize = imported.AllocationSize, .PID = imported.PID};
 	if (auto buf = std::get_if<VkBuffer>(&handle))
 		res = device->BindBufferMemory(*buf, mem, imported.Offset);
 	else

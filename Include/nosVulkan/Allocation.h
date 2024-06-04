@@ -25,6 +25,7 @@ struct nosVulkan_API Allocation
 	struct ImportInfo
 	{
 		VkDeviceSize AllocationSize = 0;
+		uint64_t PID = 0;
 	};
 	std::optional<ImportInfo> Imported = std::nullopt;
 	void*& Mapping() { return Info.pMappedData; }
@@ -52,7 +53,7 @@ struct nosVulkan_API ResourceBase : DeviceChild
 			return {};
 		return MemoryExportInfo{
 			.HandleType = Allocation->ExternalMemoryHandleType,
-			.PID    = PlatformGetCurrentProcessId(),
+			.PID    = Allocation->Imported ? Allocation->Imported->PID : PlatformGetCurrentProcessId(),
 			.Handle = Allocation->OsHandle,
 			.Offset = Allocation->GetOffset(),
 			.Size = Size,
