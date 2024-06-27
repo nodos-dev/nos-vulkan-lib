@@ -1,4 +1,4 @@
-// Copyright MediaZ AS. All Rights Reserved.
+// Copyright MediaZ Teknoloji A.S. All Rights Reserved.
 
 #include "nosVulkan/Semaphore.h"
 #include "nosVulkan/Device.h"
