@@ -50,6 +50,8 @@ VkResult Allocation::Import(Device* device, std::variant<VkBuffer, VkImage> hand
 {
 	OsHandle = imported.Handle;
 	auto dupHandle = PlatformDupeHandle(imported.PID, imported.Handle);
+	if (!dupHandle)
+		return VK_ERROR_INVALID_EXTERNAL_HANDLE;
 
 	VkMemoryRequirements requirements;
 	if (auto buf = std::get_if<VkBuffer>(&handle))
