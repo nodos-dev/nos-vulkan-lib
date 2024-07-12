@@ -58,7 +58,7 @@ struct nosVulkan_API CommandBuffer : SharedFactory<CommandBuffer>,
     std::map<VkSemaphore, uint64_t> SignalGroup;
     std::atomic<State> State = Initial;
     bool IsFree();
-    bool Wait();
+	bool Wait(uint64_t timeOutNs = 3000000000ull);
 	void WaitAndClear();
     void Clear();
     VkResult Begin(const VkCommandBufferBeginInfo* info);

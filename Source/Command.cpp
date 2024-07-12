@@ -46,9 +46,9 @@ CommandBuffer::CommandBuffer(CommandPool* Pool, VkCommandBuffer Handle)
 	Clear();
 }
 
-bool CommandBuffer::Wait()
+bool CommandBuffer::Wait(uint64_t timeOutNs)
 {
-    if (GetDevice()->WaitForFences(1, &Fence, 0, 3000000000ull) != VK_SUCCESS)
+	if (GetDevice()->WaitForFences(1, &Fence, 0, timeOutNs) != VK_SUCCESS)
     {
 		GLog.W("Command buffer wait timeout!");
         return false;
