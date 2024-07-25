@@ -36,14 +36,6 @@ public:
 
 	ResourcePool(vk::Device* device)
 		: Device(device) {}
-
-	ResourcePool(vk::Device* device,
-	             size_t minCountPerType,
-	             float maxLoadFactorPerType,
-	             float maxFree2BudgetRatio)
-		: Device(device), MinCountPerType(minCountPerType),
-		  MaxLoadFactorPerType(maxLoadFactorPerType),
-		  MaxFree2BudgetRatio(maxFree2BudgetRatio) {}
 	
 	rc<ResourceT> Get(CreationInfoT const& info, std::string tag)
 	{
@@ -55,16 +47,20 @@ public:
 			if (!res)
 				return nullptr;
 			Used[uint64_t(res->Handle)] = { tag, info, res };
-			++Counts[info];
+			LastServed[info] = std::chrono::steady_clock::now();
+			UsedResourceMemoryUsage += res->Size;
 			CheckAndClean();
 			return res;
 		}
-		auto& resources = freeIt->second;
-		auto res = resources.back();
-		resources.pop_back();
-		if (resources.empty())
+		auto& freeList = freeIt->second;
+		auto res = freeList.back();
+		freeList.pop_back();
+		ReadyResourceMemoryUsage -= res->Size;
+		if (freeList.empty())
 			Free.erase(freeIt);
 		Used[uint64_t(res->Handle)] = { tag, info, res };
+		LastServed[info] = std::chrono::steady_clock::now();
+		UsedResourceMemoryUsage += res->Size;
 		CheckAndClean();
 		return res;
 	}
@@ -79,41 +75,33 @@ public:
 			return false;
 		}
 		auto [tag, info, res] = usedIt->second;
+		auto size = res->Size;
 		Used.erase(usedIt);
+		UsedResourceMemoryUsage -= size;
 		Free[info].push_back(std::move(res));
+		ReadyResourceMemoryUsage += size;
 		CheckAndClean();
 		return true;
 	}
 
-	virtual bool ShouldRelease(CreationInfoT const& info)
-	{
-		auto mem = Device->GetCurrentMemoryUsage();
-		auto freeUsage = GetAvailableResourceMemoryUsage();
-		float c = freeUsage / float(mem.Budget);
-		if (c > MaxFree2BudgetRatio)
-			return true;
-		const auto currentlyFree = Free[info].size();
-		const auto allocatedCount = Counts[info];
-		const auto loadFactor = allocatedCount / static_cast<float>(allocatedCount - currentlyFree);
-		if (currentlyFree < MinCountPerType || loadFactor < MaxLoadFactorPerType)
-			return false;
-		return true;
-	}
-	
 	virtual void CheckAndClean()
 	{
-		for (auto& [info, freeList] : Free)
+		auto now = std::chrono::steady_clock::now();
+		for (auto it = LastServed.begin(); it != LastServed.end();)
 		{
-			while (!freeList.empty() && ShouldRelease(info))
+			auto& [info, lastServed] = *it;
+			auto fit = Free.find(info);
+			if (fit != Free.end() && now - lastServed > MaxUnusedTime)
 			{
-				freeList.pop_front();
-				--Counts[info];
+				auto& freeList = fit->second;
+				while (!freeList.empty())
+				{
+					ReadyResourceMemoryUsage -= freeList.front()->Size;
+					freeList.pop_front();
+				}
+				Free.erase(fit);
+				it = LastServed.erase(it);
 			}
-		}
-		for (auto it = Free.begin(); it != Free.end();)
-		{
-			if (it->second.empty())
-				it = Free.erase(it);
 			else
 				++it;
 		}
@@ -123,7 +111,7 @@ public:
 	{
 		std::unique_lock guard(Mutex);
 		Free.clear();
-		Counts.clear();
+		ReadyResourceMemoryUsage = 0;
 	}
 
 	bool IsUsed(uint64_t handle)
@@ -159,29 +147,22 @@ public:
 	uint64_t GetTotalMemoryUsage()
 	{
 		std::shared_lock guard(Mutex);
-		return GetAvailableResourceMemoryUsage() + GetUsedResourceMemoryUsage();
+		return GetReadyResourceMemoryUsage() + GetUsedResourceMemoryUsage();
 	}
 
 	/// Not thread safe.
-	uint64_t GetAvailableResourceMemoryUsage()
+	uint64_t GetReadyResourceMemoryUsage()
 	{
-		uint64_t ret = 0;
-		for (auto& [info, freeList] : Free)
-			for (auto& free : freeList)
-				ret += free->Size;
-		return ret;
+		return ReadyResourceMemoryUsage;
 	}
 
 	/// Not thread safe.
 	uint64_t GetUsedResourceMemoryUsage()
 	{
-		uint64_t ret = 0;
-		for (auto& [handle, info] : Used)
-			ret += info.Resource->Size;
-		return ret;
+		return UsedResourceMemoryUsage;
 	}
 	
-	void ChangedUsedResourceTag(uint64_t handle, std::string tag)
+	void SetUsedResourceTag(uint64_t handle, std::string tag)
 	{ 
 		std::unique_lock guard(Mutex);
 		auto it = Used.find(handle);
@@ -199,13 +180,17 @@ protected:
 	vk::Device* Device;
 	UsedMap Used;
 	FreeMap Free;
-	CountsPerType Counts;
+	CountsPerType AllocatedCounts;
 	std::shared_mutex Mutex{};
+	std::unordered_map<CreationInfoT, std::chrono::steady_clock::time_point, CreationInfoHasherT, CreationInfoEqualsT> LastServed;
 
 	// Options
-	size_t MinCountPerType = 12;
-	float MaxLoadFactorPerType = 1.5f; // Per type, All / Free.
-	float MaxFree2BudgetRatio = .5f; // Memory, Free resources / Remaining budget.
+	std::chrono::milliseconds MaxUnusedTime = std::chrono::seconds(10);
+
+	// Runtime memory usage info
+	uint64_t UsedResourceMemoryUsage = 0;
+	uint64_t ReadyResourceMemoryUsage = 0;
+
 };
 
 // TODO: Move below to ResourceManager.cpp after if/when ResourcePool is fully generic

@@ -21,6 +21,7 @@ Renderpass::Renderpass(rc<GraphicsPipeline> PL) : Basepass(PL)
 
 rc<Buffer> Basepass::CreateUniformSizedBuffer()
 {
+	// TODO: Use the resource pool for uniform buffers
 	return Buffer::New(Vk, vk::BufferCreateInfo{
 						   .Size = PL->Layout->UniformSize,
 						   .Usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
