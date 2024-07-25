@@ -233,7 +233,7 @@ Device::MemoryUsage Device::GetCurrentMemoryUsage() const
 }
 
 Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice)
-	: Instance(Instance), PhysicalDevice(PhysicalDevice), Features(PhysicalDevice), ResourcePools({ .Image = std::make_unique<ImagePool>(this), .Buffer = std::make_unique<BufferPool>(this) })
+	: Instance(Instance), PhysicalDevice(PhysicalDevice), Features(PhysicalDevice), ResourcePools(this)
 {
 	vkGetPhysicalDeviceMemoryProperties2(PhysicalDevice, &MemoryProps);
 
@@ -358,7 +358,7 @@ void Context::OrderDevices()
 
 Device::~Device()
 {
-	ResourcePools = {};
+	ResourcePools.Clear();
     {
         std::lock_guard lock(Lock);
         Devices.erase(this);

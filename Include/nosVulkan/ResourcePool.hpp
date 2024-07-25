@@ -34,8 +34,8 @@ public:
 	using FreeList = std::list<rc<ResourceT>>;
 	using FreeMap = MapWithCreationInfoAsKey<FreeList>;
 
-	ResourcePool(vk::Device* device)
-		: Device(device) {}
+	ResourcePool(vk::Device* device, std::chrono::milliseconds maxUnusedTime)
+		: Device(device), MaxUnusedTime(maxUnusedTime) {}
 	
 	rc<ResourceT> Get(CreationInfoT const& info, std::string tag)
 	{
@@ -47,7 +47,6 @@ public:
 			if (!res)
 				return nullptr;
 			Used[uint64_t(res->Handle)] = { tag, info, res };
-			LastServed[info] = std::chrono::steady_clock::now();
 			UsedResourceMemoryUsage += res->Size;
 			CheckAndClean();
 			return res;
@@ -59,7 +58,6 @@ public:
 		if (freeList.empty())
 			Free.erase(freeIt);
 		Used[uint64_t(res->Handle)] = { tag, info, res };
-		LastServed[info] = std::chrono::steady_clock::now();
 		UsedResourceMemoryUsage += res->Size;
 		CheckAndClean();
 		return res;
@@ -79,6 +77,7 @@ public:
 		Used.erase(usedIt);
 		UsedResourceMemoryUsage -= size;
 		Free[info].push_back(std::move(res));
+		ReleaseTime[info] = std::chrono::steady_clock::now();
 		ReadyResourceMemoryUsage += size;
 		CheckAndClean();
 		return true;
@@ -87,11 +86,11 @@ public:
 	virtual void CheckAndClean()
 	{
 		auto now = std::chrono::steady_clock::now();
-		for (auto it = LastServed.begin(); it != LastServed.end();)
+		for (auto it = ReleaseTime.begin(); it != ReleaseTime.end();)
 		{
-			auto& [info, lastServed] = *it;
+			auto& [info, released] = *it;
 			auto fit = Free.find(info);
-			if (fit != Free.end() && now - lastServed > MaxUnusedTime)
+			if (fit != Free.end() && now - released > MaxUnusedTime)
 			{
 				auto& freeList = fit->second;
 				while (!freeList.empty())
@@ -100,7 +99,7 @@ public:
 					freeList.pop_front();
 				}
 				Free.erase(fit);
-				it = LastServed.erase(it);
+				it = ReleaseTime.erase(it);
 			}
 			else
 				++it;
@@ -176,16 +175,22 @@ public:
 
 	UsedMap GetUsed() { std::shared_lock guard(Mutex); return Used; }
 	FreeMap GetFree() { std::shared_lock guard(Mutex); return Free; }
+
+	void SetMaxUnusedTime(std::chrono::milliseconds time)
+	{
+		std::unique_lock guard(Mutex); 
+		MaxUnusedTime = time;
+	}
 protected:
 	vk::Device* Device;
 	UsedMap Used;
 	FreeMap Free;
 	CountsPerType AllocatedCounts;
 	std::shared_mutex Mutex{};
-	std::unordered_map<CreationInfoT, std::chrono::steady_clock::time_point, CreationInfoHasherT, CreationInfoEqualsT> LastServed;
+	std::unordered_map<CreationInfoT, std::chrono::steady_clock::time_point, CreationInfoHasherT, CreationInfoEqualsT> ReleaseTime;
 
 	// Options
-	std::chrono::milliseconds MaxUnusedTime = std::chrono::seconds(10);
+	std::chrono::milliseconds MaxUnusedTime;
 
 	// Runtime memory usage info
 	uint64_t UsedResourceMemoryUsage = 0;

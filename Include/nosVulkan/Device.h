@@ -158,11 +158,22 @@ struct nosVulkan_API Device : SharedFactory<Device>,
     std::mutex MemoryBlocksMutex;
     std::unordered_map<VkDeviceMemory, void*> MemoryBlocks;
 
-	struct
+	struct Pools
 	{
+		Pools(Device* device) {
+			MaxUnusedTime = std::chrono::milliseconds(10000);
+			Image = std::make_unique<ImagePool>(device, MaxUnusedTime);
+			Buffer = std::make_unique<BufferPool>(device, MaxUnusedTime);
+		}
+		void Clear() {
+			Image = nullptr;
+			Buffer = nullptr;
+		}
 		std::unique_ptr<ImagePool> Image;
 		std::unique_ptr<BufferPool> Buffer;
 		void GarbageCollect() { Image->GarbageCollect(); Buffer->GarbageCollect(); }
+		std::chrono::milliseconds MaxUnusedTime;
+		void SetMaxUnusedTime(std::chrono::milliseconds ms) { MaxUnusedTime = ms; Image->SetMaxUnusedTime(ms); Buffer->SetMaxUnusedTime(ms); }
 	} ResourcePools;
 
     VkSampler GetSampler(VkSamplerCreateInfo const& info);
