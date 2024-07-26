@@ -69,7 +69,7 @@ public:
 		auto usedIt = Used.find(handle);
 		if (usedIt == Used.end())
 		{
-			GLog.W("ResourcePool: %d is already released", handle);
+			GLog.W("ResourcePool: %llu is already released", handle);
 			return false;
 		}
 		auto [tag, info, res] = usedIt->second;
