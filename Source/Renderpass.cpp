@@ -206,29 +206,19 @@ void Renderpass::Begin(rc<CommandBuffer> cmd, const BeginPassInfo& info)
                                        });
 
     auto extent = img->Src->GetEffectiveExtent();
-	rc<Image> selectedDepthBuf = info.DepthAttachment ? info.DepthAttachment->DepthBuffer : nullptr;
+	rc<Image> optionalDepthBuffer = info.DepthAttachment ? info.DepthAttachment->DepthBuffer : nullptr;
 	bool depthClear = true;
 	float depthClearVal = 1.0f;
-	rc<Image> localDepthBuf = nullptr;
-	if (!selectedDepthBuf)
-	{
-		localDepthBuf = GetDevice()->ResourcePools.Image->Get(vk::ImageCreateInfo{
-											 .Extent = extent,
-											 .Format = VK_FORMAT_D32_SFLOAT,
-											 .Usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT }, "Depth Buffer");
-		selectedDepthBuf = localDepthBuf;
-	}
-	else
+	if (optionalDepthBuffer)
 	{
 		depthClear = info.DepthAttachment->Clear;
 		depthClearVal = info.DepthAttachment->ClearValue;
+		optionalDepthBuffer->Transition(cmd, ImageState{
+												.StageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+												.AccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+												.Layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+			});
     }
-    
-    selectedDepthBuf->Transition(cmd, ImageState{
-                                            .StageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
-											.AccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-                                            .Layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-                                        });
 
      //for (auto &set : DescriptorSets)
      //{
@@ -304,14 +294,19 @@ void Renderpass::Begin(rc<CommandBuffer> cmd, const BeginPassInfo& info)
 				{.color = {.float32 = {info.ClearCol[0], info.ClearCol[1], info.ClearCol[2], info.ClearCol[3]}}},
             };
 
-        VkRenderingAttachmentInfo DepthAttachment = {
-            .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-            .imageView = selectedDepthBuf->GetView()->Handle,
-            .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-			.loadOp = depthClear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD,
-            .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-            .clearValue = {.depthStencil = { .depth = depthClearVal }},
-        };
+        VkRenderingAttachmentInfo DepthAttachment;
+
+        if (optionalDepthBuffer)
+        {
+            DepthAttachment = {
+                .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+                .imageView = optionalDepthBuffer->GetView()->Handle,
+                .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                .loadOp = depthClear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD,
+                .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+                .clearValue = {.depthStencil = { .depth = depthClearVal }},
+            };
+        }
         
         VkRenderingInfo renderInfo = {
             .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
@@ -319,7 +314,7 @@ void Renderpass::Begin(rc<CommandBuffer> cmd, const BeginPassInfo& info)
             .layerCount = 1,
             .colorAttachmentCount = 1,
             .pColorAttachments = &Attachment,
-            .pDepthAttachment = &DepthAttachment,
+            .pDepthAttachment = optionalDepthBuffer ? &DepthAttachment : nullptr,
         };
 
         cmd->BeginRendering(&renderInfo);
@@ -337,8 +332,6 @@ void Renderpass::Begin(rc<CommandBuffer> cmd, const BeginPassInfo& info)
 	}
 	constants = { img->Src->GetExtent(), info.FrameNumber, info.DeltaSeconds };
 	PL->PushConstants(cmd, constants);
-	if (localDepthBuf)
-		GetDevice()->ResourcePools.Image->Release(uint64_t(localDepthBuf->Handle));
 	if (localMsBuffer)
 		GetDevice()->ResourcePools.Image->Release(uint64_t(localMsBuffer->Handle));
 
