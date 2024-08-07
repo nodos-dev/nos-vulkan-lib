@@ -9,18 +9,11 @@
 #include "nosVulkan/Device.h"
 #include "nosVulkan/Command.h"
 #include "nosVulkan/QueryPool.h"
+#include "nosVulkan/Platform.h"
 
 #include <iostream>
 #include <bit>
 #include <memory>
-
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#include <Windows.h>
 
 static std::vector<const char*> layers = {
     // "VK_LAYER_KHRONOS_validation",

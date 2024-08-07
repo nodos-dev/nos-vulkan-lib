@@ -387,11 +387,6 @@ nosVulkan_API ShaderLayout GetShaderLayouts(std::vector<u8> const& src, VkShader
 nosVulkan_API VkExternalMemoryProperties GetExportProperties(VkPhysicalDevice PhysicalDevice, VkFormat Format, VkImageUsageFlags Usage, VkExternalMemoryHandleTypeFlagBits Type);
 nosVulkan_API bool IsImportable(VkPhysicalDevice PhysicalDevice, VkFormat Format, VkImageUsageFlags Usage, VkExternalMemoryHandleTypeFlagBits Type);
 
-nosVulkan_API bool PlatformCloseHandle(HANDLE);
-nosVulkan_API HANDLE PlatformDupeHandle(u64 pid, HANDLE);
-nosVulkan_API u64 PlatformGetCurrentProcessId();
-
-nosVulkan_API std::string GetLastErrorAsString();
 
 nosVulkan_API std::pair<u32, VkMemoryType> MemoryTypeIndex(VkPhysicalDevice physicalDevice, u32 memoryTypeBits, VkMemoryPropertyFlags requestedProps);
 

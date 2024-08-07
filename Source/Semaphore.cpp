@@ -2,7 +2,8 @@
 
 #include "nosVulkan/Semaphore.h"
 #include "nosVulkan/Device.h"
-#include "nosVulkan/NativeAPIDirectx.h"
+
+#include "nosVulkan/Platform.h"
 
 #undef CreateSemaphore
 
@@ -16,7 +17,9 @@ Semaphore::Semaphore(Device* Vk, VkSemaphoreType type, u64 pid, HANDLE ExtHandle
 {
     VkExportSemaphoreWin32HandleInfoKHR handleInfo = {
         .sType = VK_STRUCTURE_TYPE_EXPORT_SEMAPHORE_WIN32_HANDLE_INFO_KHR,
+#if _WIN32
         .dwAccess = GENERIC_ALL,
+#endif
     };
 
     VkExportSemaphoreCreateInfo exportInfo = {
@@ -61,8 +64,12 @@ Semaphore::Semaphore(Device* Vk, VkSemaphoreType type, u64 pid, HANDLE ExtHandle
 	NOSVK_ASSERT(Vk->GetSemaphoreWin32HandleKHR(&getHandleInfo, &OSHandle));
 	assert(OSHandle);
 
+#if _WIN32
 	DWORD flags;
 	WIN32_ASSERT(GetHandleInformation(OSHandle, &flags));
+#else
+	 //TODO LINUX_SUPPORT
+#endif
 
 	if (!pid) {
 #if _WIN32
