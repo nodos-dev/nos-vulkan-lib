@@ -26,10 +26,9 @@
 namespace nos::vk
 {
 
-nosVulkan_API bool PlatformCloseHandle(HANDLE);
-nosVulkan_API HANDLE PlatformDupeHandle(u64 pid, HANDLE);
-nosVulkan_API u64 PlatformGetCurrentProcessId();
-
+nosVulkan_API bool PlatformCloseHandle(NOS_HANDLE);
+nosVulkan_API NOS_HANDLE PlatformDupeHandle(u64 pid, NOS_HANDLE);
+nosVulkan_API NOS_PID PlatformGetCurrentProcessId();
 nosVulkan_API std::string GetLastErrorAsString();
 
 } // namespace nos::vk

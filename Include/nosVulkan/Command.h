@@ -5,7 +5,7 @@
 #pragma once
 
 #include "Common.h"
-
+#include <atomic>
 namespace nos::vk
 {
 

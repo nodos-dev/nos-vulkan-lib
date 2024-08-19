@@ -23,6 +23,24 @@
 #include <set>
 #include <algorithm>
 
+#if defined(_WIN32)
+
+#define VULKAN_LIB_NAME "vulkan-1.dll"
+typedef HANDLE NOS_HANDLE;
+typedef HMODULE NOS_MODULE_HANDLE;
+typedef uint64_t NOS_PID;
+typedef FARPROC NOS_PROC;
+
+#elif defined(__linux__)
+
+#define VULKAN_LIB_NAME "libvulkan.so.1"
+typedef int NOS_HANDLE;
+typedef void* NOS_MODULE_HANDLE;
+typedef pid_t NOS_PID;
+typedef void* NOS_PROC;
+
+#endif
+
 #ifdef nosVulkan_SHARED
 #ifdef nosVulkan_EXPORTS
 #define nosVulkan_API __declspec(dllexport)
@@ -209,7 +227,7 @@ static_assert(sizeof(VkDescriptorBufferInfo) == sizeof(DescriptorResourceInfo));
 struct HandleExportInfo 
 {
     u64 PID;
-    HANDLE Handle;
+    NOS_HANDLE Handle;
     VkExternalMemoryHandleTypeFlagBits Type;
 };
 */
@@ -231,7 +249,7 @@ struct MemoryExportInfo
 {
     uint32_t HandleType;
     u64 PID;
-    HANDLE Handle;
+    NOS_HANDLE Handle;
 	uint64_t Offset;
 	uint64_t Size;
 	uint64_t AllocationSize;

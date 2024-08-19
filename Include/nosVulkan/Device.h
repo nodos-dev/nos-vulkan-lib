@@ -3,15 +3,18 @@
  */
 
 #pragma once
+// External
 
 // nosVulkan
 #include "Common.h"
 #include "Allocation.h"
 #include "ResourcePool.hpp"
+#include "Platform.h"
 
 // std
 #include <thread>
 #include <shared_mutex>
+#include <cstring>
 
 template<>
 struct std::hash<VkSamplerCreateInfo>
@@ -99,6 +102,14 @@ struct FeatureSet  :
     }
     
 };
+
+/*
+GCC seemingly has a bug for defining partial specializetion in some contexts
+https://stackoverflow.com/questions/72190700/explicit-template-argument-list-not-allowed-with-g-but-compiles-with-clang
+Hence the following template specializations are moved to global scope
+*/
+template<class T> static constexpr bool IS_RC = false;
+template<class T> static constexpr bool IS_RC<rc<T>> = true;
 
 struct nosVulkan_API Device : SharedFactory<Device>,
                              VklDeviceFunctions
@@ -207,9 +218,6 @@ struct nosVulkan_API Device : SharedFactory<Device>,
     template<class T>
     using Inner = typename InnerType<T>::Inner;
 
-    template<class T> static constexpr bool IS_RC = false;
-    template<class T> static constexpr bool IS_RC<rc<T>> = true;
-
     template<class T>
     static constexpr bool IsRC = IS_RC<T> && HasEnabledSharedFromThis<Inner<T>>;
 
@@ -292,14 +300,14 @@ static_assert(Device::IsRC<rc<Device>>);
 
 struct nosVulkan_API Context : SharedFactory<Context>
 {
+    
     typedef VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(
         VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
         VkDebugUtilsMessageTypeFlagsEXT messageType,
         const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
         void* pUserData);
 
-    void* Lib;
-
+    NOS_MODULE_HANDLE Lib;
     VkInstance Instance;
     VkDebugUtilsMessengerEXT Msger = 0;
     std::vector<rc<Device>> Devices;

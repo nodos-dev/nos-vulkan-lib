@@ -71,6 +71,11 @@ VkResult Allocation::Import(Device* device, std::variant<VkBuffer, VkImage> hand
 		.sType = VK_STRUCTURE_TYPE_MEMORY_WIN32_HANDLE_PROPERTIES_KHR
 		};
 		res = device->GetMemoryWin32HandlePropertiesKHR(VkExternalMemoryHandleTypeFlagBits(imported.HandleType), dupHandle, &extHandleProps);
+#elif defined(__linux)
+		VkMemoryFdPropertiesKHR extHandleProps{
+		.sType = VK_STRUCTURE_TYPE_MEMORY_FD_PROPERTIES_KHR
+		};
+		res = device->GetMemoryFdPropertiesKHR(VkExternalMemoryHandleTypeFlagBits(imported.HandleType), dupHandle, &extHandleProps);		
 #else
 #pragma error "Unimplemented"
 #endif

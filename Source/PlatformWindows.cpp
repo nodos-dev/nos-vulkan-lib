@@ -1,7 +1,6 @@
+
+#if defined(_WIN32)
 #include "nosVulkan/Platform.h"
-
-#if _WIN32
-
 namespace nos::vk
 {
 	bool PlatformCloseHandle(HANDLE handle)
@@ -65,8 +64,7 @@ namespace nos::vk
 
 		return message;
 	}
-
-#endif
-
-
 } //namespace nos::vk
+#endif //_WIN32
+
+

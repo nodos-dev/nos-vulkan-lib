@@ -10,16 +10,18 @@
 namespace nos::vk
 {
 
+#if defined(_WIN32)
 #define HANDLE_TYPE  (VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT)
-
-Semaphore::Semaphore(Device* Vk, VkSemaphoreType type, u64 pid, HANDLE ExtHandle) 
+#elif defined(__linux__)
+#define HANDLE_TYPE (VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_FD_BIT)
+#endif
+Semaphore::Semaphore(Device* Vk, VkSemaphoreType type, u64 pid, NOS_HANDLE ExtHandle) 
     : DeviceChild(Vk), Type(type)
 {
+#if defined(_WIN32)
     VkExportSemaphoreWin32HandleInfoKHR handleInfo = {
         .sType = VK_STRUCTURE_TYPE_EXPORT_SEMAPHORE_WIN32_HANDLE_INFO_KHR,
-#if _WIN32
         .dwAccess = GENERIC_ALL,
-#endif
     };
 
     VkExportSemaphoreCreateInfo exportInfo = {
@@ -27,12 +29,13 @@ Semaphore::Semaphore(Device* Vk, VkSemaphoreType type, u64 pid, HANDLE ExtHandle
         .pNext = &handleInfo,
         .handleTypes = HANDLE_TYPE,
     };
+#endif
 
 	VkSemaphoreTypeCreateInfo semaphoreTypeInfo = {
 		.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
-		.pNext = &exportInfo,
+		.pNext = NULL,
 		.semaphoreType = type,
-		.initialValue = 0,
+        .initialValue = 0,
 	};
 
     VkSemaphoreCreateInfo semaphoreCreateInfo = {
@@ -42,19 +45,28 @@ Semaphore::Semaphore(Device* Vk, VkSemaphoreType type, u64 pid, HANDLE ExtHandle
     };
 
     NOSVK_ASSERT(Vk->CreateSemaphore(&semaphoreCreateInfo, 0, &Handle));
-
     if(ExtHandle)
     {
+        #if defined(_WIN32)
         VkImportSemaphoreWin32HandleInfoKHR importInfo = {
 			.sType = VK_STRUCTURE_TYPE_IMPORT_SEMAPHORE_WIN32_HANDLE_INFO_KHR,
             .semaphore = Handle,
             .handleType = HANDLE_TYPE,
             .handle = PlatformDupeHandle(pid, ExtHandle),
         };
-        
         NOSVK_ASSERT(Vk->ImportSemaphoreWin32HandleKHR(&importInfo));
+        #elif defined(__linux__)
+        VkImportSemaphoreFdInfoKHR importInfo = {
+			.sType = VK_STRUCTURE_TYPE_IMPORT_SEMAPHORE_FD_INFO_KHR,
+            .semaphore = Handle,
+            .handleType = HANDLE_TYPE,
+            .fd = PlatformDupeHandle(pid, ExtHandle),
+        };
+        NOSVK_ASSERT(Vk->ImportSemaphoreFdKHR(&importInfo));
+        #endif
+        
     }
-
+#if defined(_WIN32)
     VkSemaphoreGetWin32HandleInfoKHR getHandleInfo = {
         .sType = VK_STRUCTURE_TYPE_SEMAPHORE_GET_WIN32_HANDLE_INFO_KHR,
         .semaphore = Handle,
@@ -62,7 +74,17 @@ Semaphore::Semaphore(Device* Vk, VkSemaphoreType type, u64 pid, HANDLE ExtHandle
     };
 
 	NOSVK_ASSERT(Vk->GetSemaphoreWin32HandleKHR(&getHandleInfo, &OSHandle));
-	assert(OSHandle);
+#elif defined(__linux__)
+        VkSemaphoreGetFdInfoKHR getHandleInfo = {
+        .sType = VK_STRUCTURE_TYPE_SEMAPHORE_GET_WIN32_HANDLE_INFO_KHR,
+        .semaphore = Handle,
+        .handleType = HANDLE_TYPE,
+    };
+
+	NOSVK_ASSERT(Vk->GetSemaphoreFdKHR(&getHandleInfo, &OSHandle));
+
+#endif
+    assert(OSHandle);
 
 #if _WIN32
 	DWORD flags;

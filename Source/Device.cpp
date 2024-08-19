@@ -3,6 +3,7 @@
 
 // External
 #include <vulkan/vulkan_core.h>
+#include <vulkan/vulkan.hpp>
 
 // nosVulkan
 #include "nosVulkan/Common.h"
@@ -407,11 +408,20 @@ void Context::EnableValidationLayers(bool enable)
 }
 
 Context::Context(DebugCallback* debugCallback)
-    : Lib(::LoadLibrary("vulkan-1.dll"))
 {
-    NOSVK_ASSERT(vkl_init((PFN_vkGetInstanceProcAddr)GetProcAddress((HMODULE)Lib, "vkGetInstanceProcAddr")));
+    NOSVK_ASSERT(vkl_init((PFN_vkGetInstanceProcAddr)nos::vk::PlatformGetProcAddress(Lib, "vkGetInstanceProcAddr")));
     u32 count;
-
+    try
+    {
+        ::vk::DynamicLoader vkLoader = ::vk::DynamicLoader();
+        NOSVK_ASSERT(vkl_init(vkLoader.getProcAddress<PFN_vkGetInstanceProcAddr>("vkGetInstanceProcAddr")));
+    }
+    catch (std::exception& e)
+    {
+        printf("Failed to load Vulkan library: %s\n", e.what());
+        assert(0);
+    }
+    v
     VkApplicationInfo app = {
         .sType      = VK_STRUCTURE_TYPE_APPLICATION_INFO,
         .apiVersion = API_VERSION_USED

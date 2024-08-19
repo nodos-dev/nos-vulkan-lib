@@ -1,0 +1,507 @@
+From c90d9e6463475b83010ea0235659c74abf8fa705 Mon Sep 17 00:00:00 2001
+From: bertaye <bertayeren@gmail.com>
+Date: Fri, 16 Aug 2024 19:05:56 +0300
+Subject: [PATCH] Add platform codes with macros; use vulkan.hpp DynamicLoader
+ for loading vulkan libraries and retrievng their proc addresses
+
+---
+ CMakeLists.txt                               |  2 +-
+ Include/nosVulkan/Command.h                  |  2 +-
+ Include/nosVulkan/Common.h                   | 22 +++++++++-
+ Include/nosVulkan/Device.h                   | 18 ++++++---
+ Include/nosVulkan/Pipeline.h                 | 27 ++++++-------
+ Include/nosVulkan/Platform.h                 |  7 ++--
+ Include/nosVulkan/ResourcePool.hpp           |  2 +-
+ Include/nosVulkan/Semaphore.h                |  5 ++-
+ Include/nosVulkan/Stream.h                   |  2 +
+ Source/Allocation.cpp                        |  5 +++
+ Source/Common.cpp                            |  1 +
+ Source/Device.cpp                            | 16 ++++++--
+ Source/PlatformLinux.cpp                     | 32 +++++++++++++++
+ Source/{Platform.cpp => PlatformWindows.cpp} | 10 ++---
+ Source/Semaphore.cpp                         | 42 +++++++++++++++-----
+ 15 files changed, 144 insertions(+), 49 deletions(-)
+ create mode 100644 Source/PlatformLinux.cpp
+ rename Source/{Platform.cpp => PlatformWindows.cpp} (97%)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index bb57823..e7d1c6e 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -42,7 +42,7 @@ if(NOT TARGET "VulkanMemoryAllocator")
+ endif()
+ 
+ list(APPEND DEPENDENCIES vkl VulkanMemoryAllocator spirv-cross-core d3d12 d3d11 dxgi)
+-list(APPEND INCLUDE_FOLDERS ${CMAKE_CURRENT_SOURCE_DIR}/Include)
++list(APPEND INCLUDE_FOLDERS ${CMAKE_CURRENT_SOURCE_DIR}/Include ${CMAKE_CURRENT_SOURCE_DIR}/External/vkl/Vulkan-Headers/include)
+ list(APPEND SOURCE_FOLDERS ${CMAKE_CURRENT_SOURCE_DIR}/Source ${INCLUDE_FOLDERS})
+ 
+ foreach(folder IN LISTS SOURCE_FOLDERS)	
+diff --git a/Include/nosVulkan/Command.h b/Include/nosVulkan/Command.h
+index 1e0813e..127531b 100644
+--- a/Include/nosVulkan/Command.h
++++ b/Include/nosVulkan/Command.h
+@@ -5,7 +5,7 @@
+ #pragma once
+ 
+ #include "Common.h"
+-
++#include <atomic>
+ namespace nos::vk
+ {
+ 
+diff --git a/Include/nosVulkan/Common.h b/Include/nosVulkan/Common.h
+index 33b724e..b3356ed 100644
+--- a/Include/nosVulkan/Common.h
++++ b/Include/nosVulkan/Common.h
+@@ -23,6 +23,24 @@
+ #include <set>
+ #include <algorithm>
+ 
++#if defined(_WIN32)
++
++#define VULKAN_LIB_NAME "vulkan-1.dll"
++typedef HANDLE NOS_HANDLE;
++typedef HMODULE NOS_MODULE_HANDLE;
++typedef uint64_t NOS_PID;
++typedef FARPROC NOS_PROC;
++
++#elif defined(__linux__)
++
++#define VULKAN_LIB_NAME "libvulkan.so.1"
++typedef int NOS_HANDLE;
++typedef void* NOS_MODULE_HANDLE;
++typedef pid_t NOS_PID;
++typedef void* NOS_PROC;
++
++#endif
++
+ #ifdef nosVulkan_SHARED
+ #ifdef nosVulkan_EXPORTS
+ #define nosVulkan_API __declspec(dllexport)
+@@ -209,7 +227,7 @@ static_assert(sizeof(VkDescriptorBufferInfo) == sizeof(DescriptorResourceInfo));
+ struct HandleExportInfo 
+ {
+     u64 PID;
+-    HANDLE Handle;
++    NOS_HANDLE Handle;
+     VkExternalMemoryHandleTypeFlagBits Type;
+ };
+ */
+@@ -231,7 +249,7 @@ struct MemoryExportInfo
+ {
+     uint32_t HandleType;
+     u64 PID;
+-    HANDLE Handle;
++    NOS_HANDLE Handle;
+ 	uint64_t Offset;
+ 	uint64_t Size;
+ 	uint64_t AllocationSize;
+diff --git a/Include/nosVulkan/Device.h b/Include/nosVulkan/Device.h
+index 42ea7df..76e7462 100644
+--- a/Include/nosVulkan/Device.h
++++ b/Include/nosVulkan/Device.h
+@@ -3,15 +3,18 @@
+  */
+ 
+ #pragma once
++// External
+ 
+ // nosVulkan
+ #include "Common.h"
+ #include "Allocation.h"
+ #include "ResourcePool.hpp"
++#include "Platform.h"
+ 
+ // std
+ #include <thread>
+ #include <shared_mutex>
++#include <cstring>
+ 
+ template<>
+ struct std::hash<VkSamplerCreateInfo>
+@@ -100,6 +103,14 @@ struct FeatureSet  :
+     
+ };
+ 
++/*
++GCC seemingly has a bug for defining partial specializetion in some contexts
++https://stackoverflow.com/questions/72190700/explicit-template-argument-list-not-allowed-with-g-but-compiles-with-clang
++Hence the following template specializations are moved to global scope
++*/
++template<class T> static constexpr bool IS_RC = false;
++template<class T> static constexpr bool IS_RC<rc<T>> = true;
++
+ struct nosVulkan_API Device : SharedFactory<Device>,
+                              VklDeviceFunctions
+ {
+@@ -207,9 +218,6 @@ struct nosVulkan_API Device : SharedFactory<Device>,
+     template<class T>
+     using Inner = typename InnerType<T>::Inner;
+ 
+-    template<class T> static constexpr bool IS_RC = false;
+-    template<class T> static constexpr bool IS_RC<rc<T>> = true;
+-
+     template<class T>
+     static constexpr bool IsRC = IS_RC<T> && HasEnabledSharedFromThis<Inner<T>>;
+ 
+@@ -292,14 +300,14 @@ static_assert(Device::IsRC<rc<Device>>);
+ 
+ struct nosVulkan_API Context : SharedFactory<Context>
+ {
++    
+     typedef VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(
+         VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+         VkDebugUtilsMessageTypeFlagsEXT messageType,
+         const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+         void* pUserData);
+ 
+-    void* Lib;
+-
++    NOS_MODULE_HANDLE Lib;
+     VkInstance Instance;
+     VkDebugUtilsMessengerEXT Msger = 0;
+     std::vector<rc<Device>> Devices;
+diff --git a/Include/nosVulkan/Pipeline.h b/Include/nosVulkan/Pipeline.h
+index 7e51295..f4f956f 100644
+--- a/Include/nosVulkan/Pipeline.h
++++ b/Include/nosVulkan/Pipeline.h
+@@ -35,21 +35,20 @@ struct nosVulkan_API ComputePipeline : SharedFactory<ComputePipeline>, Pipeline
+     ComputePipeline(Device* Vk, rc<Shader> CS);
+     VkPipeline Handle = 0;
+ };
++struct BlendMode
++{
++    /*VkBool*/                  u32 Enable : 1 = false;
++    /*VkBlendFactor*/           u32 SrcColorFactor : 5 = 0;
++    /*VkBlendFactor*/           u32 DstColorFactor : 5 = 0;
++    /*VkBlendFactor*/           u32 SrcAlphaFactor : 5 = 0;
++    /*VkBlendFactor*/           u32 DstAlphaFactor : 5 = 0;
++    /*VkColorComponentFlags*/   u32 ColorMask : 4 = 0xF;
++    /*VkBlendOp*/               u32 ColorOp = 0;
++    /*VkBlendOp*/               u32 AlphaOp = 0;
++};
+ 
+ struct nosVulkan_API GraphicsPipeline : SharedFactory<GraphicsPipeline>, Pipeline
+ {
+-    struct BlendMode
+-    {
+-		/*VkBool*/                  u32 Enable : 1 = false;
+-        /*VkBlendFactor*/           u32 SrcColorFactor : 5 = 0;
+-        /*VkBlendFactor*/           u32 DstColorFactor : 5 = 0;
+-        /*VkBlendFactor*/           u32 SrcAlphaFactor : 5 = 0;
+-        /*VkBlendFactor*/           u32 DstAlphaFactor : 5 = 0;
+-		/*VkColorComponentFlags*/   u32 ColorMask : 4 = 0xF;
+-        /*VkBlendOp*/               u32 ColorOp = 0;
+-        /*VkBlendOp*/               u32 AlphaOp = 0;
+-    };
+-    
+     rc<Shader> VS = nullptr;
+     BlendMode Blend = {};
+     VkSampleCountFlags MS = 1;
+@@ -63,8 +62,8 @@ struct nosVulkan_API GraphicsPipeline : SharedFactory<GraphicsPipeline>, Pipelin
+     
+     std::map<VkFormat, PerFormat> Handles;
+ 
+-    GraphicsPipeline(Device* Vk, std::vector<u8> const&, BlendMode blend = {}, u32 MS = 1);
+-    GraphicsPipeline(Device* Vk, rc<Shader> PS, rc<Shader> VS = 0, BlendMode blend = {}, u32 MS = 1);
++    GraphicsPipeline(Device* Vk, std::vector<u8> const&, BlendMode blend = BlendMode(), u32 MS = 1);
++    GraphicsPipeline(Device* Vk, rc<Shader> PS, rc<Shader> VS = 0, BlendMode blend = BlendMode(), u32 MS = 1);
+     ~GraphicsPipeline();
+ 
+     rc<Shader> GetVS();
+diff --git a/Include/nosVulkan/Platform.h b/Include/nosVulkan/Platform.h
+index 0831296..b81bc62 100644
+--- a/Include/nosVulkan/Platform.h
++++ b/Include/nosVulkan/Platform.h
+@@ -26,10 +26,9 @@
+ namespace nos::vk
+ {
+ 
+-nosVulkan_API bool PlatformCloseHandle(HANDLE);
+-nosVulkan_API HANDLE PlatformDupeHandle(u64 pid, HANDLE);
+-nosVulkan_API u64 PlatformGetCurrentProcessId();
+-
++nosVulkan_API bool PlatformCloseHandle(NOS_HANDLE);
++nosVulkan_API NOS_HANDLE PlatformDupeHandle(u64 pid, NOS_HANDLE);
++nosVulkan_API NOS_PID PlatformGetCurrentProcessId();
+ nosVulkan_API std::string GetLastErrorAsString();
+ 
+ } // namespace nos::vk
+diff --git a/Include/nosVulkan/ResourcePool.hpp b/Include/nosVulkan/ResourcePool.hpp
+index cbf72bf..2624ca6 100644
+--- a/Include/nosVulkan/ResourcePool.hpp
++++ b/Include/nosVulkan/ResourcePool.hpp
+@@ -10,7 +10,7 @@
+ // std
+ #include <unordered_map>
+ #include <shared_mutex>
+-
++#include <list>
+ namespace nos::vk
+ {
+ 
+diff --git a/Include/nosVulkan/Semaphore.h b/Include/nosVulkan/Semaphore.h
+index 305930d..0b36579 100644
+--- a/Include/nosVulkan/Semaphore.h
++++ b/Include/nosVulkan/Semaphore.h
+@@ -5,6 +5,7 @@
+ #pragma once
+ 
+ #include "Common.h"
++#include <cstdint>
+ 
+ namespace nos::vk
+ {
+@@ -13,9 +14,9 @@ struct nosVulkan_API Semaphore : SharedFactory<Semaphore>, DeviceChild
+ {
+ 	VkSemaphore Handle = VK_NULL_HANDLE;
+ 	VkSemaphoreType Type;
+-	HANDLE OSHandle{};
++	NOS_HANDLE OSHandle{};
+ 	u64 PID{};
+-    Semaphore(Device *Vk, VkSemaphoreType type, u64 pid = 0, HANDLE OSHandle = 0);
++    Semaphore(Device *Vk, VkSemaphoreType type, u64 pid = 0, NOS_HANDLE OSHandle = 0);
+ 
+     void Signal(uint64_t value);
+     VkResult Wait(uint64_t value, uint64_t timeoutNs = UINT64_MAX);
+diff --git a/Include/nosVulkan/Stream.h b/Include/nosVulkan/Stream.h
+index f834cd3..b42fe83 100644
+--- a/Include/nosVulkan/Stream.h
++++ b/Include/nosVulkan/Stream.h
+@@ -5,6 +5,8 @@
+ #pragma once
+ 
+ #include "Image.h"
++#include <condition_variable>
++#include <atomic>
+ 
+ namespace nos::vk
+ {
+diff --git a/Source/Allocation.cpp b/Source/Allocation.cpp
+index 947277a..3ecf08f 100644
+--- a/Source/Allocation.cpp
++++ b/Source/Allocation.cpp
+@@ -71,6 +71,11 @@ VkResult Allocation::Import(Device* device, std::variant<VkBuffer, VkImage> hand
+ 		.sType = VK_STRUCTURE_TYPE_MEMORY_WIN32_HANDLE_PROPERTIES_KHR
+ 		};
+ 		res = device->GetMemoryWin32HandlePropertiesKHR(VkExternalMemoryHandleTypeFlagBits(imported.HandleType), dupHandle, &extHandleProps);
++#elif defined(__linux)
++		VkMemoryFdPropertiesKHR extHandleProps{
++		.sType = VK_STRUCTURE_TYPE_MEMORY_FD_PROPERTIES_KHR
++		};
++		res = device->GetMemoryFdPropertiesKHR(VkExternalMemoryHandleTypeFlagBits(imported.HandleType), dupHandle, &extHandleProps);		
+ #else
+ #pragma error "Unimplemented"
+ #endif
+diff --git a/Source/Common.cpp b/Source/Common.cpp
+index 3f573e5..53f48c8 100644
+--- a/Source/Common.cpp
++++ b/Source/Common.cpp
+@@ -9,6 +9,7 @@
+ #include <algorithm>
+ #include <bit>
+ #include <iostream>
++#include <math.h>
+ 
+ namespace nos::vk
+ {
+diff --git a/Source/Device.cpp b/Source/Device.cpp
+index 9e7de92..8ea6549 100644
+--- a/Source/Device.cpp
++++ b/Source/Device.cpp
+@@ -3,6 +3,7 @@
+ 
+ // External
+ #include <vulkan/vulkan_core.h>
++#include <vulkan/vulkan.hpp>
+ 
+ // nosVulkan
+ #include "nosVulkan/Common.h"
+@@ -407,11 +408,20 @@ void Context::EnableValidationLayers(bool enable)
+ }
+ 
+ Context::Context(DebugCallback* debugCallback)
+-    : Lib(::LoadLibrary("vulkan-1.dll"))
+ {
+-    NOSVK_ASSERT(vkl_init((PFN_vkGetInstanceProcAddr)GetProcAddress((HMODULE)Lib, "vkGetInstanceProcAddr")));
++    NOSVK_ASSERT(vkl_init((PFN_vkGetInstanceProcAddr)nos::vk::PlatformGetProcAddress(Lib, "vkGetInstanceProcAddr")));
+     u32 count;
+-
++    try
++    {
++        ::vk::DynamicLoader vkLoader = ::vk::DynamicLoader();
++        NOSVK_ASSERT(vkl_init(vkLoader.getProcAddress<PFN_vkGetInstanceProcAddr>("vkGetInstanceProcAddr")));
++    }
++    catch (std::exception& e)
++    {
++        printf("Failed to load Vulkan library: %s\n", e.what());
++        assert(0);
++    }
++    v
+     VkApplicationInfo app = {
+         .sType      = VK_STRUCTURE_TYPE_APPLICATION_INFO,
+         .apiVersion = API_VERSION_USED
+diff --git a/Source/PlatformLinux.cpp b/Source/PlatformLinux.cpp
+new file mode 100644
+index 0000000..45a0fb7
+--- /dev/null
++++ b/Source/PlatformLinux.cpp
+@@ -0,0 +1,32 @@
++
++#ifdef __linux__
++#include "nosVulkan/Platform.h"
++#include <unistd.h>
++#include <errno.h>
++#include <string.h>
++#include <cstdio>
++#include <dlfcn.h>
++
++namespace nos::vk
++{
++    bool PlatformCloseHandle(int fd)
++	{
++		return close(fd) == 0;
++	}
++
++	int PlatformDupeHandle(int fd)
++	{
++		return dup(fd); // Returns a new file descriptor or -1 on error
++	}
++
++	pid_t PlatformGetCurrentProcessId()
++	{
++		return getpid();
++	}
++
++	std::string GetLastErrorAsString()
++	{
++		return strerror(errno);
++	}
++} // namespace nos::vk
++#endif
+diff --git a/Source/Platform.cpp b/Source/PlatformWindows.cpp
+similarity index 97%
+rename from Source/Platform.cpp
+rename to Source/PlatformWindows.cpp
+index dd93580..6341e81 100644
+--- a/Source/Platform.cpp
++++ b/Source/PlatformWindows.cpp
+@@ -1,7 +1,6 @@
+-#include "nosVulkan/Platform.h"
+-
+-#if _WIN32
+ 
++#if defined(_WIN32)
++#include "nosVulkan/Platform.h"
+ namespace nos::vk
+ {
+ 	bool PlatformCloseHandle(HANDLE handle)
+@@ -65,8 +64,7 @@ namespace nos::vk
+ 
+ 		return message;
+ 	}
+-
+-#endif
++} //namespace nos::vk
++#endif //_WIN32
+ 
+ 
+-} //namespace nos::vk
+diff --git a/Source/Semaphore.cpp b/Source/Semaphore.cpp
+index f6d0052..03d0008 100644
+--- a/Source/Semaphore.cpp
++++ b/Source/Semaphore.cpp
+@@ -10,16 +10,18 @@
+ namespace nos::vk
+ {
+ 
++#if defined(_WIN32)
+ #define HANDLE_TYPE  (VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT)
+-
+-Semaphore::Semaphore(Device* Vk, VkSemaphoreType type, u64 pid, HANDLE ExtHandle) 
++#elif defined(__linux__)
++#define HANDLE_TYPE (VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_FD_BIT)
++#endif
++Semaphore::Semaphore(Device* Vk, VkSemaphoreType type, u64 pid, NOS_HANDLE ExtHandle) 
+     : DeviceChild(Vk), Type(type)
+ {
++#if defined(_WIN32)
+     VkExportSemaphoreWin32HandleInfoKHR handleInfo = {
+         .sType = VK_STRUCTURE_TYPE_EXPORT_SEMAPHORE_WIN32_HANDLE_INFO_KHR,
+-#if _WIN32
+         .dwAccess = GENERIC_ALL,
+-#endif
+     };
+ 
+     VkExportSemaphoreCreateInfo exportInfo = {
+@@ -27,12 +29,13 @@ Semaphore::Semaphore(Device* Vk, VkSemaphoreType type, u64 pid, HANDLE ExtHandle
+         .pNext = &handleInfo,
+         .handleTypes = HANDLE_TYPE,
+     };
++#endif
+ 
+ 	VkSemaphoreTypeCreateInfo semaphoreTypeInfo = {
+ 		.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
+-		.pNext = &exportInfo,
++		.pNext = NULL,
+ 		.semaphoreType = type,
+-		.initialValue = 0,
++        .initialValue = 0,
+ 	};
+ 
+     VkSemaphoreCreateInfo semaphoreCreateInfo = {
+@@ -42,19 +45,28 @@ Semaphore::Semaphore(Device* Vk, VkSemaphoreType type, u64 pid, HANDLE ExtHandle
+     };
+ 
+     NOSVK_ASSERT(Vk->CreateSemaphore(&semaphoreCreateInfo, 0, &Handle));
+-
+     if(ExtHandle)
+     {
++        #if defined(_WIN32)
+         VkImportSemaphoreWin32HandleInfoKHR importInfo = {
+ 			.sType = VK_STRUCTURE_TYPE_IMPORT_SEMAPHORE_WIN32_HANDLE_INFO_KHR,
+             .semaphore = Handle,
+             .handleType = HANDLE_TYPE,
+             .handle = PlatformDupeHandle(pid, ExtHandle),
+         };
+-        
+         NOSVK_ASSERT(Vk->ImportSemaphoreWin32HandleKHR(&importInfo));
++        #elif defined(__linux__)
++        VkImportSemaphoreFdInfoKHR importInfo = {
++			.sType = VK_STRUCTURE_TYPE_IMPORT_SEMAPHORE_FD_INFO_KHR,
++            .semaphore = Handle,
++            .handleType = HANDLE_TYPE,
++            .fd = PlatformDupeHandle(pid, ExtHandle),
++        };
++        NOSVK_ASSERT(Vk->ImportSemaphoreFdKHR(&importInfo));
++        #endif
++        
+     }
+-
++#if defined(_WIN32)
+     VkSemaphoreGetWin32HandleInfoKHR getHandleInfo = {
+         .sType = VK_STRUCTURE_TYPE_SEMAPHORE_GET_WIN32_HANDLE_INFO_KHR,
+         .semaphore = Handle,
+@@ -62,7 +74,17 @@ Semaphore::Semaphore(Device* Vk, VkSemaphoreType type, u64 pid, HANDLE ExtHandle
+     };
+ 
+ 	NOSVK_ASSERT(Vk->GetSemaphoreWin32HandleKHR(&getHandleInfo, &OSHandle));
+-	assert(OSHandle);
++#elif defined(__linux__)
++        VkSemaphoreGetFdInfoKHR getHandleInfo = {
++        .sType = VK_STRUCTURE_TYPE_SEMAPHORE_GET_WIN32_HANDLE_INFO_KHR,
++        .semaphore = Handle,
++        .handleType = HANDLE_TYPE,
++    };
++
++	NOSVK_ASSERT(Vk->GetSemaphoreFdKHR(&getHandleInfo, &OSHandle));
++
++#endif
++    assert(OSHandle);
+ 
+ #if _WIN32
+ 	DWORD flags;
+-- 
+2.43.0
+
