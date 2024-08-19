@@ -14,12 +14,12 @@ namespace nos::vk
 		return close(fd) == 0;
 	}
 
-	int PlatformDupeHandle(int fd)
+	NOS_HANDLE PlatformDupeHandle(u64 pid, NOS_HANDLE)
 	{
-		return dup(fd); // Returns a new file descriptor or -1 on error
+		return dup(pid); // Returns a new file descriptor or -1 on error
 	}
 
-	pid_t PlatformGetCurrentProcessId()
+	NOS_PID PlatformGetCurrentProcessId()
 	{
 		return getpid();
 	}

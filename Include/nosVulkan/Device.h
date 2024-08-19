@@ -4,6 +4,7 @@
 
 #pragma once
 // External
+#include <vulkan/vulkan.hpp>
 
 // nosVulkan
 #include "Common.h"
@@ -307,7 +308,7 @@ struct nosVulkan_API Context : SharedFactory<Context>
         const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
         void* pUserData);
 
-    NOS_MODULE_HANDLE Lib;
+    ::vk::DynamicLoader vkLoader = ::vk::DynamicLoader();
     VkInstance Instance;
     VkDebugUtilsMessengerEXT Msger = 0;
     std::vector<rc<Device>> Devices;

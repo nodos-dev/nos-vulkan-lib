@@ -3,7 +3,6 @@
 
 // External
 #include <vulkan/vulkan_core.h>
-#include <vulkan/vulkan.hpp>
 
 // nosVulkan
 #include "nosVulkan/Common.h"
@@ -23,7 +22,11 @@ static std::vector<const char*> layers = {
 
 static std::vector<const char*> extensions = {
     "VK_KHR_surface",
+    #if defined (_WIN32)
     "VK_KHR_win32_surface",
+    #elif defined (__linux__)
+    "VK_KHR_xcb_surface",
+    #endif
     "VK_KHR_external_memory_capabilities",
 	"VK_KHR_external_semaphore_capabilities",
 	"VK_EXT_debug_utils",
@@ -32,8 +35,12 @@ static std::vector<const char*> extensions = {
 
 static std::vector<const char*> deviceExtensions = {
     "VK_KHR_swapchain",
+    #if defined (_WIN32)
     "VK_KHR_external_semaphore_win32",
     "VK_KHR_external_memory_win32",
+    #elif defined (__linux__)
+    "VK_KHR_external_memory_fd",
+    #endif
     "VK_EXT_external_memory_host",
     "VK_KHR_synchronization2",
     "VK_KHR_dynamic_rendering",
@@ -409,11 +416,9 @@ void Context::EnableValidationLayers(bool enable)
 
 Context::Context(DebugCallback* debugCallback)
 {
-    NOSVK_ASSERT(vkl_init((PFN_vkGetInstanceProcAddr)nos::vk::PlatformGetProcAddress(Lib, "vkGetInstanceProcAddr")));
     u32 count;
     try
     {
-        ::vk::DynamicLoader vkLoader = ::vk::DynamicLoader();
         NOSVK_ASSERT(vkl_init(vkLoader.getProcAddress<PFN_vkGetInstanceProcAddr>("vkGetInstanceProcAddr")));
     }
     catch (std::exception& e)
@@ -421,7 +426,6 @@ Context::Context(DebugCallback* debugCallback)
         printf("Failed to load Vulkan library: %s\n", e.what());
         assert(0);
     }
-    v
     VkApplicationInfo app = {
         .sType      = VK_STRUCTURE_TYPE_APPLICATION_INFO,
         .apiVersion = API_VERSION_USED
@@ -505,8 +509,6 @@ Context::~Context()
         vkDestroyDebugUtilsMessengerEXT(Instance, Msger, 0);
     }
     vkDestroyInstance(Instance, 0);
-
-    ::FreeLibrary((HMODULE)Lib);
 }
 
 rc<Device> Context::CreateDevice(u64 luid) const
