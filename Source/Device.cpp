@@ -35,10 +35,12 @@ static std::vector<const char*> extensions = {
 
 static std::vector<const char*> deviceExtensions = {
     "VK_KHR_swapchain",
+    "VK_KHR_external_semaphore",
     #if defined (_WIN32)
     "VK_KHR_external_semaphore_win32",
     "VK_KHR_external_memory_win32",
     #elif defined (__linux__)
+    "VK_KHR_external_semaphore_fd",
     "VK_KHR_external_memory_fd",
     #endif
     "VK_EXT_external_memory_host",
@@ -419,7 +421,8 @@ Context::Context(DebugCallback* debugCallback)
     u32 count;
     try
     {
-        NOSVK_ASSERT(vkl_init(vkLoader.getProcAddress<PFN_vkGetInstanceProcAddr>("vkGetInstanceProcAddr")));
+        vkLoader = std::make_unique<::vk::DynamicLoader>();
+        NOSVK_ASSERT(vkl_init(vkLoader->getProcAddress<PFN_vkGetInstanceProcAddr>("vkGetInstanceProcAddr")));
     }
     catch (std::exception& e)
     {

@@ -16,7 +16,7 @@
 #include <thread>
 #include <shared_mutex>
 #include <cstring>
-
+#include <memory>
 template<>
 struct std::hash<VkSamplerCreateInfo>
 {
@@ -308,7 +308,7 @@ struct nosVulkan_API Context : SharedFactory<Context>
         const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
         void* pUserData);
 
-    ::vk::DynamicLoader vkLoader = ::vk::DynamicLoader();
+    std::unique_ptr<::vk::DynamicLoader> vkLoader;
     VkInstance Instance;
     VkDebugUtilsMessengerEXT Msger = 0;
     std::vector<rc<Device>> Devices;
