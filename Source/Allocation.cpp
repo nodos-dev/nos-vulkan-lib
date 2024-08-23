@@ -49,9 +49,9 @@ uint32_t Allocation::GetMemoryTypeIndex() const
 VkResult Allocation::Import(Device* device, std::variant<VkBuffer, VkImage> handle, vk::MemoryExportInfo const& imported, VkMemoryPropertyFlags memProps)
 {
 	OsHandle = imported.Handle;
-	auto dupHandle = PlatformDupeHandle(imported.PID, imported.Handle);
-	if (!dupHandle)
-		return VK_ERROR_INVALID_EXTERNAL_HANDLE;
+	// auto dupHandle = PlatformDupeHandle(imported.PID, imported.Handle);
+	// if (!dupHandle)
+	// 	return VK_ERROR_INVALID_EXTERNAL_HANDLE;
 
 	VkMemoryRequirements requirements;
 	if (auto buf = std::get_if<VkBuffer>(&handle))
@@ -75,7 +75,7 @@ VkResult Allocation::Import(Device* device, std::variant<VkBuffer, VkImage> hand
 		VkMemoryFdPropertiesKHR extHandleProps{
 		.sType = VK_STRUCTURE_TYPE_MEMORY_FD_PROPERTIES_KHR
 		};
-		res = device->GetMemoryFdPropertiesKHR(VkExternalMemoryHandleTypeFlagBits(imported.HandleType), dupHandle, &extHandleProps);		
+		res = device->GetMemoryFdPropertiesKHR(VkExternalMemoryHandleTypeFlagBits(imported.HandleType), imported.Handle, &extHandleProps);		
 #else
 #pragma error "Unimplemented"
 #endif
@@ -94,7 +94,7 @@ VkResult Allocation::Import(Device* device, std::variant<VkBuffer, VkImage> hand
 	VkImportMemoryFdInfoKHR importInfo = {
 		.sType = VK_STRUCTURE_TYPE_IMPORT_MEMORY_FD_INFO_KHR,
 		.handleType = VkExternalMemoryHandleTypeFlagBits(imported.HandleType),
-		.fd = dupHandle,
+		.fd = imported.Handle,
 	};
 #endif
 	VkMemoryAllocateInfo info = {
