@@ -24,24 +24,14 @@
 #include <algorithm>
 
 #if defined(_WIN32)
-#ifndef WIN32_LEAN_AND_MEAN
-    #define WIN32_LEAN_AND_MEAN
-#endif
-#ifndef NOMINMAX
-    #define NOMINMAX
-#endif
-#include <Windows.h>
-typedef HANDLE NOS_HANDLE;
-typedef HMODULE NOS_MODULE_HANDLE;
+
+typedef void* NOS_HANDLE;
 typedef uint64_t NOS_PID;
-typedef FARPROC NOS_PROC;
 
 #elif defined(__linux__)
 
 typedef int NOS_HANDLE;
-typedef void* NOS_MODULE_HANDLE;
 typedef pid_t NOS_PID;
-typedef void* NOS_PROC;
 
 #endif
 

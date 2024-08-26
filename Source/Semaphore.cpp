@@ -5,6 +5,10 @@
 
 #include "nosVulkan/Platform.h"
 
+#if defined(_WIN32)
+#include <Windows.h>
+#endif
+
 #undef CreateSemaphore
 
 namespace nos::vk
@@ -100,13 +104,8 @@ Semaphore::Semaphore(Device* Vk, VkSemaphoreType type, u64 pid, NOS_HANDLE ExtHa
 	 //TODO LINUX_SUPPORT
 #endif
 
-	if (!pid) {
-#if _WIN32
-		pid = GetCurrentProcessId();
-#else
-		pid = getpid();
-#endif
-	}
+	if (!pid)
+        pid = PlatformGetCurrentProcessId();
 	PID = pid;
 }
 

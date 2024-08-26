@@ -1,6 +1,15 @@
 
 #if defined(_WIN32)
 #include "nosVulkan/Platform.h"
+
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+
+#include <Windows.h>
 namespace nos::vk
 {
 	bool PlatformCloseHandle(HANDLE handle)
@@ -8,7 +17,7 @@ namespace nos::vk
 		DWORD flags;
 		return /*GetHandleInformation(handle, &flags) && */CloseHandle(handle);
 	}
-
+	
 	HANDLE PlatformDupeHandle(u64 pid, HANDLE handle)
 	{
 		DWORD flags;
