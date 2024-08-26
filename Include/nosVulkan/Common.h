@@ -24,8 +24,13 @@
 #include <algorithm>
 
 #if defined(_WIN32)
-
-#define VULKAN_LIB_NAME "vulkan-1.dll"
+#ifndef WIN32_LEAN_AND_MEAN
+    #define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+    #define NOMINMAX
+#endif
+#include <Windows.h>
 typedef HANDLE NOS_HANDLE;
 typedef HMODULE NOS_MODULE_HANDLE;
 typedef uint64_t NOS_PID;
@@ -33,7 +38,6 @@ typedef FARPROC NOS_PROC;
 
 #elif defined(__linux__)
 
-#define VULKAN_LIB_NAME "libvulkan.so.1"
 typedef int NOS_HANDLE;
 typedef void* NOS_MODULE_HANDLE;
 typedef pid_t NOS_PID;
