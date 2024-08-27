@@ -20,5 +20,7 @@ nosVulkan_API bool PlatformCloseHandle(NOS_HANDLE);
 nosVulkan_API NOS_HANDLE PlatformDupeHandle(u64 pid, NOS_HANDLE);
 nosVulkan_API NOS_PID PlatformGetCurrentProcessId();
 nosVulkan_API std::string GetLastErrorAsString();
+nosVulkan_API void SetThreadName(NOS_HANDLE handle, std::string const& threadName);
+nosVulkan_API NOS_HANDLE GetCurrentThread();
 
 } // namespace nos::vk

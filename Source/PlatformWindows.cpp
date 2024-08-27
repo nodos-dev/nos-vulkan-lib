@@ -73,6 +73,38 @@ namespace nos::vk
 
 		return message;
 	}
+
+	void SetThreadName(NOS_HANDLE handle, std::string const& threadName)
+	{
+		const uint32_t MS_VC_EXCEPTION = 0x406D1388;
+
+		struct THREADNAME_INFO
+		{
+			uint32_t dwType;    // Must be 0x1000.
+			LPCSTR szName;     // Pointer to name (in user addr space).
+			uint32_t dwThreadID; // Thread ID (-1=caller thread).
+			uint32_t dwFlags;   // Reserved for future use, must be zero.
+		};
+
+		THREADNAME_INFO ThreadNameInfo;
+		ThreadNameInfo.dwType = 0x1000;
+		ThreadNameInfo.szName = threadName.c_str();
+		ThreadNameInfo.dwThreadID = ::GetThreadId(reinterpret_cast<HANDLE>(threadHandle));
+		ThreadNameInfo.dwFlags = 0;
+
+		__try
+		{
+			RaiseException(MS_VC_EXCEPTION, 0, sizeof(ThreadNameInfo) / sizeof(ULONG_PTR), (ULONG_PTR*)&ThreadNameInfo);
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER) __pragma(warning(suppress : 6322))
+		{
+		}
+	}
+
+	NOS_HANDLE GetCurrentThread()
+	{
+		return ::GetCurrentThread();
+	}
 } //namespace nos::vk
 #endif //_WIN32
 

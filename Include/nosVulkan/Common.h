@@ -30,7 +30,7 @@ typedef uint64_t NOS_PID;
 
 #elif defined(__linux__)
 
-typedef int NOS_HANDLE;
+typedef uint64_t NOS_HANDLE;
 typedef pid_t NOS_PID;
 
 #endif
