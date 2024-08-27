@@ -9,7 +9,7 @@
 
 namespace nos::vk
 {
-    bool PlatformCloseHandle(int fd)
+    bool PlatformCloseHandle(NOS_HANDLE fd)
 	{
 		return close(fd) == 0;
 	}

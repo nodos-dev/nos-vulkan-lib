@@ -12,7 +12,7 @@
 #include <Windows.h>
 namespace nos::vk
 {
-	bool PlatformCloseHandle(HANDLE handle)
+	bool PlatformCloseHandle(NOS_HANDLE handle)
 	{
 		DWORD flags;
 		return /*GetHandleInformation(handle, &flags) && */CloseHandle(handle);
