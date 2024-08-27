@@ -89,7 +89,7 @@ namespace nos::vk
 		THREADNAME_INFO ThreadNameInfo;
 		ThreadNameInfo.dwType = 0x1000;
 		ThreadNameInfo.szName = threadName.c_str();
-		ThreadNameInfo.dwThreadID = ::GetThreadId(reinterpret_cast<HANDLE>(threadHandle));
+		ThreadNameInfo.dwThreadID = ::GetThreadId(reinterpret_cast<HANDLE>(handle));
 		ThreadNameInfo.dwFlags = 0;
 
 		__try
