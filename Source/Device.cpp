@@ -13,6 +13,7 @@
 #include <iostream>
 #include <bit>
 #include <memory>
+#include <fstream>
 
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -50,6 +51,7 @@ static std::vector<const char*> deviceExtensions = {
 	"VK_EXT_memory_budget",
     // "VK_NV_external_memory_rdma",
 };
+static constexpr char PIPELINE_CACHE_FILE_NAME[] = "PipelineCaches.bin";
 
 namespace nos::vk
 {
@@ -138,6 +140,41 @@ bool Device::CheckSupport(VkPhysicalDevice PhysicalDevice)
 std::string Device::GetName() const
 {
     return vk::GetName(PhysicalDevice);
+}
+
+void CreateDevicePipelineCache(Device* Vk) {
+    std::ifstream file(PIPELINE_CACHE_FILE_NAME, std::ios::binary | std::ios::ate);
+    std::vector<char> buffer;
+    if (file.is_open())
+    {
+        std::streamsize size = file.tellg();
+        file.seekg(0, std::ios::beg);
+
+        buffer.resize(size);
+        file.read(buffer.data(), size);
+    }
+
+
+    VkPipelineCacheCreateInfo pipelineCacheCreateInfo = {};
+    pipelineCacheCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
+    pipelineCacheCreateInfo.initialDataSize = buffer.size();
+    pipelineCacheCreateInfo.pInitialData = buffer.size() ? buffer.data() : nullptr;
+    vkCreatePipelineCache(Vk->handle, &pipelineCacheCreateInfo, nullptr, &Vk->PipelineCache);
+}
+
+void DestroyDevicePipelineCache(Device* Vk) {
+    size_t size = 0;
+    vkGetPipelineCacheData(Vk->handle, Vk->PipelineCache, &size, nullptr);
+    std::vector<char> buffer(size);
+    vkGetPipelineCacheData(Vk->handle, Vk->PipelineCache, &size, buffer.data());
+
+    std::ofstream file(PIPELINE_CACHE_FILE_NAME, std::ios::binary);
+    if (file.is_open())
+    {
+        file.write(buffer.data(), size);
+    }
+
+    vkDestroyPipelineCache(Vk->handle, Vk->PipelineCache, nullptr);
 }
 
 void Device::InitializeVMA()
@@ -339,6 +376,7 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice)
     GetSampler(VK_FILTER_NEAREST);
     GetSampler(VK_FILTER_LINEAR);
     //GetSampler(VK_FILTER_CUBIC_IMG);
+    CreateDevicePipelineCache(this);
     std::lock_guard lock(Lock);
     Devices.insert(this);
 }
@@ -358,6 +396,8 @@ void Context::OrderDevices()
 
 Device::~Device()
 {
+    DestroyDevicePipelineCache(this);
+
 	ResourcePools.Clear();
     {
         std::lock_guard lock(Lock);
