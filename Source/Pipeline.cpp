@@ -40,7 +40,7 @@ ComputePipeline::ComputePipeline(Device* Vk, rc<Shader> CS)
         },
         .layout = Layout->Handle,
     };
-    NOSVK_ASSERT(Vk->CreateComputePipelines(0, 1, &info, 0, &Handle));
+    NOSVK_ASSERT(Vk->CreateComputePipelines(Vk->PipelineCache, 1, &info, 0, &Handle));
 }
 
 
@@ -230,10 +230,9 @@ void GraphicsPipeline::Recreate(VkFormat fmt)
         info.renderPass = Handles[fmt].rp;
         info.pNext = 0;
     }
-
-    NOSVK_ASSERT(Vk->CreateGraphicsPipelines(0, 1, &info, 0, &Handles[fmt].pl));
+    NOSVK_ASSERT(Vk->CreateGraphicsPipelines(Vk->PipelineCache, 1, &info, 0, &Handles[fmt].pl));
     rasterizationState.polygonMode = VK_POLYGON_MODE_LINE;
-    NOSVK_ASSERT(Vk->CreateGraphicsPipelines(0, 1, &info, 0, &Handles[fmt].wpl));
+    NOSVK_ASSERT(Vk->CreateGraphicsPipelines(Vk->PipelineCache, 1, &info, 0, &Handles[fmt].wpl));
 }
 
 
