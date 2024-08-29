@@ -100,6 +100,7 @@ struct FeatureSet  :
     
 };
 
+struct nosVulkan_API Context;
 struct nosVulkan_API Device : SharedFactory<Device>,
                              VklDeviceFunctions
 {
@@ -132,6 +133,7 @@ struct nosVulkan_API Device : SharedFactory<Device>,
     VkPhysicalDevice PhysicalDevice{};
 	VkPhysicalDeviceMemoryProperties2 MemoryProps{.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PROPERTIES_2};
     VkPipelineCache PipelineCache = {};
+    const nos::vk::Context* Context = 0;
 
     VmaAllocator Allocator;
 
@@ -278,7 +280,7 @@ struct nosVulkan_API Device : SharedFactory<Device>,
         }
     }
 
-    Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice);
+    Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, const nos::vk::Context* context);
     ~Device();
     u64 GetLuid() const;
 
@@ -304,10 +306,11 @@ struct nosVulkan_API Context : SharedFactory<Context>
     VkInstance Instance;
     VkDebugUtilsMessengerEXT Msger = 0;
     std::vector<rc<Device>> Devices;
+    std::string CacheFolder;
 
     rc<Device> CreateDevice(u64 luid) const;
     ~Context();
-    Context(DebugCallback* = 0);
+    Context(DebugCallback* = 0, const char* CacheFolder = nullptr);
     void OrderDevices();
 	static void EnableValidationLayers(bool enable);
 };
