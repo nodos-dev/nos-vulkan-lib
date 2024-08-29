@@ -51,7 +51,7 @@ static std::vector<const char*> deviceExtensions = {
 	"VK_EXT_memory_budget",
     // "VK_NV_external_memory_rdma",
 };
-static constexpr char PIPELINE_CACHE_FILE_NAME[] = "PipelineCaches.bin";
+static constexpr char PIPELINE_CACHE_FILE_PREFIX[] = "PipelineCache_";
 
 namespace nos::vk
 {
@@ -142,8 +142,12 @@ std::string Device::GetName() const
     return vk::GetName(PhysicalDevice);
 }
 
+std::string GetPipelineCacheFilePath(Device* Vk)
+{
+	return Vk->Context->CacheFolder + "/" + PIPELINE_CACHE_FILE_PREFIX + Vk->GetName() + ".bin";
+}
 void CreateDevicePipelineCache(Device* Vk) {
-    std::ifstream file(PIPELINE_CACHE_FILE_NAME, std::ios::binary | std::ios::ate);
+    std::ifstream file(GetPipelineCacheFilePath(Vk), std::ios::binary | std::ios::ate);
     std::vector<char> buffer;
     if (file.is_open())
     {
@@ -168,7 +172,7 @@ void DestroyDevicePipelineCache(Device* Vk) {
     std::vector<char> buffer(size);
     vkGetPipelineCacheData(Vk->handle, Vk->PipelineCache, &size, buffer.data());
 
-    std::ofstream file(PIPELINE_CACHE_FILE_NAME, std::ios::binary);
+    std::ofstream file(GetPipelineCacheFilePath(Vk), std::ios::binary);
     if (file.is_open())
     {
         file.write(buffer.data(), size);
@@ -269,8 +273,8 @@ Device::MemoryUsage Device::GetCurrentMemoryUsage() const
 	return res;
 }
 
-Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice)
-	: Instance(Instance), PhysicalDevice(PhysicalDevice), Features(PhysicalDevice), ResourcePools(this)
+Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, const nos::vk::Context* context)
+    : Instance(Instance), PhysicalDevice(PhysicalDevice), Features(PhysicalDevice), ResourcePools(this), Context(context)
 {
 	vkGetPhysicalDeviceMemoryProperties2(PhysicalDevice, &MemoryProps);
 
@@ -453,8 +457,8 @@ void Context::EnableValidationLayers(bool enable)
     };
 }
 
-Context::Context(DebugCallback* debugCallback)
-    : Lib(::LoadLibrary("vulkan-1.dll"))
+Context::Context(DebugCallback* debugCallback, const char* cacheFolder)
+    : Lib(::LoadLibrary("vulkan-1.dll")), CacheFolder(cacheFolder ? cacheFolder : "")
 {
     NOSVK_ASSERT(vkl_init((PFN_vkGetInstanceProcAddr)GetProcAddress((HMODULE)Lib, "vkGetInstanceProcAddr")));
     u32 count;
@@ -520,7 +524,7 @@ Context::Context(DebugCallback* debugCallback)
     {
         if(Device::CheckSupport(pdev))
         {
-            rc<Device> device = Device::New(Instance, pdev);
+            rc<Device> device = Device::New(Instance, pdev, this);
             Devices.emplace_back(device);
         }
     }
@@ -552,7 +556,7 @@ rc<Device> Context::CreateDevice(u64 luid) const
     {
         if (dev->GetLuid() == luid)
         {
-            return Device::New(Instance, dev->PhysicalDevice);
+            return Device::New(Instance, dev->PhysicalDevice, this);
         }
     }
     return 0;
