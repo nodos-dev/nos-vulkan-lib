@@ -348,11 +348,6 @@ void Renderpass::End(rc<CommandBuffer> Cmd)
         Cmd->EndRendering();
     }
 
-    if (UniformBuffer) // Get a new buffer so it's not overwritten by next pass
-    {
-        Cmd->AddDependency(UniformBuffer);
-		UniformBuffer = CreateUniformSizedBuffer();
-    }
     Bindings.clear();
 }
 
