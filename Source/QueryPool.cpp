@@ -37,38 +37,36 @@ QueryPool::~QueryPool()
 	Vk->DestroyQueryPool(Handle, 0);
 }
 
-std::optional<std::chrono::nanoseconds>  QueryPool::PerfScope(u64 frames, uint64_t key, CommandBuffer* cmd, std::function<void(CommandBuffer*)>&& func)
-{
-	PerfBegin(key, cmd);
-    func(cmd);
-	return PerfEnd(key, cmd, frames);
-}
-
 void QueryPool::PerfBegin(uint64_t key, CommandBuffer* cmd)
 {
-	assert(!BeginQueryIdx.contains(cmd));
-	BeginQueryIdx[cmd] = Queries;
-	cmd->WriteTimestamp(VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, Handle, BeginQueryIdx[cmd]);
+	assert(!BeginQueryIdx.contains(key));
+	BeginQueryIdx[key] = Queries;
+	cmd->WriteTimestamp(VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, Handle, BeginQueryIdx[key]);
 	++Queries;
 }
 
-std::optional<std::chrono::nanoseconds> QueryPool::PerfEnd(uint64_t key, CommandBuffer* cmd, u64 frames)
+std::optional<std::chrono::nanoseconds> QueryPool::PerfEnd(uint64_t key, CommandBuffer* cmd, u64 frames, std::function<void(QueryResult)> callbackFunc)
 {
 	auto endQuery = Queries++;
-	auto beginQuery = BeginQueryIdx[cmd];
-	cmd->WriteTimestamp(VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, Handle, endQuery);
+	auto beginQuery = BeginQueryIdx[key];
+	cmd->WriteTimestamp(VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, Handle, endQuery);
 	cmd->CopyQueryPoolResults(Handle, beginQuery, 1, Results->Handle, beginQuery * 8, 8, VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT);
 	cmd->CopyQueryPoolResults(Handle, endQuery, 1, Results->Handle, endQuery * 8, 8, VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT);
 	cmd->ResetQueryPool(Handle, beginQuery, 1);
 	cmd->ResetQueryPool(Handle, endQuery, 1);
-	cmd->Callbacks.push_back([this, beginQuery, endQuery, key] {
+	cmd->Callbacks.push_back([this, beginQuery, endQuery, key, callbackFunc = std::move(callbackFunc)] {
 		u64* ptr = (u64*)Results->Map();
-		ReadyQueries[key].push_back(std::chrono::nanoseconds(u64((ptr[endQuery] - ptr[beginQuery]) * Period + 0.5)));
+		u64 start = u64(ptr[beginQuery]) * Period + 0.5;
+		u64 end = u64(ptr[endQuery]) * Period + 0.5;
+		QueryResult result = { .Timestamp = start, .Duration = end - start };
+		ReadyQueries[key].push_back(std::chrono::nanoseconds(end-start));
 		ptr[endQuery] = 0;
 		ptr[beginQuery] = 0;
+		if (callbackFunc)
+			callbackFunc(result);
 	});
 
-	BeginQueryIdx.erase(cmd);
+	BeginQueryIdx.erase(key);
 
 	auto& q = ReadyQueries[key];
 	if(q.size() >= frames)
