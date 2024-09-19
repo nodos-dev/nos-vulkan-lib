@@ -35,21 +35,20 @@ struct nosVulkan_API ComputePipeline : SharedFactory<ComputePipeline>, Pipeline
     ComputePipeline(Device* Vk, rc<Shader> CS);
     VkPipeline Handle = 0;
 };
+struct BlendMode
+{
+    /*VkBool*/                  u32 Enable : 1 = false;
+    /*VkBlendFactor*/           u32 SrcColorFactor : 5 = 0;
+    /*VkBlendFactor*/           u32 DstColorFactor : 5 = 0;
+    /*VkBlendFactor*/           u32 SrcAlphaFactor : 5 = 0;
+    /*VkBlendFactor*/           u32 DstAlphaFactor : 5 = 0;
+    /*VkColorComponentFlags*/   u32 ColorMask : 4 = 0xF;
+    /*VkBlendOp*/               u32 ColorOp = 0;
+    /*VkBlendOp*/               u32 AlphaOp = 0;
+};
 
 struct nosVulkan_API GraphicsPipeline : SharedFactory<GraphicsPipeline>, Pipeline
 {
-    struct BlendMode
-    {
-		/*VkBool*/                  u32 Enable : 1 = false;
-        /*VkBlendFactor*/           u32 SrcColorFactor : 5 = 0;
-        /*VkBlendFactor*/           u32 DstColorFactor : 5 = 0;
-        /*VkBlendFactor*/           u32 SrcAlphaFactor : 5 = 0;
-        /*VkBlendFactor*/           u32 DstAlphaFactor : 5 = 0;
-		/*VkColorComponentFlags*/   u32 ColorMask : 4 = 0xF;
-        /*VkBlendOp*/               u32 ColorOp = 0;
-        /*VkBlendOp*/               u32 AlphaOp = 0;
-    };
-    
     rc<Shader> VS = nullptr;
     BlendMode Blend = {};
     VkSampleCountFlags MS = 1;
@@ -63,8 +62,8 @@ struct nosVulkan_API GraphicsPipeline : SharedFactory<GraphicsPipeline>, Pipelin
     
     std::map<VkFormat, PerFormat> Handles;
 
-    GraphicsPipeline(Device* Vk, std::vector<u8> const&, BlendMode blend = {}, u32 MS = 1);
-    GraphicsPipeline(Device* Vk, rc<Shader> PS, rc<Shader> VS = 0, BlendMode blend = {}, u32 MS = 1);
+    GraphicsPipeline(Device* Vk, std::vector<u8> const&, BlendMode blend = BlendMode(), u32 MS = 1);
+    GraphicsPipeline(Device* Vk, rc<Shader> PS, rc<Shader> VS = 0, BlendMode blend = BlendMode(), u32 MS = 1);
     ~GraphicsPipeline();
 
     rc<Shader> GetVS();

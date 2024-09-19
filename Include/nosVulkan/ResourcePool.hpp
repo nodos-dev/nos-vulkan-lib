@@ -10,7 +10,7 @@
 // std
 #include <unordered_map>
 #include <shared_mutex>
-
+#include <list>
 namespace nos::vk
 {
 
@@ -43,7 +43,7 @@ public:
 		auto freeIt = Free.find(info);
 		if (freeIt == Free.end() || freeIt->second.empty())
 		{
-			auto res = typename ResourceT::New(Device, info);
+			auto res = ResourceT::New(Device, info); //was typename
 			if (!res)
 				return nullptr;
 			Used[uint64_t(res->Handle)] = { tag, info, res };

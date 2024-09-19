@@ -5,6 +5,8 @@
 #pragma once
 
 #include "Image.h"
+#include <condition_variable>
+#include <atomic>
 
 namespace nos::vk
 {

@@ -9,21 +9,14 @@
 #include "nosVulkan/Device.h"
 #include "nosVulkan/Command.h"
 #include "nosVulkan/QueryPool.h"
+#include "nosVulkan/Platform.h"
 
 #include <iostream>
 #include <bit>
 #include <memory>
 #include <fstream>
 
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#include <Windows.h>
-
-#define SUITABLE_FOR_RENDERDOC 0
+#define ENABLE_RENDERDOC_SUPPORT 0
 
 static std::vector<const char*> layers = {
     // "VK_LAYER_KHRONOS_validation",
@@ -32,7 +25,11 @@ static std::vector<const char*> layers = {
 
 static std::vector<const char*> extensions = {
     "VK_KHR_surface",
+#if defined (_WIN32)
     "VK_KHR_win32_surface",
+#elif defined (__linux__)
+    "VK_KHR_xcb_surface",
+#endif
     "VK_KHR_external_memory_capabilities",
 	"VK_KHR_external_semaphore_capabilities",
 	"VK_EXT_debug_utils",
@@ -41,9 +38,15 @@ static std::vector<const char*> extensions = {
 
 static std::vector<const char*> deviceExtensions = {
     "VK_KHR_swapchain",
+    "VK_KHR_external_semaphore",
+#if defined (_WIN32)
     "VK_KHR_external_semaphore_win32",
     "VK_KHR_external_memory_win32",
-#if !SUITABLE_FOR_RENDERDOC
+#elif defined (__linux__)
+    "VK_KHR_external_semaphore_fd",
+    "VK_KHR_external_memory_fd",
+#endif
+#if !ENABLE_RENDERDOC_SUPPORT
     "VK_EXT_external_memory_host",
 #endif
     "VK_KHR_synchronization2",
@@ -462,11 +465,19 @@ void Context::EnableValidationLayers(bool enable)
 }
 
 Context::Context(DebugCallback* debugCallback, const char* cacheFolder)
-    : Lib(::LoadLibrary("vulkan-1.dll")), CacheFolder(cacheFolder ? cacheFolder : "")
+    : CacheFolder(cacheFolder ? cacheFolder : "")
 {
-    NOSVK_ASSERT(vkl_init((PFN_vkGetInstanceProcAddr)GetProcAddress((HMODULE)Lib, "vkGetInstanceProcAddr")));
     u32 count;
-
+    try
+    {
+        vkLoader = std::make_unique<::vk::DynamicLoader>();
+        NOSVK_ASSERT(vkl_init(vkLoader->getProcAddress<PFN_vkGetInstanceProcAddr>("vkGetInstanceProcAddr")));
+    }
+    catch (std::exception& e)
+    {
+        printf("Failed to load Vulkan library: %s\n", e.what());
+        assert(0);
+    }
     VkApplicationInfo app = {
         .sType      = VK_STRUCTURE_TYPE_APPLICATION_INFO,
         .apiVersion = API_VERSION_USED
@@ -553,8 +564,6 @@ Context::~Context()
         vkDestroyDebugUtilsMessengerEXT(Instance, Msger, 0);
     }
     vkDestroyInstance(Instance, 0);
-
-    ::FreeLibrary((HMODULE)Lib);
 }
 
 rc<Device> Context::CreateDevice(u64 luid) const

@@ -23,6 +23,18 @@
 #include <set>
 #include <algorithm>
 
+#if defined(_WIN32)
+
+typedef void* NOS_HANDLE;
+typedef uint64_t NOS_PID;
+
+#elif defined(__linux__)
+
+typedef uint64_t NOS_HANDLE;
+typedef pid_t NOS_PID;
+
+#endif
+
 #ifdef nosVulkan_SHARED
 #ifdef nosVulkan_EXPORTS
 #define nosVulkan_API __declspec(dllexport)
@@ -209,7 +221,7 @@ static_assert(sizeof(VkDescriptorBufferInfo) == sizeof(DescriptorResourceInfo));
 struct HandleExportInfo 
 {
     u64 PID;
-    HANDLE Handle;
+    NOS_HANDLE Handle;
     VkExternalMemoryHandleTypeFlagBits Type;
 };
 */
@@ -231,7 +243,7 @@ struct MemoryExportInfo
 {
     uint32_t HandleType;
     u64 PID;
-    HANDLE Handle;
+    NOS_HANDLE Handle;
 	uint64_t Offset;
 	uint64_t Size;
 	uint64_t AllocationSize;
@@ -387,11 +399,6 @@ nosVulkan_API ShaderLayout GetShaderLayouts(std::vector<u8> const& src, VkShader
 nosVulkan_API VkExternalMemoryProperties GetExportProperties(VkPhysicalDevice PhysicalDevice, VkFormat Format, VkImageUsageFlags Usage, VkExternalMemoryHandleTypeFlagBits Type);
 nosVulkan_API bool IsImportable(VkPhysicalDevice PhysicalDevice, VkFormat Format, VkImageUsageFlags Usage, VkExternalMemoryHandleTypeFlagBits Type);
 
-nosVulkan_API bool PlatformCloseHandle(HANDLE);
-nosVulkan_API HANDLE PlatformDupeHandle(u64 pid, HANDLE);
-nosVulkan_API u64 PlatformGetCurrentProcessId();
-
-nosVulkan_API std::string GetLastErrorAsString();
 
 nosVulkan_API std::pair<u32, VkMemoryType> MemoryTypeIndex(VkPhysicalDevice physicalDevice, u32 memoryTypeBits, VkMemoryPropertyFlags requestedProps);
 

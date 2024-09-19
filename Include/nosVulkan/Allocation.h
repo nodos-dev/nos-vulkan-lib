@@ -5,6 +5,7 @@
 #pragma once
 
 #include "Common.h"
+#include "nosVulkan/Platform.h"
 
 // External
 #include <vk_mem_alloc.h>

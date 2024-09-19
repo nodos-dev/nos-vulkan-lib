@@ -66,11 +66,16 @@ VkResult Allocation::Import(Device* device, std::variant<VkBuffer, VkImage> hand
 	auto handleType = VkExternalMemoryHandleTypeFlagBits(imported.HandleType);
 	if (handleType > VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT)
 	{
-#if _WIN32 // TODO: Other platforms.
+#if defined(_WIN32) // TODO: Other platforms.
 		VkMemoryWin32HandlePropertiesKHR extHandleProps{
 		.sType = VK_STRUCTURE_TYPE_MEMORY_WIN32_HANDLE_PROPERTIES_KHR
 		};
 		res = device->GetMemoryWin32HandlePropertiesKHR(VkExternalMemoryHandleTypeFlagBits(imported.HandleType), dupHandle, &extHandleProps);
+#elif defined(__linux__)
+		VkMemoryFdPropertiesKHR extHandleProps{
+		.sType = VK_STRUCTURE_TYPE_MEMORY_FD_PROPERTIES_KHR
+		};
+		res = device->GetMemoryFdPropertiesKHR(VkExternalMemoryHandleTypeFlagBits(imported.HandleType), imported.Handle, &extHandleProps);		
 #else
 #pragma error "Unimplemented"
 #endif
@@ -79,13 +84,19 @@ VkResult Allocation::Import(Device* device, std::variant<VkBuffer, VkImage> hand
 		memoryTypeBits = extHandleProps.memoryTypeBits;
 	}
 	auto [typeIndex, memType] = MemoryTypeIndex(device->PhysicalDevice, memoryTypeBits, memProps);
-
+#if defined(_WIN32)
 	VkImportMemoryWin32HandleInfoKHR importInfo = {
 		.sType = VK_STRUCTURE_TYPE_IMPORT_MEMORY_WIN32_HANDLE_INFO_KHR,
 		.handleType = VkExternalMemoryHandleTypeFlagBits(imported.HandleType),
 		.handle = dupHandle,
 	};
-
+#elif defined(__linux__)
+	VkImportMemoryFdInfoKHR importInfo = {
+		.sType = VK_STRUCTURE_TYPE_IMPORT_MEMORY_FD_INFO_KHR,
+		.handleType = VkExternalMemoryHandleTypeFlagBits(imported.HandleType),
+		.fd = imported.Handle,
+	};
+#endif
 	VkMemoryAllocateInfo info = {
 		.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
 		.pNext = &importInfo,
@@ -120,13 +131,22 @@ VkResult Allocation::SetExternalMemoryHandleType(Device* device, uint32_t handle
 		auto& handle= device->MemoryBlocks[Info.deviceMemory];
 		if(!handle)
 		{
-#if _WIN32
+#if defined(_WIN32)
 			VkMemoryGetWin32HandleInfoKHR getHandleInfo = {
 				.sType = VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR,
 				.memory = GetMemory(),
 				.handleType = VkExternalMemoryHandleTypeFlagBits(type),
 			};
 			auto ret = device->GetMemoryWin32HandleKHR(&getHandleInfo, &handle);
+#elif defined(__linux__)
+			VkMemoryGetFdInfoKHR getHandleInfo = {
+				.sType = VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR,
+				.memory = GetMemory(),
+				.handleType = VkExternalMemoryHandleTypeFlagBits(type),
+			};
+			int fd{};
+			auto ret = device->GetMemoryFdKHR(&getHandleInfo, &fd);
+			handle = reinterpret_cast<void*>(fd);
 #else
 #pragma error "Unimplemented"
 #endif
