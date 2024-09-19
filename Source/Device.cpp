@@ -23,6 +23,8 @@
 #endif
 #include <Windows.h>
 
+#define SUITABLE_FOR_RENDERDOC 0
+
 static std::vector<const char*> layers = {
     // "VK_LAYER_KHRONOS_validation",
     // "VK_LAYER_KHRONOS_synchronization2",
@@ -41,7 +43,9 @@ static std::vector<const char*> deviceExtensions = {
     "VK_KHR_swapchain",
     "VK_KHR_external_semaphore_win32",
     "VK_KHR_external_memory_win32",
+#if !SUITABLE_FOR_RENDERDOC
     "VK_EXT_external_memory_host",
+#endif
     "VK_KHR_synchronization2",
     "VK_KHR_dynamic_rendering",
     "VK_KHR_copy_commands2",
@@ -526,6 +530,9 @@ Context::Context(DebugCallback* debugCallback, const char* cacheFolder)
         {
             rc<Device> device = Device::New(Instance, pdev, this);
             Devices.emplace_back(device);
+#if SUITABLE_FOR_RENDERDOC
+            break;
+#endif
         }
     }
 
