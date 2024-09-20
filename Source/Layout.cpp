@@ -229,21 +229,28 @@ PipelineLayout::PipelineLayout(Device* Vk, ShaderLayout layout)
         DescriptorLayouts[idx] = layout;
     }
 
+	// Calculate uniform/storage buffer sizes & member offsets
    for (auto& [set, layout] : *this)
     {
         for (auto& [binding, dsl] : *layout)
         {
-            if(dsl.SSBO()) 
-            {
-                continue;
-            }
-            u32 shift = UniformSize % dsl.Type->Alignment;
+            u32* size = &UniformSize;
+            if(dsl.SSBO())
+                size = &SizeMap[((u64)set << 32ull) | binding];
+
+            u32 shift = *size % dsl.Type->Alignment;
             if (shift)
             {
-                UniformSize += dsl.Type->Alignment - shift;
+                *size += dsl.Type->Alignment - shift;
             }
-            OffsetMap[((u64)set << 32ull) | binding] = UniformSize;
-            UniformSize += dsl.Type->Size;
+            OffsetMap[((u64)set << 32ull) | binding] = *size;
+            *size += dsl.Type->Size;
+
+            // If struct is VLA-only, size will be 0
+			// In this case, we allocate a single element of VLA
+            if (!(*size) && dsl.SSBO()) {
+                *size = dsl.Type->Members.begin()->second.Type->Size;
+            }
         }
     }
 

@@ -75,6 +75,7 @@ struct nosVulkan_API PipelineLayout : SharedFactory<PipelineLayout>, DeviceChild
     u32 UniformSize = 0;
 
     std::map<u64, u32> OffsetMap;
+	std::map<u64, u32> SizeMap; // For storage buffers
     std::map<u32, rc<DescriptorLayout>> DescriptorLayouts;
     std::unordered_map<std::string, ShaderLayout::Index> BindingsByName;
     PipelineLayout(Device* Vk, ShaderLayout layout);

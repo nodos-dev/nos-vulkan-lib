@@ -316,6 +316,7 @@ struct nosVulkan_API SVType
         u32 Idx;
         u32 Size;
         u32 Offset;
+        u32 Stride;
     };
 
     std::string StructName;

@@ -260,7 +260,11 @@ static void BuildType(spirv_cross::Compiler const& cc, u32 typeId, SVType* ty)
                 .Idx    = idx,
                 .Size   = (u32)cc.get_declared_struct_member_size(type, idx),
                 .Offset = cc.type_struct_member_offset(type, idx),
+				.Stride = 0
             };
+			if (cc.get_member_decoration(type.self, idx, spv::DecorationArrayStride)) {
+				ty->Members[name].Stride = cc.get_member_decoration(type.self, idx, spv::DecorationArrayStride);
+			}
         }
 
         break;

@@ -29,10 +29,23 @@ rc<Buffer> Basepass::CreateUniformSizedBuffer()
 					   });
 }
 
+rc<Buffer> Basepass::CreateStorageBuffer(u64 size) {
+    return Buffer::New(Vk, vk::BufferCreateInfo{
+                               .Size = size,
+                               .Usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                               .MemProps = {.Mapped = true},
+                           });
+}
+
 Basepass::Basepass(rc<Pipeline> PL) : DeviceChild(PL->GetDevice()), PL(PL), DescriptorPool(PL->Layout->CreatePool())
 {
     if(PL->Layout->UniformSize)
 		UniformBuffer = CreateUniformSizedBuffer();
+
+	for (auto size : PL->Layout->SizeMap)
+	{
+		StorageBuffers[size.first] = { CreateStorageBuffer(size.second), false };
+	}
 }
 
 void Basepass::TransitionInput(rc<vk::CommandBuffer> Cmd, std::string const& name, rc<Image> img)
@@ -114,18 +127,37 @@ void Basepass::BindResource(std::string const& name, rc<Buffer> res)
 
 void Basepass::BindData(std::string const& name, const void* data, uint32_t sz)
 {
-    assert(UNIFORM == GetUniformClass(name));
+    auto uniformClass = GetUniformClass(name);
+    assert(UNIFORM == uniformClass || BUFFER == uniformClass);
     auto [binding, idx, type] = GetBindingAndType(name);
 
-    BufferDirty = true;
-    u32 baseOffset = PL->Layout->OffsetMap[((u64)idx.set<< 32ull) | idx.binding];
-    u32 offset = baseOffset + idx.offset;
-    UpdateOrInsert(Bindings[idx.set], vk::Binding(UniformBuffer, idx.binding, baseOffset, 0));
+	rc<nos::vk::Buffer> buffer = nullptr;
+    if (uniformClass == UNIFORM) {
+        UniformBufferDirty = true;
+        buffer = UniformBuffer;
+    }
+	else if (uniformClass == BUFFER) {
+		buffer = StorageBuffers[(u64(idx.set) << 32ull) | idx.binding].first;
+		StorageBuffers[(u64(idx.set) << 32ull) | idx.binding].second = true;
+	}
 
-    auto ptr = UniformBuffer->Map() + offset;
+    u32 baseOffset = PL->Layout->OffsetMap[((u64)idx.set << 32ull) | idx.binding];
+    u32 offset = baseOffset + idx.offset;
+    uint32_t copySize = sz ? std::min(sz, type->Size) : type->Size;
+
+
+	// If the data is a VLA, copy all of the passed data
+    u64 structSizeWithoutVLA = binding->Type->Size;
+    if (uniformClass == BUFFER && offset == structSizeWithoutVLA) {
+        copySize = sz;
+    }
+
+    auto ptr = buffer->Map() + offset;
+
+    UpdateOrInsert(Bindings[idx.set], vk::Binding(buffer, idx.binding, baseOffset, 0));
 
     memset(ptr, 0, type->Size);
-    memcpy(ptr, data, sz ? std::min(sz, type->Size) : type->Size);
+    memcpy(ptr, data, copySize);
 }
 
 void Renderpass::Draw(rc<vk::CommandBuffer> Cmd, const VertexData* Verts)
@@ -353,9 +385,10 @@ void Renderpass::End(rc<CommandBuffer> Cmd)
 
 void Basepass::RefreshBuffer(rc<vk::CommandBuffer> Cmd)
 {
-    if(UniformBuffer && BufferDirty) // Get a new buffer so it's not overwritten by next pass
+    // Get a new buffer so it's not overwritten by next pass
+    if(UniformBuffer && UniformBufferDirty)
     {
-        BufferDirty = false;
+        UniformBufferDirty = false;
         Cmd->AddDependency(UniformBuffer);
         auto tmp = CreateUniformSizedBuffer();
         memcpy(tmp->Map(), UniformBuffer->Map(), PL->Layout->UniformSize);

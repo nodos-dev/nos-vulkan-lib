@@ -34,7 +34,12 @@ struct nosVulkan_API Basepass :  DeviceChild
     std::map<u32, std::set<vk::Binding>> Bindings;
     rc<Buffer> UniformBuffer;
 	rc<Buffer> CreateUniformSizedBuffer();
-    bool BufferDirty = false;
+    rc<Buffer> CreateStorageBuffer(u64 size);
+    bool UniformBufferDirty = false;
+    // Storage buffers that are created internally (read-only)
+    // These are not used as nos.fb.vulkan.Buffer
+    // Bool is for dirty check
+    std::map < u64, std::pair < rc<Buffer>, bool >> StorageBuffers;
 
     Basepass(rc<Pipeline> PL);
 
