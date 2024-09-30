@@ -57,5 +57,10 @@ namespace nos::vk
 		pthread_t thread_id = pthread_self();
 		return static_cast<NOS_HANDLE>(thread_id);
 	}
+
+	VkExternalMemoryHandleTypeFlagBits GetPlatformMemoryHandleType()
+	{
+		return VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
+	}
 } // namespace nos::vk
 #endif

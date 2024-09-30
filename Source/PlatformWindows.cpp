@@ -105,6 +105,12 @@ namespace nos::vk
 	{
 		return ::GetCurrentThread();
 	}
+
+	VkExternalMemoryHandleTypeFlagBits GetPlatformMemoryHandleType()
+	{
+		return VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+	}
+
 } //namespace nos::vk
 #endif //_WIN32
 

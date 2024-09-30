@@ -22,5 +22,5 @@ nosVulkan_API NOS_PID PlatformGetCurrentProcessId();
 nosVulkan_API std::string GetLastErrorAsString();
 nosVulkan_API void SetThreadName(NOS_HANDLE handle, std::string const& threadName);
 nosVulkan_API NOS_HANDLE GetCurrentThread();
-
+nosVulkan_API VkExternalMemoryHandleTypeFlagBits GetPlatformMemoryHandleType();
 } // namespace nos::vk
