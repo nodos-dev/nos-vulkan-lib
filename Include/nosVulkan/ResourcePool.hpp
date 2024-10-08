@@ -68,10 +68,7 @@ public:
 		std::unique_lock guard(Mutex);
 		auto usedIt = Used.find(handle);
 		if (usedIt == Used.end())
-		{
-			GLog.W("ResourcePool: %llu is already released", handle);
 			return false;
-		}
 		auto [tag, info, res] = usedIt->second;
 		auto size = res->Size;
 		Used.erase(usedIt);
