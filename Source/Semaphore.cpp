@@ -79,7 +79,7 @@ Semaphore::Semaphore(Device* Vk, VkSemaphoreType type, u64 pid, NOS_HANDLE ExtHa
 				.sType = VK_STRUCTURE_TYPE_IMPORT_SEMAPHORE_FD_INFO_KHR,
 				.semaphore = Handle,
 				.handleType = HANDLE_TYPE,
-				.fd = *importedHandle,
+				.fd = int(*importedHandle),
 			};
 			NOSVK_ASSERT(Vk->ImportSemaphoreFdKHR(&importInfo));
 #endif

@@ -215,7 +215,7 @@ void Device::InitializeVMA()
             std::lock_guard lock(Vk->MemoryBlocksMutex);
 			if (auto it = Vk->MemoryBlocks.find(memory); it != Vk->MemoryBlocks.end())
 			{
-			    GHandleImporter.CloseHandle(it->second);
+			    GHandleImporter.CloseHandle(NOS_HANDLE(it->second));
 			    Vk->MemoryBlocks.erase(it);
             }
 		}, 
