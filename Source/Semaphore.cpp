@@ -62,7 +62,7 @@ Semaphore::Semaphore(Device* Vk, VkSemaphoreType type, u64 pid, NOS_HANDLE ExtHa
     NOSVK_ASSERT(res);
     if(ExtHandle)
     {
-		auto importedHandle = GHandleImporter.DuplicateHandle(ExtHandle, pid);
+		auto importedHandle = GHandleImporter.DuplicateHandle(pid, ExtHandle);
 		NOS_ASSERT(importedHandle);
 		if (importedHandle)
 		{

@@ -15,7 +15,7 @@ namespace nos::vk
 {
 Log GLog = {};
 HandleImporter GHandleImporter = {
-	.DuplicateHandle = [](NOS_HANDLE handle, NOS_PID pid) { return PlatformDupeHandle(pid, handle); },
+	.DuplicateHandle = [](NOS_PID pid, NOS_HANDLE handle) { return PlatformDupeHandle(pid, handle); },
 	.CloseHandle = [](NOS_HANDLE handle) { return PlatformCloseHandle(handle); }};
 
 VkExternalMemoryProperties GetExportProperties(VkPhysicalDevice PhysicalDevice, VkFormat Format, VkImageUsageFlags Usage, VkExternalMemoryHandleTypeFlagBits Type)

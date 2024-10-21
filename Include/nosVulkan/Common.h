@@ -120,7 +120,7 @@ extern Log GLog;
 
 struct HandleImporter
 {
-	std::function<std::optional<NOS_HANDLE>(NOS_HANDLE handle, NOS_PID pid)> DuplicateHandle = nullptr;
+	std::function<std::optional<NOS_HANDLE>(NOS_PID pid, NOS_HANDLE handle)> DuplicateHandle = nullptr;
 	std::function<void(NOS_HANDLE handle)> CloseHandle = nullptr;
 };
 

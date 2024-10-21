@@ -49,7 +49,7 @@ uint32_t Allocation::GetMemoryTypeIndex() const
 VkResult Allocation::Import(Device* device, std::variant<VkBuffer, VkImage> handle, vk::MemoryExportInfo const& imported, VkMemoryPropertyFlags memProps)
 {
 	OsHandle = imported.Handle;
-	auto dupHandle = GHandleImporter.DuplicateHandle(imported.Handle, imported.PID);
+	auto dupHandle = GHandleImporter.DuplicateHandle(imported.PID, imported.Handle);
 	if (!dupHandle)
 		return VK_ERROR_INVALID_EXTERNAL_HANDLE;
 
