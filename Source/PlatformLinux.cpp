@@ -16,9 +16,8 @@ namespace nos::vk
 
 	NOS_HANDLE PlatformDupeHandle(u64 pid, NOS_HANDLE handle )
 	{
-		int pidfdf_res = syscall(SYS_pidfd_getfd, pid, handle, 0);
-		if(pidfdf_res == -1) return NULL;
-		return pidfdf_res;	
+		// Won't work cross-process
+		return dup(handle);
 	}
 
 	NOS_PID PlatformGetCurrentProcessId()

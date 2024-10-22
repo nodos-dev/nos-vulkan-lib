@@ -49,7 +49,7 @@ uint32_t Allocation::GetMemoryTypeIndex() const
 VkResult Allocation::Import(Device* device, std::variant<VkBuffer, VkImage> handle, vk::MemoryExportInfo const& imported, VkMemoryPropertyFlags memProps)
 {
 	OsHandle = imported.Handle;
-	auto dupHandle = PlatformDupeHandle(imported.PID, imported.Handle);
+	auto dupHandle = GHandleImporter.DuplicateHandle(imported.PID, imported.Handle);
 	if (!dupHandle)
 		return VK_ERROR_INVALID_EXTERNAL_HANDLE;
 
@@ -70,7 +70,7 @@ VkResult Allocation::Import(Device* device, std::variant<VkBuffer, VkImage> hand
 		VkMemoryWin32HandlePropertiesKHR extHandleProps{
 		.sType = VK_STRUCTURE_TYPE_MEMORY_WIN32_HANDLE_PROPERTIES_KHR
 		};
-		res = device->GetMemoryWin32HandlePropertiesKHR(VkExternalMemoryHandleTypeFlagBits(imported.HandleType), dupHandle, &extHandleProps);
+		res = device->GetMemoryWin32HandlePropertiesKHR(VkExternalMemoryHandleTypeFlagBits(imported.HandleType), *dupHandle, &extHandleProps);
 #elif defined(__linux__)
 		VkMemoryFdPropertiesKHR extHandleProps{
 		.sType = VK_STRUCTURE_TYPE_MEMORY_FD_PROPERTIES_KHR
@@ -88,13 +88,13 @@ VkResult Allocation::Import(Device* device, std::variant<VkBuffer, VkImage> hand
 	VkImportMemoryWin32HandleInfoKHR importInfo = {
 		.sType = VK_STRUCTURE_TYPE_IMPORT_MEMORY_WIN32_HANDLE_INFO_KHR,
 		.handleType = VkExternalMemoryHandleTypeFlagBits(imported.HandleType),
-		.handle = dupHandle,
+		.handle = *dupHandle,
 	};
 #elif defined(__linux__)
 	VkImportMemoryFdInfoKHR importInfo = {
 		.sType = VK_STRUCTURE_TYPE_IMPORT_MEMORY_FD_INFO_KHR,
 		.handleType = VkExternalMemoryHandleTypeFlagBits(imported.HandleType),
-		.fd = imported.Handle,
+		.fd = *dupHandle,
 	};
 #endif
 	VkMemoryAllocateInfo info = {

@@ -24,15 +24,13 @@
 #include <algorithm>
 
 #if defined(_WIN32)
-
 typedef void* NOS_HANDLE;
 typedef uint64_t NOS_PID;
-
 #elif defined(__linux__)
-
 typedef uint64_t NOS_HANDLE;
 typedef pid_t NOS_PID;
-
+#else
+#error "Unsupported platform"
 #endif
 
 #ifdef nosVulkan_SHARED
@@ -119,7 +117,14 @@ struct Log
 };
 
 extern Log GLog;
-    
+
+struct HandleImporter
+{
+	std::function<std::optional<NOS_HANDLE>(NOS_PID pid, NOS_HANDLE handle)> DuplicateHandle = nullptr;
+	std::function<void(NOS_HANDLE handle)> CloseHandle = nullptr;
+};
+
+extern HandleImporter GHandleImporter;
 
 inline void hash_combine(std::size_t& seed) {}
 
