@@ -18,7 +18,7 @@ namespace nos::vk
 		return /*GetHandleInformation(handle, &flags) && */CloseHandle(handle);
 	}
 	
-	HANDLE PlatformDupeHandle(HANDLE handle, u64 pid)
+	HANDLE PlatformDupeHandle(u64 pid, NOS_HANDLE handle)
 	{
 		DWORD flags;
 		HANDLE re = 0;
