@@ -94,7 +94,7 @@ VkResult Allocation::Import(Device* device, std::variant<VkBuffer, VkImage> hand
 	VkImportMemoryFdInfoKHR importInfo = {
 		.sType = VK_STRUCTURE_TYPE_IMPORT_MEMORY_FD_INFO_KHR,
 		.handleType = VkExternalMemoryHandleTypeFlagBits(imported.HandleType),
-		.fd = *dupHandle,
+		.fd = int(*dupHandle),
 	};
 #endif
 	VkMemoryAllocateInfo info = {
@@ -128,7 +128,7 @@ VkResult Allocation::SetExternalMemoryHandleType(Device* device, uint32_t handle
 	if (auto type = PLATFORM_EXTERNAL_MEMORY_HANDLE_TYPE & handleType)
 	{
 		std::unique_lock lock(device->MemoryBlocksMutex);
-		auto& handle= device->MemoryBlocks[Info.deviceMemory];
+		NOS_HANDLE& handle= device->MemoryBlocks[Info.deviceMemory];
 		if(!handle)
 		{
 #if defined(_WIN32)
@@ -137,7 +137,9 @@ VkResult Allocation::SetExternalMemoryHandleType(Device* device, uint32_t handle
 				.memory = GetMemory(),
 				.handleType = VkExternalMemoryHandleTypeFlagBits(type),
 			};
-			auto ret = device->GetMemoryWin32HandleKHR(&getHandleInfo, &handle);
+			void* winHandle{};
+			auto ret = device->GetMemoryWin32HandleKHR(&getHandleInfo, &winHandle);
+			handle = NOS_HANDLE(winHandle);
 #elif defined(__linux__)
 			VkMemoryGetFdInfoKHR getHandleInfo = {
 				.sType = VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR,
@@ -146,7 +148,7 @@ VkResult Allocation::SetExternalMemoryHandleType(Device* device, uint32_t handle
 			};
 			int fd{};
 			auto ret = device->GetMemoryFdKHR(&getHandleInfo, &fd);
-			handle = reinterpret_cast<void*>(fd);
+			handle = NOS_HANDLE(fd);
 #else
 #pragma error "Unimplemented"
 #endif

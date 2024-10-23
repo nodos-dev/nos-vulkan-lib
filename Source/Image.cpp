@@ -12,12 +12,12 @@ namespace nos::vk
 Image::~Image()
 {
     Views.clear();
-    if (Allocation)
+    if (AllocationInfo)
     {
-        if (Allocation->Imported)
+        if (AllocationInfo->Imported)
             Vk->DestroyImage(Handle, 0);
-        else if (Allocation->Handle)
-            vmaDestroyImage(Vk->Allocator, Handle, Allocation->Handle);
+        else if (AllocationInfo->Handle)
+            vmaDestroyImage(Vk->Allocator, Handle, AllocationInfo->Handle);
     }
 };
 
@@ -65,7 +65,7 @@ Image::Image(Device* Vk, ImageCreateInfo const& createInfo, VkResult* re)
 		  .Layout = VK_IMAGE_LAYOUT_UNDEFINED,
 	  }
 {
-	Allocation = vk::Allocation{};
+	AllocationInfo = vk::Allocation{};
 	if (createInfo.Imported)
 		State.Layout = VK_IMAGE_LAYOUT_PREINITIALIZED;
 
@@ -124,27 +124,27 @@ Image::Image(Device* Vk, ImageCreateInfo const& createInfo, VkResult* re)
 	{
         result = Vk->CreateImage(&info, 0, &Handle);
         if (NOS_VULKAN_SUCCEEDED(result))
-            result = Allocation->Import(Vk, Handle, *imported, memProps);
+            result = AllocationInfo->Import(Vk, Handle, *imported, memProps);
 	}
 	else // Exported
 	{
 		VmaAllocationCreateInfo allocationCreateInfo{.usage = VMA_MEMORY_USAGE_AUTO, .requiredFlags = memProps};
-		result = vmaCreateImage(Vk->Allocator, &info, &allocationCreateInfo, &Handle, &Allocation->Handle, &Allocation->Info);
+		result = vmaCreateImage(Vk->Allocator, &info, &allocationCreateInfo, &Handle, &AllocationInfo->Handle, &AllocationInfo->Info);
     }
     
 	if (NOS_VULKAN_SUCCEEDED(result))
 	{
 		VkMemoryRequirements memReq = {};
         Vk->GetImageMemoryRequirements(Handle, &memReq);
-		assert(memReq.size == Allocation->GetSize());
+		assert(memReq.size == AllocationInfo->GetSize());
 	}
 
 	if (NOS_VULKAN_SUCCEEDED(result))
-        result = Allocation->SetExternalMemoryHandleType(Vk, createInfo.ExternalMemoryHandleType);
+        result = AllocationInfo->SetExternalMemoryHandleType(Vk, createInfo.ExternalMemoryHandleType);
 
 	if (re)
 		*re = result;
-	Size = Allocation->GetSize();
+	Size = AllocationInfo->GetSize();
 }
 
 Image::Image(Device* vk, VkImage img, VkExtent2D extent, VkFormat format, VkImageUsageFlags usage)

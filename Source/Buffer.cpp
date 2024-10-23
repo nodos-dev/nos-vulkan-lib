@@ -14,13 +14,13 @@ Buffer::Buffer(Device* Vk, BufferCreateInfo const& info)
 	        .AccessMask = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT}, ElementType(info.ElementType)
 {
 	Size = info.Size;
-	Allocation = vk::Allocation{};
+	AllocationInfo = vk::Allocation{};
 	auto type = info.ExternalMemoryHandleType;
-	Allocation->MemProps = info.MemProps;
+	AllocationInfo->MemProps = info.MemProps;
 	if (type && info.MemProps.VRAM && info.MemProps.Mapped)
 	{
 		assert(!"Memory on BAR cannot be bound to external memory");
-		Allocation->MemProps.VRAM = false;
+		AllocationInfo->MemProps.VRAM = false;
 	}
 
 	VkExternalMemoryBufferCreateInfo resourceCreateInfo = {
@@ -36,38 +36,38 @@ Buffer::Buffer(Device* Vk, BufferCreateInfo const& info)
 	};
 
 	VkMemoryPropertyFlags memProps = 0;
-	if (Allocation->MemProps.VRAM)
+	if (AllocationInfo->MemProps.VRAM)
 		memProps |= VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-	if (Allocation->MemProps.Mapped)
+	if (AllocationInfo->MemProps.Mapped)
 		memProps |= VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
 
 	if (auto* imported = info.Imported)
 	{
 		NOSVK_ASSERT(Vk->CreateBuffer(&bufferCreateInfo, 0, &Handle));
-		NOSVK_ASSERT(Allocation->Import(Vk, Handle, *imported, memProps));
+		NOSVK_ASSERT(AllocationInfo->Import(Vk, Handle, *imported, memProps));
 	}
 	else
 	{
 		VmaAllocationCreateInfo allocCreateInfo = {
-			.flags = Allocation->MemProps.Mapped ? VMA_ALLOCATION_CREATE_MAPPED_BIT : (VmaAllocationCreateFlags)0,
-			.usage = (Allocation->MemProps.Download && Allocation->MemProps.Mapped)
+			.flags = AllocationInfo->MemProps.Mapped ? VMA_ALLOCATION_CREATE_MAPPED_BIT : (VmaAllocationCreateFlags)0,
+			.usage = (AllocationInfo->MemProps.Download && AllocationInfo->MemProps.Mapped)
 																? VMA_MEMORY_USAGE_AUTO_PREFER_HOST
 																: VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
 												   .requiredFlags = memProps};
-		if (Allocation->MemProps.Mapped)
+		if (AllocationInfo->MemProps.Mapped)
 		{
-			allocCreateInfo.flags |= Allocation->MemProps.Download
+			allocCreateInfo.flags |= AllocationInfo->MemProps.Download
 										 ? VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT
 															: VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
 		}
-		NOSVK_ASSERT(vmaCreateBufferWithAlignment(Vk->Allocator, &bufferCreateInfo, &allocCreateInfo, Alignment, &Handle, &Allocation->Handle, &Allocation->Info));
+		NOSVK_ASSERT(vmaCreateBufferWithAlignment(Vk->Allocator, &bufferCreateInfo, &allocCreateInfo, Alignment, &Handle, &AllocationInfo->Handle, &AllocationInfo->Info));
 	}
 
 	VkMemoryRequirements memReq = {};
 	Vk->GetBufferMemoryRequirements(Handle, &memReq);
-	assert(memReq.size == Allocation->GetSize());
+	assert(memReq.size == AllocationInfo->GetSize());
 
-	NOSVK_ASSERT(Allocation->SetExternalMemoryHandleType(Vk, info.ExternalMemoryHandleType));
+	NOSVK_ASSERT(AllocationInfo->SetExternalMemoryHandleType(Vk, info.ExternalMemoryHandleType));
 }
 
 void Buffer::Bind(VkDescriptorType type, u32 bind, VkDescriptorSet set)
@@ -161,11 +161,11 @@ void Buffer::Copy(size_t len, const void* pp, size_t offset)
 
 u8* Buffer::Map()
 {
-	if (!Allocation)
+	if (!AllocationInfo)
 		return nullptr;
-    if (Allocation->Imported)
-        NOSVK_ASSERT(Vk->MapMemory(Allocation->GetMemory(), Allocation->GetOffset(), Allocation->GetSize(), 0, &Allocation->Mapping()))
-    return (u8*)Allocation->Mapping();
+    if (AllocationInfo->Imported)
+        NOSVK_ASSERT(Vk->MapMemory(AllocationInfo->GetMemory(), AllocationInfo->GetOffset(), AllocationInfo->GetSize(), 0, &AllocationInfo->Mapping()))
+    return (u8*)AllocationInfo->Mapping();
 }
 
 DescriptorResourceInfo Buffer::GetDescriptorInfo() const
@@ -180,12 +180,12 @@ DescriptorResourceInfo Buffer::GetDescriptorInfo() const
 
 Buffer::~Buffer()
 {
-    if (Allocation)
+    if (AllocationInfo)
     {
-        if (Allocation->Imported)
+        if (AllocationInfo->Imported)
 		    Vk->DestroyBuffer(Handle, 0);
-	    else if (Allocation->Handle)
-		    vmaDestroyBuffer(Vk->Allocator, Handle, Allocation->Handle);
+	    else if (AllocationInfo->Handle)
+		    vmaDestroyBuffer(Vk->Allocator, Handle, AllocationInfo->Handle);
     }
 }
 

@@ -382,7 +382,7 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, const nos::
 
     NOSVK_ASSERT(vkCreateDevice(PhysicalDevice, &info, 0, &handle));
     vkl_load_device_functions(handle, this);
-    Queue = Queue::New(this, family, 0);
+    MainQueue = Queue::New(this, family, 0);
 	InitializeVMA();
     GetSampler(VK_FILTER_NEAREST);
     GetSampler(VK_FILTER_LINEAR);

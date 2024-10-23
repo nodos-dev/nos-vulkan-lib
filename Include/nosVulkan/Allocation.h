@@ -21,7 +21,7 @@ struct nosVulkan_API Allocation
 	VmaAllocation Handle = 0;
 	VmaAllocationInfo Info = {};
 	MemoryProperties MemProps;
-	void* OsHandle = 0;
+	NOS_HANDLE OsHandle = 0;
 	uint32_t ExternalMemoryHandleType;
 	struct ImportInfo
 	{
@@ -45,21 +45,21 @@ struct nosVulkan_API ResourceBase : DeviceChild
 {
 	T Handle;
 	VkDeviceSize Size;
-	std::optional<Allocation> Allocation = std::nullopt;
+	std::optional<Allocation> AllocationInfo = std::nullopt;
 	using DeviceChild::DeviceChild;
 	
 	MemoryExportInfo GetExportInfo() const
 	{
-		if (!Allocation)
+		if (!AllocationInfo)
 			return {};
 		return MemoryExportInfo{
-			.HandleType = Allocation->ExternalMemoryHandleType,
-			.PID    = Allocation->Imported ? Allocation->Imported->PID : PlatformGetCurrentProcessId(),
-			.Handle = Allocation->OsHandle,
-			.Offset = Allocation->GetOffset(),
+			.HandleType = AllocationInfo->ExternalMemoryHandleType,
+			.PID    = AllocationInfo->Imported ? AllocationInfo->Imported->PID : PlatformGetCurrentProcessId(),
+			.Handle = AllocationInfo->OsHandle,
+			.Offset = AllocationInfo->GetOffset(),
 			.Size = Size,
-			.AllocationSize = Allocation->GetAllocationSize(),
-			.MemProps = Allocation->MemProps,
+			.AllocationSize = AllocationInfo->GetAllocationSize(),
+			.MemProps = AllocationInfo->MemProps,
 		};
 	}
 };

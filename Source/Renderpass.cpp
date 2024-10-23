@@ -37,7 +37,7 @@ rc<Buffer> Basepass::CreateStorageBuffer(u64 size) {
                            });
 }
 
-Basepass::Basepass(rc<Pipeline> PL) : DeviceChild(PL->GetDevice()), PL(PL), DescriptorPool(PL->Layout->CreatePool())
+Basepass::Basepass(rc<Pipeline> PL) : DeviceChild(PL->GetDevice()), PL(PL), PassDescriptorPool(PL->Layout->CreatePool())
 {
     if(PL->Layout->UniformSize)
 		UniformBuffer = CreateUniformSizedBuffer();
@@ -401,7 +401,7 @@ void Basepass::UpdateDescriptorSets()
     DescriptorSets.clear();
     for (auto &[idx, set] : Bindings)
     {
-        auto dset = DescriptorPool->AllocateSet(idx);
+        auto dset = PassDescriptorPool->AllocateSet(idx);
         dset->Update(set);
         DescriptorSets.push_back(std::move(dset));
     }

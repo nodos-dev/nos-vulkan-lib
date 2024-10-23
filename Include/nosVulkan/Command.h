@@ -86,12 +86,12 @@ struct nosVulkan_API CommandPool : SharedFactory<CommandPool>
     static constexpr u64 DefaultPoolSize = 256;
 
     VkCommandPool Handle;
-    rc<Queue> Queue;
+    rc<Queue> PoolQueue;
     std::vector<rc<CommandBuffer>> Buffers;
     CircularIndex<> NextBuffer;
 
     CommandPool(Device* Vk);
-    CommandPool(Device* Vk, rc<vk::Queue> Queue, u64 PoolSize = DefaultPoolSize);
+    CommandPool(Device* Vk, rc<vk::Queue> queue, u64 PoolSize = DefaultPoolSize);
 
     Device* GetDevice();
 
@@ -103,7 +103,7 @@ struct nosVulkan_API CommandPool : SharedFactory<CommandPool>
 
     VkResult Submit(uint32_t submitCount, const VkSubmitInfo* pSubmits, VkFence fence)
     {
-        return Queue->Submit(submitCount, pSubmits, fence);
+        return PoolQueue->Submit(submitCount, pSubmits, fence);
     }
     void Clear();
 };

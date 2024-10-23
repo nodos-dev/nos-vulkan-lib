@@ -163,7 +163,7 @@ struct nosVulkan_API Device : SharedFactory<Device>,
 	};
 	MemoryUsage GetCurrentMemoryUsage() const;
     
-    rc<Queue> Queue;
+    rc<Queue> MainQueue;
     FeatureSet Features;
     std::unordered_map<std::string, Global> Globals;
     std::vector<std::function<void()>> Callbacks;
@@ -172,7 +172,7 @@ struct nosVulkan_API Device : SharedFactory<Device>,
     std::unordered_map<VkSamplerCreateInfo, VkSampler> Samplers;
 
     std::mutex MemoryBlocksMutex;
-    std::unordered_map<VkDeviceMemory, void*> MemoryBlocks;
+    std::unordered_map<VkDeviceMemory, NOS_HANDLE> MemoryBlocks;
 
 	struct Pools
 	{

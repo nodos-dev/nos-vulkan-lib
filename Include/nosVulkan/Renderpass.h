@@ -29,7 +29,7 @@ struct nosVulkan_API Basepass :  DeviceChild
 {
     std::mutex Mutex;
     rc<Pipeline> PL;
-    rc<DescriptorPool> DescriptorPool;
+    rc<DescriptorPool> PassDescriptorPool;
     std::vector<rc<DescriptorSet>> DescriptorSets;
     std::map<u32, std::set<vk::Binding>> Bindings;
     rc<Buffer> UniformBuffer;
