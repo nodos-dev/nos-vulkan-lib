@@ -260,6 +260,7 @@ rc<CommandBuffer> CommandPool::AllocCommandBuffer(VkCommandBufferLevel level)
     {
 		cmd->UpdatePendingState();
     }
+	bool exhausted = false;
 	while (1)
 	{
 		auto cmd = Buffers[NextBuffer];
@@ -267,11 +268,14 @@ rc<CommandBuffer> CommandPool::AllocCommandBuffer(VkCommandBufferLevel level)
 			break;
 
 		NextBuffer++;
-		auto elapsed = NowInUs() - now;
-		if (elapsed > 1e4) // log if exhausted for 10ms
+		if (!exhausted)
 		{
-			GLog.E("Command pool is exhausted");
-			now = NowInUs();
+			auto elapsed = NowInUs() - now;
+			if (elapsed > 1e4) // log if exhausted for 10ms
+			{
+				GLog.W("Command pool is exhausted");
+				exhausted = true;
+			}
 		}
 	}
 
