@@ -67,9 +67,10 @@ Image::Image(Device* Vk, ImageCreateInfo const& createInfo, VkResult* re)
 {
 	AllocationInfo = vk::Allocation{};
 	if (createInfo.Imported)
+    {
 		State.Layout = VK_IMAGE_LAYOUT_PREINITIALIZED;
-
-	// assert(IsImportable(Vk->PhysicalDevice, Format, Usage, VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT));
+	    assert(IsImportable(Vk->PhysicalDevice, Format, Usage, VkExternalMemoryHandleTypeFlagBits(createInfo.Imported->HandleType)));
+    }
 
 	VkFormatProperties props;
 	vkGetPhysicalDeviceFormatProperties(Vk->PhysicalDevice, GetEffectiveFormat(), &props);

@@ -96,6 +96,15 @@ VkResult Allocation::Import(Device* device, std::variant<VkBuffer, VkImage> hand
 		.handleType = VkExternalMemoryHandleTypeFlagBits(imported.HandleType),
 		.fd = int(*dupHandle),
 	};
+
+	// TODO: This is here since without it, images created with VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT are not importable. This might result in issues while importing sparse memory.
+	VkMemoryDedicatedAllocateInfo dedicatedAllocateInfo = {
+		.sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO,
+		.image = handle.index() == 1 ? std::get<VkImage>(handle) : VK_NULL_HANDLE,
+		.buffer = handle.index() == 0 ? std::get<VkBuffer>(handle) : VK_NULL_HANDLE,
+	};
+	if(handleType == VK_EXTERNAL_FENCE_HANDLE_TYPE_OPAQUE_FD_BIT)
+		importInfo.pNext = &dedicatedAllocateInfo;
 #endif
 	VkMemoryAllocateInfo info = {
 		.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
@@ -125,6 +134,14 @@ VkResult Allocation::Import(Device* device, std::variant<VkBuffer, VkImage> hand
 VkResult Allocation::SetExternalMemoryHandleType(Device* device, uint32_t handleType)
 {
 	ExternalMemoryHandleType = handleType;
+	if(Imported)
+	{
+		if(!device->MemoryBlocks.contains(Info.deviceMemory))
+			device->MemoryBlocks[Info.deviceMemory] = NOS_HANDLE(OsHandle);
+		else
+			printf("Memory already has a handle\n");
+		return VK_SUCCESS;
+	}
 	if (auto type = PLATFORM_EXTERNAL_MEMORY_HANDLE_TYPE & handleType)
 	{
 		std::unique_lock lock(device->MemoryBlocksMutex);
