@@ -42,7 +42,11 @@ CommandBuffer::CommandBuffer(CommandPool* Pool, VkCommandBuffer Handle)
         .flags = VK_FENCE_CREATE_SIGNALED_BIT,
     };
     
-    NOSVK_ASSERT(GetDevice()->CreateFence(&fenceInfo, 0, &Fence));
+    if (NOS_VULKAN_FAILED(GetDevice()->CreateFence(&fenceInfo, 0, &Fence))) {
+        Fence = NOS_VULKAN_INVALID_HANDLE(VkFence);
+        return;
+    }
+
 	Clear();
 }
 
@@ -57,22 +61,31 @@ bool CommandBuffer::Wait(uint64_t timeOutNs)
 	return true;
 }
 
-void CommandBuffer::WaitAndClear()
+VkResult CommandBuffer::WaitAndClear()
 {
-	if (State == Pending && GetDevice()->WaitForFences(1, &Fence, 0, UINT64_MAX) != VK_SUCCESS)
-        GLog.E("Clearing command buffer without finishing: Thread %d", std::this_thread::get_id());
-	Clear();
+    if (Fence == NOS_VULKAN_INVALID_HANDLE(VkFence))
+        return VK_ERROR_DEVICE_LOST;
+    if (State == Pending) {
+        VkResult res = GetDevice()->WaitForFences(1, &Fence, 0, UINT64_MAX);
+        if (res == VK_ERROR_DEVICE_LOST)
+            return res;
+        if (res != VK_SUCCESS)
+            GLog.E("Clearing command buffer without finishing: Thread %d", std::this_thread::get_id());
+    }
+    RETURN_ON_VULKAN_FAILED(Clear());
+    return VK_SUCCESS;
 }
 
-void CommandBuffer::Clear()
+VkResult CommandBuffer::Clear()
 {
-	NOSVK_ASSERT(GetDevice()->ResetFences(1, &Fence));
+    RETURN_ON_VULKAN_FAILED(GetDevice()->ResetFences(1, &Fence));
 	NOSVK_ASSERT(VklCommandFunctions::Reset(VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT));
     for (auto& fn : Callbacks) fn();
     Callbacks.clear();
     WaitGroup.clear();
     SignalGroup.clear();
 	State = Initial;
+    return VK_SUCCESS;
 }
 
 VkResult CommandBuffer::Begin(const VkCommandBufferBeginInfo* info)
@@ -107,10 +120,11 @@ void CommandBuffer::UpdatePendingState()
 CommandBuffer::~CommandBuffer()
 {
     WaitAndClear();
-    GetDevice()->DestroyFence(Fence, 0);
+	if (Fence != NOS_VULKAN_INVALID_HANDLE(VkFence))
+        GetDevice()->DestroyFence(Fence, 0);
 }
 
-rc<CommandBuffer> CommandBuffer::Submit()
+rc<CommandBuffer> CommandBuffer::Submit(VkResult* res)
 {
     auto self = shared_from_this();
     for(auto& f : PreSubmit)
@@ -174,8 +188,7 @@ rc<CommandBuffer> CommandBuffer::Submit()
         .pSignalSemaphores    = Signal.data(),
     };
 
-	auto res = Pool->Submit(1, &submitInfo, Fence);
-    NOSVK_ASSERT(res);
+	*res = Pool->Submit(1, &submitInfo, Fence);
     State = Pending;
     return self;
 }
@@ -296,11 +309,12 @@ rc<CommandBuffer> CommandPool::BeginCmd(VkCommandBufferLevel level)
     return Cmd;
 }
 
-void CommandPool::Clear()
+VkResult CommandPool::Clear()
 {
     for(auto& cmd : Buffers) 
         if(cmd->State != CommandBuffer::Initial) 
-            cmd->WaitAndClear();
+            RETURN_ON_VULKAN_FAILED(cmd->WaitAndClear());
+    return VK_SUCCESS;
 }
 
 } // namespace nos::vk

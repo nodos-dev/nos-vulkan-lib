@@ -43,6 +43,13 @@ ComputePipeline::ComputePipeline(Device* Vk, rc<Shader> CS)
     NOSVK_ASSERT(Vk->CreateComputePipelines(Vk->PipelineCache, 1, &info, 0, &Handle));
 }
 
+ComputePipeline::~ComputePipeline() {
+	if (Handle)
+	{
+		Vk->DestroyPipeline(Handle, 0);
+	}
+}
+
 
 GraphicsPipeline::~GraphicsPipeline()
 {

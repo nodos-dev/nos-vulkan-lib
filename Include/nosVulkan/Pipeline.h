@@ -33,6 +33,7 @@ struct nosVulkan_API ComputePipeline : SharedFactory<ComputePipeline>, Pipeline
 {
     ComputePipeline(Device* Vk, std::vector<u8> const& src);
     ComputePipeline(Device* Vk, rc<Shader> CS);
+    ~ComputePipeline();
     VkPipeline Handle = 0;
 };
 struct BlendMode

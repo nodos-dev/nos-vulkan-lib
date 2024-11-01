@@ -56,7 +56,10 @@ Semaphore::Semaphore(Device* Vk, VkSemaphoreType type, u64 pid, NOS_HANDLE ExtHa
     };
 
     auto res = Vk->CreateSemaphore(&semaphoreCreateInfo, 0, &Handle);
-
+    if (res == VK_ERROR_INITIALIZATION_FAILED || res == VK_ERROR_DEVICE_LOST) {
+        Handle = NOS_VULKAN_INVALID_HANDLE(VkSemaphore);
+        return;
+    }
     NOSVK_ASSERT(res);
     if(ExtHandle)
     {
@@ -139,6 +142,9 @@ Semaphore::operator VkSemaphore() const
 
 u64 Semaphore::GetValue() const
 {
+	if (Handle == NOS_VULKAN_INVALID_HANDLE(VkSemaphore))
+		return 0;
+
     u64 val;
     NOSVK_ASSERT(Vk->GetSemaphoreCounterValue(Handle, &val));
     return val;
@@ -148,7 +154,8 @@ Semaphore::~Semaphore()
 {
 	if (OSHandle)
         GHandleImporter.CloseHandle(OSHandle);
-    Vk->DestroySemaphore(Handle, 0);
+    if (Handle != NOS_VULKAN_INVALID_HANDLE(VkSemaphore))
+        Vk->DestroySemaphore(Handle, 0);
 }
 
 } // namespace nos::vk

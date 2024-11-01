@@ -59,8 +59,8 @@ struct nosVulkan_API CommandBuffer : SharedFactory<CommandBuffer>,
     std::atomic<State> State = Initial;
     bool IsFree();
 	bool Wait(uint64_t timeOutNs = 3000000000ull);
-	void WaitAndClear();
-    void Clear();
+    VkResult WaitAndClear();
+    VkResult Clear();
     VkResult Begin(const VkCommandBufferBeginInfo* info);
 	void UpdatePendingState();
     CommandBuffer(CommandPool* Pool, VkCommandBuffer Handle);
@@ -68,7 +68,7 @@ struct nosVulkan_API CommandBuffer : SharedFactory<CommandBuffer>,
     ~CommandBuffer();
 
     Device* GetDevice();
-    rc<CommandBuffer> Submit();
+    rc<CommandBuffer> Submit(VkResult* res);
 
     template <class... T>
     void AddDependency(rc<T>... Resources)
@@ -105,7 +105,7 @@ struct nosVulkan_API CommandPool : SharedFactory<CommandPool>
     {
         return PoolQueue->Submit(submitCount, pSubmits, fence);
     }
-    void Clear();
+    VkResult Clear();
 };
 
 } // namespace nos::vk

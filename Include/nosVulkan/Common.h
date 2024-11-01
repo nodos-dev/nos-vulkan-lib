@@ -63,7 +63,7 @@ typedef pid_t NOS_PID;
 #define NOSVK_ASSERT(expr)                                                                                         \
     {                                                                                                             \
         VkResult re = (expr);                                                                                     \
-        if (NOS_VULKAN_FAILED(re))                                                                                 \
+        if (NOS_VULKAN_FAILED(re) && !(re == VK_ERROR_DEVICE_LOST || re == VK_ERROR_INITIALIZATION_FAILED))                                                                                 \
         {                                                                                                         \
             char errbuf[4096];                                                                                    \
             std::snprintf(errbuf, 4096, "%s %d (%s:%d)", ::nos::vk::vk_result_string(re), re, __FILE__, __LINE__); \
@@ -72,6 +72,19 @@ typedef pid_t NOS_PID;
             assert(false);                                                                                        \
         }                                                                                                         \
     }
+
+#define RETURN_ON_VULKAN_FAILED(expr) \
+	{ \
+		VkResult re = (expr); \
+		if (NOS_VULKAN_FAILED(re)) \
+			return re; \
+	}
+
+
+// If device is lost, some frequently used objects may have this as their handle
+// Some functions check against this to avoid crashes
+#define NOS_VULKAN_INVALID_HANDLE(type) reinterpret_cast<type>(UINT64_MAX)
+
 
 inline bool operator == (VkExtent2D a, VkExtent2D b) {return a.width == b.width && a.height == b.height; }
 inline bool operator == (VkExtent3D a, VkExtent3D b) {return a.width == b.width && a.height == b.height && a.depth == b.depth; }
@@ -97,10 +110,10 @@ struct SharedFactory : std::enable_shared_from_this<T>
 
 	template <class... Args>
 		requires(std::is_constructible_v<T, Args...>)
-	static rc<T> New(Args&&... args)
-	{
+    static rc<T> New(Args&&... args)
+    {
 		return MakeShared<T>(std::forward<Args>(args)...);
-	}
+    }
 };
 
 

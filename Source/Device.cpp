@@ -60,6 +60,41 @@ static std::vector<const char*> deviceExtensions = {
 };
 static constexpr char PIPELINE_CACHE_FILE_PREFIX[] = "PipelineCache_";
 
+static constexpr uint32_t NOS_VULKAN_INIT_TRY_TIMEOUT_IN_MILLISECONDS = 10 * 1000; // 10 SECONDS
+static constexpr uint32_t NOS_VULKAN_INIT_TRY_WAIT_TIMEOUT_IN_MILLISECONDS = 200;
+#include <vulkan/vulkan_to_string.hpp>
+// Define the macro
+#define NOS_VULKAN_KEEP_TRYING(func, log) \
+{\
+    int32_t timeout = NOS_VULKAN_INIT_TRY_TIMEOUT_IN_MILLISECONDS; \
+    VkResult vulkanFuncResult = (func); \
+    while (NOS_VULKAN_FAILED(vulkanFuncResult)) { \
+        std::this_thread::sleep_for(std::chrono::milliseconds(NOS_VULKAN_INIT_TRY_WAIT_TIMEOUT_IN_MILLISECONDS)); \
+        timeout -= NOS_VULKAN_INIT_TRY_WAIT_TIMEOUT_IN_MILLISECONDS; \
+        if (timeout <= 0) { \
+            printf("%s, VkResult: %s", log, std::to_string(vulkanFuncResult).c_str()); \
+            return; \
+        } \
+    } \
+}
+
+// Define the macro
+#define NOS_VULKAN_KEEP_TRYING_INVALIDATE(func, log, handleToInvalidate) \
+{\
+    int32_t timeout = NOS_VULKAN_INIT_TRY_TIMEOUT_IN_MILLISECONDS; \
+    VkResult vulkanFuncResult = (func); \
+    while (NOS_VULKAN_FAILED(vulkanFuncResult)) { \
+        std::this_thread::sleep_for(std::chrono::milliseconds(NOS_VULKAN_INIT_TRY_WAIT_TIMEOUT_IN_MILLISECONDS)); \
+        timeout -= NOS_VULKAN_INIT_TRY_WAIT_TIMEOUT_IN_MILLISECONDS; \
+        if (timeout <= 0) { \
+            printf("%s, VkResult: %s", log, std::to_string(vulkanFuncResult).c_str()); \
+            if (handleToInvalidate)\
+				handleToInvalidate = NOS_VULKAN_INVALID_HANDLE(decltype(handleToInvalidate));\
+            return; \
+        } \
+    } \
+}
+
 namespace nos::vk
 {
 
@@ -287,9 +322,9 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, const nos::
 
     u32 count;
 
-    NOSVK_ASSERT(vkEnumerateDeviceExtensionProperties(PhysicalDevice, 0, &count, 0));
+    NOS_VULKAN_KEEP_TRYING_INVALIDATE(vkEnumerateDeviceExtensionProperties(PhysicalDevice, 0, &count, 0), "Failed to find physical device extensions", PhysicalDevice);
     std::vector<VkExtensionProperties> extensionProps(count);
-    NOSVK_ASSERT(vkEnumerateDeviceExtensionProperties(PhysicalDevice, 0, &count, extensionProps.data()));
+    NOS_VULKAN_KEEP_TRYING_INVALIDATE(vkEnumerateDeviceExtensionProperties(PhysicalDevice, 0, &count, extensionProps.data()), "Failed to access physical device extensions", PhysicalDevice);
 
     std::vector<const char*> deviceExtensionsToAsk;
 
@@ -380,7 +415,7 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, const nos::
         .ppEnabledExtensionNames = deviceExtensionsToAsk.data(),
     };
 
-    NOSVK_ASSERT(vkCreateDevice(PhysicalDevice, &info, 0, &handle));
+    NOS_VULKAN_KEEP_TRYING_INVALIDATE(vkCreateDevice(PhysicalDevice, &info, 0, &handle), "Failed to create logical Vulkan device\n", handle);
     vkl_load_device_functions(handle, this);
     MainQueue = Queue::New(this, family, 0);
 	InitializeVMA();
@@ -407,6 +442,9 @@ void Context::OrderDevices()
 
 Device::~Device()
 {
+    if (handle == NOS_VULKAN_INVALID_HANDLE(VkDevice))
+        return;
+
     DestroyDevicePipelineCache(this);
 
 	ResourcePools.Clear();
@@ -463,7 +501,6 @@ void Context::EnableValidationLayers(bool enable)
         "VK_LAYER_KHRONOS_synchronization2",
     };
 }
-
 Context::Context(DebugCallback* debugCallback, const char* cacheFolder)
     : CacheFolder(cacheFolder ? cacheFolder : "")
 {
@@ -492,7 +529,14 @@ Context::Context(DebugCallback* debugCallback, const char* cacheFolder)
         .ppEnabledExtensionNames = extensions.data(),
     };
 
-    NOSVK_ASSERT(vkCreateInstance(&info, 0, &Instance));
+    {
+        int32_t timeout = NOS_VULKAN_INIT_TRY_TIMEOUT_IN_MILLISECONDS; VkResult vulkanFuncResult = (vkCreateInstance(&info, 0, &Instance)); while ((VK_SUCCESS != (vulkanFuncResult))) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(NOS_VULKAN_INIT_TRY_WAIT_TIMEOUT_IN_MILLISECONDS)); timeout -= NOS_VULKAN_INIT_TRY_WAIT_TIMEOUT_IN_MILLISECONDS; if (timeout <= 0) {
+                printf("%s, VkResult: %s", "Failed to create Vulkan instance!\n", std::to_string(vulkanFuncResult).c_str()); if (Instance) Instance = reinterpret_cast<decltype(Instance)>(0xffffffffffffffffui64); return;
+            }
+        }
+    };
+
     vkl_load_instance_functions(Instance);
 
     if(!debugCallback)
@@ -511,7 +555,7 @@ Context::Context(DebugCallback* debugCallback, const char* cacheFolder)
 						| VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
 		.pfnUserCallback = debugCallback,
 	};
-	NOSVK_ASSERT(vkCreateDebugUtilsMessengerEXT(Instance, &msgInfo, 0, &Msger));
+    NOS_VULKAN_KEEP_TRYING_INVALIDATE(vkCreateDebugUtilsMessengerEXT(Instance, &msgInfo, 0, &Msger), "Failed to find Vulkan Debug Utils\n", Msger);
 
     NOSVK_ASSERT(vkEnumerateInstanceLayerProperties(&count, 0));
     std::vector<VkLayerProperties> layerProps(count);
@@ -528,12 +572,12 @@ Context::Context(DebugCallback* debugCallback, const char* cacheFolder)
         }
     }
 
-    NOSVK_ASSERT(vkEnumeratePhysicalDevices(Instance, &count, 0));
+    NOS_VULKAN_KEEP_TRYING(vkEnumeratePhysicalDevices(Instance, &count, 0), "Failed to find physical Vulkan device that supports the Vulkan version\n");
 
     std::vector<VkPhysicalDevice> pdevices(count);
     Devices.reserve(count);
 
-    NOSVK_ASSERT(vkEnumeratePhysicalDevices(Instance, &count, pdevices.data()));
+    NOS_VULKAN_KEEP_TRYING(vkEnumeratePhysicalDevices(Instance, &count, pdevices.data()), "Failed to access found physical Vulkan devices\n");
 
     for (auto pdev : pdevices)
     {
@@ -559,11 +603,11 @@ Context::~Context()
 {
     Devices.clear();
 
-    if(Msger)
-    {
+    if(Msger && Msger != NOS_VULKAN_INVALID_HANDLE(VkDebugUtilsMessengerEXT))
         vkDestroyDebugUtilsMessengerEXT(Instance, Msger, 0);
-    }
-    vkDestroyInstance(Instance, 0);
+    
+    if(Instance && Instance != NOS_VULKAN_INVALID_HANDLE(VkInstance))
+        vkDestroyInstance(Instance, 0);
 }
 
 rc<Device> Context::CreateDevice(u64 luid) const
