@@ -45,9 +45,7 @@ ComputePipeline::ComputePipeline(Device* Vk, rc<Shader> CS)
 
 ComputePipeline::~ComputePipeline() {
 	if (Handle)
-	{
-		Vk->DestroyPipeline(Handle, 0);
-	}
+        Vk->DestroyPipeline(Handle, 0);
 }
 
 

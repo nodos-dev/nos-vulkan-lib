@@ -529,13 +529,7 @@ Context::Context(DebugCallback* debugCallback, const char* cacheFolder)
         .ppEnabledExtensionNames = extensions.data(),
     };
 
-    {
-        int32_t timeout = NOS_VULKAN_INIT_TRY_TIMEOUT_IN_MILLISECONDS; VkResult vulkanFuncResult = (vkCreateInstance(&info, 0, &Instance)); while ((VK_SUCCESS != (vulkanFuncResult))) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(NOS_VULKAN_INIT_TRY_WAIT_TIMEOUT_IN_MILLISECONDS)); timeout -= NOS_VULKAN_INIT_TRY_WAIT_TIMEOUT_IN_MILLISECONDS; if (timeout <= 0) {
-                printf("%s, VkResult: %s", "Failed to create Vulkan instance!\n", std::to_string(vulkanFuncResult).c_str()); if (Instance) Instance = reinterpret_cast<decltype(Instance)>(0xffffffffffffffffui64); return;
-            }
-        }
-    };
+    NOS_VULKAN_KEEP_TRYING_INVALIDATE(vkCreateInstance(&info, 0, &Instance), "Failed to create Vulkan instance!\n", Instance);
 
     vkl_load_instance_functions(Instance);
 
