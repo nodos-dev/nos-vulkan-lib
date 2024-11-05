@@ -17,11 +17,6 @@ Buffer::Buffer(Device* Vk, BufferCreateInfo const& info)
 	Allocation = vk::Allocation{};
 	auto type = info.ExternalMemoryHandleType;
 	Allocation->MemProps = info.MemProps;
-	if (type && info.MemProps.VRAM && info.MemProps.Mapped)
-	{
-		assert(!"Memory on BAR cannot be bound to external memory");
-		Allocation->MemProps.VRAM = false;
-	}
 
 	VkExternalMemoryBufferCreateInfo resourceCreateInfo = {
 		.sType = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_BUFFER_CREATE_INFO,
@@ -60,6 +55,28 @@ Buffer::Buffer(Device* Vk, BufferCreateInfo const& info)
 										 ? VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT
 															: VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
 		}
+
+		uint32_t memoryTypeIndex = UINT32_MAX;
+		vmaFindMemoryTypeIndexForBufferInfo(Vk->Allocator, &bufferCreateInfo, &allocCreateInfo, &memoryTypeIndex);
+		if (memoryTypeIndex == UINT32_MAX)
+		{
+			bool success = false;
+			if (type)
+			{
+				GLog.W("Failed to find memory type index for buffer, trying again without external memory handle type");
+				bufferCreateInfo.pNext = nullptr;
+				type = 0;
+				vmaFindMemoryTypeIndexForBufferInfo(
+					Vk->Allocator, &bufferCreateInfo, &allocCreateInfo, &memoryTypeIndex);
+				success = memoryTypeIndex != UINT32_MAX;
+			}
+			if (!success)
+			{
+				GLog.E("Failed to find memory type index for buffer");
+				return;
+			}
+		}
+
 		NOSVK_ASSERT(vmaCreateBufferWithAlignment(Vk->Allocator, &bufferCreateInfo, &allocCreateInfo, Alignment, &Handle, &Allocation->Handle, &Allocation->Info));
 	}
 
@@ -67,7 +84,8 @@ Buffer::Buffer(Device* Vk, BufferCreateInfo const& info)
 	Vk->GetBufferMemoryRequirements(Handle, &memReq);
 	assert(memReq.size == Allocation->GetSize());
 
-	NOSVK_ASSERT(Allocation->SetExternalMemoryHandleType(Vk, info.ExternalMemoryHandleType));
+	if (type || info.Imported)
+		NOSVK_ASSERT(Allocation->SetExternalMemoryHandleType(Vk, info.ExternalMemoryHandleType));
 }
 
 void Buffer::Bind(VkDescriptorType type, u32 bind, VkDescriptorSet set)

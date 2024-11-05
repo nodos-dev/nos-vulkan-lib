@@ -94,9 +94,11 @@ Image::Image(Device* Vk, ImageCreateInfo const& createInfo, VkResult* re)
 		}
 	}
 
+    auto externalMemoryHandleType = createInfo.ExternalMemoryHandleType;
+
 	VkExternalMemoryImageCreateInfo resourceCreateInfo = {
 		.sType = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
-		.handleTypes = createInfo.ExternalMemoryHandleType,
+		.handleTypes = externalMemoryHandleType,
 	};
 
 	VkImageCreateInfo info = {
@@ -128,8 +130,29 @@ Image::Image(Device* Vk, ImageCreateInfo const& createInfo, VkResult* re)
 	}
 	else // Exported
 	{
-		VmaAllocationCreateInfo allocationCreateInfo{.usage = VMA_MEMORY_USAGE_AUTO, .requiredFlags = memProps};
-		result = vmaCreateImage(Vk->Allocator, &info, &allocationCreateInfo, &Handle, &Allocation->Handle, &Allocation->Info);
+        VmaAllocationCreateInfo allocationCreateInfo{.usage = VMA_MEMORY_USAGE_AUTO, .requiredFlags = memProps};
+
+		uint32_t memoryTypeIndex = UINT32_MAX;
+		vmaFindMemoryTypeIndexForImageInfo(Vk->Allocator, &info, &allocationCreateInfo, &memoryTypeIndex);
+		if (memoryTypeIndex == UINT32_MAX)
+		{
+            bool success = false;
+            if(externalMemoryHandleType)
+			{
+				GLog.W("Failed to find memory type index for image, trying again without external memory handle type");
+				info.pNext = nullptr;
+				externalMemoryHandleType = 0;
+				vmaFindMemoryTypeIndexForImageInfo(Vk->Allocator, &info, &allocationCreateInfo, &memoryTypeIndex);
+				success = memoryTypeIndex != UINT32_MAX;
+			}
+			if (!success)
+            {
+                GLog.E("Failed to find memory type index for image");
+                return;
+            }
+		}
+        
+        result = vmaCreateImage(Vk->Allocator, &info, &allocationCreateInfo, &Handle, &Allocation->Handle, &Allocation->Info);
     }
     
 	if (NOS_VULKAN_SUCCEEDED(result))
@@ -139,8 +162,8 @@ Image::Image(Device* Vk, ImageCreateInfo const& createInfo, VkResult* re)
 		assert(memReq.size == Allocation->GetSize());
 	}
 
-	if (NOS_VULKAN_SUCCEEDED(result))
-        result = Allocation->SetExternalMemoryHandleType(Vk, createInfo.ExternalMemoryHandleType);
+	if (NOS_VULKAN_SUCCEEDED(result) && externalMemoryHandleType)
+		result = Allocation->SetExternalMemoryHandleType(Vk, externalMemoryHandleType);
 
 	if (re)
 		*re = result;
