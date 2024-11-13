@@ -150,12 +150,13 @@ void Device::InitializeVMA()
     VkPhysicalDeviceMemoryProperties props;
 	vkGetPhysicalDeviceMemoryProperties(PhysicalDevice, &props);
 	std::vector<VkExternalMemoryHandleTypeFlagsKHR> handleTypes(props.memoryTypeCount);
-	for (int i = 0; i < props.memoryTypeCount; ++i)
+	for (uint32_t i = 0; i < props.memoryTypeCount; ++i)
 	{
 		// If the memory type is not BAR/ReBAR memory, we can create memory with external memory handle types
-		if (!(props.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT &&
-			  props.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT &&
-			  props.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT))
+	    auto& memType = props.memoryTypes[i];
+		if (!(memType.propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT &&
+			  memType.propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT &&
+			  memType.propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT))
 			handleTypes[i] = PLATFORM_EXTERNAL_MEMORY_HANDLE_TYPE;
 		else
 			handleTypes[i] = 0;
@@ -184,9 +185,35 @@ void Device::InitializeVMA()
 		.pTypeExternalMemoryHandleTypes = handleTypes.data(),
     };
 	NOSVK_ASSERT(vmaCreateAllocator(&createInfo, &Allocator));
+
+    // Create pre-allocated memory pool for temporary buffers/images
+    std::unordered_set<uint32_t> preAllocatedTempMemTypeIndices;
+    auto tempUploadBufMemTypeIndex = CalculateBufferCreationInfos(this, GetBufferCreateRequestForTempUploadBuffer(0)).MemoryTypeIndex;
+    if (tempUploadBufMemTypeIndex != UINT32_MAX)
+        preAllocatedTempMemTypeIndices.insert(tempUploadBufMemTypeIndex);
+    
+    for (auto& i : preAllocatedTempMemTypeIndices)
+    {
+        VmaPoolCreateInfo memPoolCreateInfo {
+            .memoryTypeIndex = i,
+            .flags = 0,
+            .blockSize = TEMP_MEMORY_POOL_BLOCK_SIZE,
+            .minBlockCount = 2,
+            .maxBlockCount = UINT64_MAX,
+        };
+        VmaPool pool;
+        auto res = vmaCreatePool(Allocator, &memPoolCreateInfo, &pool);
+        if (VK_SUCCESS == res)
+        {
+            GLog.I("Created memory pool for memory type index %u", i);
+            TempMemoryPools[i] = pool;
+        }
+        else
+            GLog.W("Unable to create memory pool for memory type index %u. Creating temporary buffers with this memory type can impact performance.", i);
+    }
 }
 
-rc<CommandPool> Device::GetPool()
+rc<CommandPool> Device::GetCommandPool()
 {
 	{
 	std::shared_lock slock(ImmPoolsMutex);
@@ -201,7 +228,7 @@ rc<CommandPool> Device::GetPool()
     return res.first;
 }
 
-rc<QueryPool> Device::GetQPool()
+rc<QueryPool> Device::GetQueryPool()
 {
 	{
 		std::shared_lock slock(ImmPoolsMutex);
@@ -379,6 +406,10 @@ Device::~Device()
 		std::unique_lock ulock(ImmPoolsMutex);
 		ImmPools.clear();
 	}
+    for (auto& [memTypeIndex, pool] : TempMemoryPools)
+    {
+        vmaDestroyPool(Allocator, pool);
+    }
 	vmaDestroyAllocator(Allocator);
     DestroyDevice(0);
 }

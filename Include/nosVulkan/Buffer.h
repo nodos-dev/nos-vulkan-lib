@@ -15,6 +15,24 @@ struct BufferMemoryState
 	VkAccessFlags2 AccessMask; // Assumes VkAccessFlagsBits same as 2
 };
 
+struct nosVulkan_API BufferCreationInfos
+{
+	uint32_t MemoryTypeIndex = UINT32_MAX;
+	uint32_t ExtMemHandleType = 0;
+	VmaAllocationCreateInfo AllocCreateInfo{};
+	VkBufferCreateInfo BufCreateInfo{};
+	VkExternalMemoryBufferCreateInfo ExtMemCreateInfo{};
+	VkMemoryPropertyFlags MemProps = 0;
+	BufferCreationInfos(BufferCreationInfos&& o) noexcept;
+	BufferCreationInfos() = default;
+	BufferCreationInfos(BufferCreationInfos const& o) = delete;
+	BufferCreationInfos& operator=(const BufferCreationInfos&) = delete;
+};
+
+BufferCreationInfos nosVulkan_API CalculateBufferCreationInfos(vk::Device* device, BufferCreateInfo const& info);
+
+BufferCreateInfo nosVulkan_API GetBufferCreateRequestForTempUploadBuffer(uint64_t size);
+
 struct nosVulkan_API Buffer : SharedFactory<Buffer>, ResourceBase<VkBuffer>
 {
 	vk::Buffer* AsBuffer() override { return this; }
@@ -34,7 +52,7 @@ struct nosVulkan_API Buffer : SharedFactory<Buffer>, ResourceBase<VkBuffer>
     void Bind(VkDescriptorType type, u32 bind, VkDescriptorSet set);
     DescriptorResourceInfo GetDescriptorInfo() const;
 
-    Buffer(Device* Vk, BufferCreateInfo const& info);
+    Buffer(Device* device, BufferCreateInfo const& info);
     ~Buffer();
 
     void Upload(rc<CommandBuffer> Cmd, rc<Buffer> Buffer, const VkBufferCopy* Region = 0);

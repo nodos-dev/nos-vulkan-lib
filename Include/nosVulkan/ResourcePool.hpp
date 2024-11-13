@@ -209,7 +209,7 @@ struct ImageCreateInfoHasher
 	size_t operator()(vk::ImageCreateInfo const& info) const
 	{
 		size_t result = 0;
-		vk::hash_combine(result, info.Extent.width, info.Extent.height, info.Format, info.Usage, info.Samples, info.Tiling, info.Flags, info.ExternalMemoryHandleType);
+		vk::hash_combine(result, info.Extent.width, info.Extent.height, info.Format, info.Usage, info.Samples, info.Tiling, info.Flags, info.ExternalMemoryHandleType, info.Temporary);
 		return result;
 	}
 };
@@ -219,7 +219,7 @@ struct ImageCreateInfoEquals
 	bool operator()(vk::ImageCreateInfo const& l, vk::ImageCreateInfo const& r) const
 	{
 		return l.Extent == r.Extent && l.Format == r.Format && l.Usage == r.Usage && l.Samples == r.
-			   Samples && l.Tiling == r.Tiling && l.Flags == r.Flags && l.ExternalMemoryHandleType == r.ExternalMemoryHandleType;
+			   Samples && l.Tiling == r.Tiling && l.Flags == r.Flags && l.ExternalMemoryHandleType == r.ExternalMemoryHandleType && l.Temporary == r.Temporary;
 	}
 };
 
@@ -228,7 +228,7 @@ struct BufferCreateInfoHasher
 	size_t operator()(vk::BufferCreateInfo const& info) const
 	{
 		size_t result = 0;
-		vk::hash_combine(result, info.Size, info.MemProps.Mapped, info.MemProps.VRAM, info.MemProps.Download, info.Usage, info.ExternalMemoryHandleType);
+		vk::hash_combine(result, info.Size, info.MemProps.Mapped, info.MemProps.VRAM, info.MemProps.Download, info.Usage, info.ExternalMemoryHandleType, info.Temporary);
 		return result;
 	}
 };
@@ -237,7 +237,7 @@ struct BufferCreateInfoEquals
 {
 	bool operator()(vk::BufferCreateInfo const& l, vk::BufferCreateInfo const& r) const
 	{
-		return l.Size == r.Size && l.MemProps == r.MemProps && l.Usage == r.Usage && l.ExternalMemoryHandleType == r.ExternalMemoryHandleType;
+		return l.Size == r.Size && l.MemProps == r.MemProps && l.Usage == r.Usage && l.ExternalMemoryHandleType == r.ExternalMemoryHandleType && l.Temporary == r.Temporary;
 	}
 };
 } // namespace detail
