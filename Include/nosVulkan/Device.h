@@ -149,12 +149,14 @@ struct nosVulkan_API Device : SharedFactory<Device>,
     const nos::vk::Context* Context = 0;
 
     VmaAllocator Allocator;
-
+    std::unordered_map<uint32_t, VmaPool> TempMemoryPools;
+	static constexpr uint64_t TEMP_MEMORY_POOL_BLOCK_SIZE = 256ull * 1024 * 1024;
+    
     std::map<std::thread::id, std::pair<rc<CommandPool>, rc<QueryPool>>> ImmPools;
 	std::shared_mutex ImmPoolsMutex;
     
-    rc<CommandPool> GetPool();
-    rc<QueryPool> GetQPool();
+    rc<CommandPool> GetCommandPool();
+    rc<QueryPool> GetQueryPool();
 
 	struct MemoryUsage
 	{

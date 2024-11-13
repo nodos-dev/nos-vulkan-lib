@@ -280,6 +280,8 @@ struct BufferCreateInfo
     VkBufferUsageFlags Usage;
 	MemoryProperties MemProps;
     uint32_t ExternalMemoryHandleType = PLATFORM_EXTERNAL_MEMORY_HANDLE_TYPE;
+	bool Temporary = false;
+	
     const MemoryExportInfo* Imported = 0;
 	int ElementType = 0;
 };
@@ -293,6 +295,8 @@ struct ImageCreateInfo
     VkImageTiling Tiling = VK_IMAGE_TILING_OPTIMAL;
     VkImageCreateFlags Flags = VK_IMAGE_CREATE_ALIAS_BIT;
     uint32_t ExternalMemoryHandleType = PLATFORM_EXTERNAL_MEMORY_HANDLE_TYPE;
+	bool Temporary = false;
+	
     const MemoryExportInfo* Imported = 0;
 };
 
