@@ -8,6 +8,21 @@
 
 namespace nos::vk
 {
+static VkImageType GetImageType()
+{
+	return VK_IMAGE_TYPE_2D; // Temporary fix for color nodes.
+	// return (1 >= Extent.height) ? VK_IMAGE_TYPE_1D : VK_IMAGE_TYPE_2D;
+}
+
+static VkFormat GetEffectiveFormat(VkFormat format)
+{
+	return IsYCbCr(format) ? VK_FORMAT_R8G8B8A8_UNORM : format;
+}
+
+static VkExtent2D GetEffectiveExtent(VkExtent2D extent, VkFormat format)
+{
+	return { extent.width / (1 + IsYCbCr(format)), extent.height};
+}
 
 Image::~Image()
 {
@@ -57,6 +72,119 @@ ImageView::ImageView(struct Image* Src, VkFormat Format, VkImageUsageFlags Usage
     NOSVK_ASSERT(Src->GetDevice()->CreateImageView(&viewInfo, 0, &Handle));
 }
 
+ImageCreationInfos::ImageCreationInfos(ImageCreationInfos&& o) noexcept
+{
+	this->MemoryTypeIndex = o.MemoryTypeIndex;
+	this->ExtMemHandleType = o.ExtMemHandleType;
+	this->ImgCreateInfo = o.ImgCreateInfo;
+	this->AllocCreateInfo = o.AllocCreateInfo;
+	this->MemProps = o.MemProps;
+	this->ExtMemCreateInfo = o.ExtMemCreateInfo;
+	if (ImgCreateInfo.pNext)
+		this->ImgCreateInfo.pNext = &ExtMemCreateInfo;
+}
+
+ImageCreationInfos CalculateImageCreationInfos(vk::Device* device, ImageCreateInfo const& request)
+{
+	ImageCreationInfos ret;
+	auto& extMemHandleType = (ret.ExtMemHandleType = request.ExternalMemoryHandleType);
+	auto& extMemCreateInfo = ret.ExtMemCreateInfo;
+	auto& imageCreateInfo = ret.ImgCreateInfo;
+	auto& allocCreateInfo = ret.AllocCreateInfo;
+
+	// assert(IsImportable(Vk->PhysicalDevice, Format, Usage, VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT));
+
+	VkFormatProperties props;
+	vkGetPhysicalDeviceFormatProperties(device->PhysicalDevice, GetEffectiveFormat(request.Format), &props);
+
+	auto Ft = props.optimalTilingFeatures;
+	bool Opt = true;
+	VkImageTiling tiling = request.Tiling;
+
+	if (tiling == VK_IMAGE_TILING_OPTIMAL)
+	{
+		if (((request.Usage & VK_IMAGE_USAGE_SAMPLED_BIT) && !(Ft & VK_FORMAT_FEATURE_2_SAMPLED_IMAGE_BIT)) ||
+			((request.Usage & VK_IMAGE_USAGE_SAMPLED_BIT) && !(Ft & VK_FORMAT_FEATURE_2_SAMPLED_IMAGE_BIT)) ||
+			((request.Usage & VK_IMAGE_USAGE_TRANSFER_SRC_BIT) && !(Ft & VK_FORMAT_FEATURE_2_TRANSFER_SRC_BIT)) ||
+			((request.Usage & VK_IMAGE_USAGE_TRANSFER_DST_BIT) && !(Ft & VK_FORMAT_FEATURE_2_TRANSFER_DST_BIT)) ||
+			((request.Usage & VK_IMAGE_USAGE_SAMPLED_BIT) && !(Ft & VK_FORMAT_FEATURE_2_SAMPLED_IMAGE_BIT)) ||
+			((request.Usage & VK_IMAGE_USAGE_STORAGE_BIT) && !(Ft & VK_FORMAT_FEATURE_2_STORAGE_IMAGE_BIT)) ||
+			((request.Usage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) && !(Ft & VK_FORMAT_FEATURE_2_COLOR_ATTACHMENT_BIT)) ||
+			((request.Usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) &&
+			 !(Ft & VK_FORMAT_FEATURE_2_DEPTH_STENCIL_ATTACHMENT_BIT)))
+		{
+			tiling = VK_IMAGE_TILING_LINEAR;
+		}
+	}
+
+
+	extMemCreateInfo = {
+		.sType = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
+		.handleTypes = extMemHandleType,
+	};
+
+	imageCreateInfo = {
+		.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+		.pNext = extMemHandleType ? &extMemCreateInfo : 0,
+		.flags = request.Flags,
+		.imageType = GetImageType(),
+		.format = GetEffectiveFormat(request.Format),
+		.extent = {GetEffectiveExtent(request.Extent, request.Format).width, request.Extent.height, 1},
+		.mipLevels = 1,
+		.arrayLayers = 1,
+		.samples = request.Samples,
+		.tiling = tiling,
+		.usage = request.Usage,
+		.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+		.queueFamilyIndexCount = 0,
+		.pQueueFamilyIndices = nullptr,
+		.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+	};
+
+    ret.MemProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
+	if (auto* imported = request.Imported)
+	{
+		return ret;
+	}
+	else // Exported
+	{
+        allocCreateInfo = {.usage = VMA_MEMORY_USAGE_AUTO, .requiredFlags = ret.MemProps};
+
+		uint32_t memoryTypeIndex = UINT32_MAX;
+		auto res = vmaFindMemoryTypeIndexForImageInfo(device->Allocator, &imageCreateInfo, &allocCreateInfo, &memoryTypeIndex);
+		if (res != VK_SUCCESS)
+		{
+            if (extMemHandleType)
+			{
+				GLog.W("Failed to find memory type index for image, trying again without external memory handle type");
+				imageCreateInfo.pNext = nullptr;
+				extMemHandleType = 0;
+				res = vmaFindMemoryTypeIndexForImageInfo(device->Allocator, &imageCreateInfo, &allocCreateInfo, &memoryTypeIndex);
+				
+			}
+			if (res != VK_SUCCESS)
+            {
+                GLog.E("Failed to find memory type index for image");
+                return ret;
+            }
+		}
+		return ret;
+    }
+}
+
+ImageCreateInfo GetTempImageCreateRequest(VkExtent2D extent, VkFormat format)
+{
+	return {
+		.Extent = {extent.width, extent.height},
+		.Format = (VkFormat)format,
+		.Usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT |
+		VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+		.ExternalMemoryHandleType = 0,
+		.Temporary = true
+	};
+}
+
 Image::Image(Device* Vk, ImageCreateInfo const& createInfo, VkResult* re)
 	: ResourceBase(Vk), Extent(createInfo.Extent), Format(createInfo.Format), Usage(createInfo.Usage),
 	  State{
@@ -71,90 +199,24 @@ Image::Image(Device* Vk, ImageCreateInfo const& createInfo, VkResult* re)
 		State.Layout = VK_IMAGE_LAYOUT_PREINITIALIZED;
 	    assert(IsImportable(Vk->PhysicalDevice, Format, Usage, VkExternalMemoryHandleTypeFlagBits(createInfo.Imported->HandleType)));
     }
-
-	VkFormatProperties props;
-	vkGetPhysicalDeviceFormatProperties(Vk->PhysicalDevice, GetEffectiveFormat(), &props);
-
-	auto Ft = props.optimalTilingFeatures;
-	bool Opt = true;
-	VkImageTiling tiling = createInfo.Tiling;
-
-	if (tiling == VK_IMAGE_TILING_OPTIMAL)
-	{
-		if (((Usage & VK_IMAGE_USAGE_SAMPLED_BIT) && !(Ft & VK_FORMAT_FEATURE_2_SAMPLED_IMAGE_BIT)) ||
-			((Usage & VK_IMAGE_USAGE_SAMPLED_BIT) && !(Ft & VK_FORMAT_FEATURE_2_SAMPLED_IMAGE_BIT)) ||
-			((Usage & VK_IMAGE_USAGE_TRANSFER_SRC_BIT) && !(Ft & VK_FORMAT_FEATURE_2_TRANSFER_SRC_BIT)) ||
-			((Usage & VK_IMAGE_USAGE_TRANSFER_DST_BIT) && !(Ft & VK_FORMAT_FEATURE_2_TRANSFER_DST_BIT)) ||
-			((Usage & VK_IMAGE_USAGE_SAMPLED_BIT) && !(Ft & VK_FORMAT_FEATURE_2_SAMPLED_IMAGE_BIT)) ||
-			((Usage & VK_IMAGE_USAGE_STORAGE_BIT) && !(Ft & VK_FORMAT_FEATURE_2_STORAGE_IMAGE_BIT)) ||
-			((Usage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) && !(Ft & VK_FORMAT_FEATURE_2_COLOR_ATTACHMENT_BIT)) ||
-			((Usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) &&
-			 !(Ft & VK_FORMAT_FEATURE_2_DEPTH_STENCIL_ATTACHMENT_BIT)))
-		{
-			tiling = VK_IMAGE_TILING_LINEAR;
-		}
-	}
-
-    auto externalMemoryHandleType = createInfo.ExternalMemoryHandleType;
-
-	VkExternalMemoryImageCreateInfo resourceCreateInfo = {
-		.sType = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
-		.handleTypes = externalMemoryHandleType,
-	};
-
-	VkImageCreateInfo info = {
-		.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-		.pNext = externalMemoryHandleType ? &resourceCreateInfo : 0,
-		.flags = createInfo.Flags,
-		.imageType = GetImageType(),
-		.format = GetEffectiveFormat(),
-		.extent = {GetEffectiveExtent().width, Extent.height, 1},
-		.mipLevels = 1,
-		.arrayLayers = 1,
-		.samples = createInfo.Samples,
-		.tiling = tiling,
-		.usage = Usage,
-		.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-		.queueFamilyIndexCount = 0,
-		.pQueueFamilyIndices = nullptr,
-		.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-	};
-
-    VkMemoryPropertyFlags memProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+	auto icInfos = CalculateImageCreationInfos(Vk, createInfo);
 
     VkResult result;
 	if (auto* imported = createInfo.Imported)
 	{
-        result = Vk->CreateImage(&info, 0, &Handle);
+        result = Vk->CreateImage(&icInfos.ImgCreateInfo, 0, &Handle);
         if (NOS_VULKAN_SUCCEEDED(result))
-            result = AllocationInfo->Import(Vk, Handle, *imported, memProps);
+            result = AllocationInfo->Import(Vk, Handle, *imported, icInfos.MemProps);
 	}
 	else // Exported
 	{
-        VmaAllocationCreateInfo allocationCreateInfo{.usage = VMA_MEMORY_USAGE_AUTO, .requiredFlags = memProps};
-
-		uint32_t memoryTypeIndex = UINT32_MAX;
-		vmaFindMemoryTypeIndexForImageInfo(Vk->Allocator, &info, &allocationCreateInfo, &memoryTypeIndex);
-		if (memoryTypeIndex == UINT32_MAX)
+		if (icInfos.MemoryTypeIndex != UINT32_MAX && createInfo.Temporary)
 		{
-            bool success = false;
-            if(externalMemoryHandleType)
-			{
-				GLog.W("Failed to find memory type index for image, trying again without external memory handle type");
-				info.pNext = nullptr;
-				externalMemoryHandleType = 0;
-				vmaFindMemoryTypeIndexForImageInfo(Vk->Allocator, &info, &allocationCreateInfo, &memoryTypeIndex);
-				success = memoryTypeIndex != UINT32_MAX;
-			}
-			if (!success)
-            {
-                GLog.E("Failed to find memory type index for image");
-                Handle = NOS_VULKAN_INVALID_HANDLE(VkImage);
-                return;
-            }
+			auto it = Vk->TempMemoryPools.find(icInfos.MemoryTypeIndex);
+			if (it != Vk->TempMemoryPools.end())
+				icInfos.AllocCreateInfo.pool = it->second;
 		}
-        
-        result = vmaCreateImage(Vk->Allocator, &info, &allocationCreateInfo, &Handle, &AllocationInfo->Handle, &AllocationInfo->Info);
+        result = vmaCreateImage(Vk->Allocator, &icInfos.ImgCreateInfo, &icInfos.AllocCreateInfo, &Handle, &AllocationInfo->Handle, &AllocationInfo->Info);
     }
     
 	if (NOS_VULKAN_SUCCEEDED(result))
@@ -164,8 +226,8 @@ Image::Image(Device* Vk, ImageCreateInfo const& createInfo, VkResult* re)
 		assert(memReq.size == AllocationInfo->GetSize());
 	}
 
-	if (NOS_VULKAN_SUCCEEDED(result) && externalMemoryHandleType)
-		result = AllocationInfo->SetExternalMemoryHandleType(Vk, externalMemoryHandleType);
+	if (NOS_VULKAN_SUCCEEDED(result) && icInfos.ExtMemHandleType)
+		result = AllocationInfo->SetExternalMemoryHandleType(Vk, icInfos.ExtMemHandleType);
 
 	if (re)
 		*re = result;
@@ -485,6 +547,16 @@ void Image::ResolveFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
     Cmd->ResolveImage2(&resolveInfo);
 }
 
+VkExtent2D Image::GetEffectiveExtent() const
+{
+	return vk::GetEffectiveExtent(Extent, Format);
+}
+	
+VkFormat Image::GetEffectiveFormat() const
+{
+	return vk::GetEffectiveFormat(Format);
+}
+
 DescriptorResourceInfo ImageView::GetDescriptorInfo(VkFilter filter) const
 {
     return DescriptorResourceInfo{
@@ -508,5 +580,8 @@ rc<ImageView> Image::GetView(VkFormat Format, VkImageUsageFlags Usage)
     return Views[hash] = ImageView::New(this, Format, Usage);
 }
 
-
+VkImageType Image::GetImageType() const
+{
+	return vk::GetImageType();
+}
 } // namespace nos::vk
