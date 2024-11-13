@@ -43,9 +43,11 @@ public:
 		auto freeIt = Free.find(info);
 		if (freeIt == Free.end() || freeIt->second.empty())
 		{
+			guard.unlock();
 			auto res = typename ResourceT::New(Device, info);
 			if (!res)
 				return nullptr;
+			guard.lock();
 			Used[uint64_t(res->Handle)] = { tag, info, res };
 			UsedResourceMemoryUsage += res->Size;
 			CheckAndClean();
