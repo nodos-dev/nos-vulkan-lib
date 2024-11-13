@@ -103,7 +103,7 @@ Image::Image(Device* Vk, ImageCreateInfo const& createInfo, VkResult* re)
 
 	VkImageCreateInfo info = {
 		.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-		.pNext = &resourceCreateInfo,
+		.pNext = externalMemoryHandleType ? &resourceCreateInfo : 0,
 		.flags = createInfo.Flags,
 		.imageType = GetImageType(),
 		.format = GetEffectiveFormat(),
