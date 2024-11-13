@@ -26,6 +26,7 @@ rc<Buffer> Basepass::CreateUniformSizedBuffer()
 						   .Size = PL->Layout->UniformSize,
 						   .Usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
 						   .MemProps = {.Mapped = true},
+						   .ExternalMemoryHandleType = 0
 					   });
 }
 
@@ -184,7 +185,8 @@ void Renderpass::Begin(rc<CommandBuffer> cmd, const BeginPassInfo& info)
 									   .Extent = info.OutImage->GetEffectiveExtent(),
 									   .Format = info.OutImage->GetEffectiveFormat(),
 									   .Usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-									   .Samples = (VkSampleCountFlagBits)PL->MS }, "Temporary Multisample Resource");
+									   .Samples = (VkSampleCountFlagBits)PL->MS,
+									   .ExternalMemoryHandleType = 0}, "Temporary Multisample Resource");
         localMsBuffer->Transition(cmd, ImageState{
                                             .StageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                                             .AccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
