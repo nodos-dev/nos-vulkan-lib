@@ -140,6 +140,37 @@ std::string Device::GetName() const
     return vk::GetName(PhysicalDevice);
 }
 
+void Device::PreAllocateTempMemoryPools()
+{
+    // Create pre-allocated memory pool for temporary buffers/images
+    std::unordered_set<uint32_t> preAllocatedTempMemTypeIndices;
+    static constexpr auto addIfValid = [](std::unordered_set<uint32_t>& indices, uint32_t idx){
+        if (idx != UINT32_MAX)
+            indices.insert(idx);
+    };
+    addIfValid(preAllocatedTempMemTypeIndices, CalculateBufferCreationInfos(this, GetBufferCreateRequestForTempUploadBuffer(0)).MemoryTypeIndex);
+    addIfValid(preAllocatedTempMemTypeIndices, CalculateImageCreationInfos(this, GetTempImageCreateRequest({0 , 0}, VK_FORMAT_R8G8B8A8_SRGB)).MemoryTypeIndex);
+    for (auto& i : preAllocatedTempMemTypeIndices)
+    {
+        VmaPoolCreateInfo memPoolCreateInfo {
+            .memoryTypeIndex = i,
+            .flags = 0,
+            .blockSize = TEMP_MEMORY_POOL_BLOCK_SIZE,
+            .minBlockCount = 2,
+            .maxBlockCount = UINT64_MAX,
+        };
+        VmaPool pool;
+        auto res = vmaCreatePool(Allocator, &memPoolCreateInfo, &pool);
+        if (VK_SUCCESS == res)
+        {
+            GLog.I("Created memory pool for memory type index %u", i);
+            TempMemoryPools[i] = pool;
+        }
+        else
+            GLog.W("Unable to create memory pool for memory type index %u. Creating temporary buffers with this memory type can impact performance.", i);
+    }
+}
+
 void Device::InitializeVMA()
 {
     VmaVulkanFunctions funcs {
@@ -186,31 +217,7 @@ void Device::InitializeVMA()
     };
 	NOSVK_ASSERT(vmaCreateAllocator(&createInfo, &Allocator));
 
-    // Create pre-allocated memory pool for temporary buffers/images
-    std::unordered_set<uint32_t> preAllocatedTempMemTypeIndices;
-    auto tempUploadBufMemTypeIndex = CalculateBufferCreationInfos(this, GetBufferCreateRequestForTempUploadBuffer(0)).MemoryTypeIndex;
-    if (tempUploadBufMemTypeIndex != UINT32_MAX)
-        preAllocatedTempMemTypeIndices.insert(tempUploadBufMemTypeIndex);
-    
-    for (auto& i : preAllocatedTempMemTypeIndices)
-    {
-        VmaPoolCreateInfo memPoolCreateInfo {
-            .memoryTypeIndex = i,
-            .flags = 0,
-            .blockSize = TEMP_MEMORY_POOL_BLOCK_SIZE,
-            .minBlockCount = 2,
-            .maxBlockCount = UINT64_MAX,
-        };
-        VmaPool pool;
-        auto res = vmaCreatePool(Allocator, &memPoolCreateInfo, &pool);
-        if (VK_SUCCESS == res)
-        {
-            GLog.I("Created memory pool for memory type index %u", i);
-            TempMemoryPools[i] = pool;
-        }
-        else
-            GLog.W("Unable to create memory pool for memory type index %u. Creating temporary buffers with this memory type can impact performance.", i);
-    }
+    PreAllocateTempMemoryPools();
 }
 
 rc<CommandPool> Device::GetCommandPool()

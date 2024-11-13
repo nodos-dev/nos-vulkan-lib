@@ -38,6 +38,24 @@ public:
     VkFormat GetFormat() const { return Format; }
 };
 
+struct ImageCreationInfos
+{
+    uint32_t MemoryTypeIndex = UINT32_MAX;
+    uint32_t ExtMemHandleType = 0;
+    VmaAllocationCreateInfo AllocCreateInfo{};
+    VkImageCreateInfo ImgCreateInfo{};
+    VkExternalMemoryImageCreateInfo ExtMemCreateInfo{};
+    VkMemoryPropertyFlags MemProps = 0;
+    ImageCreationInfos(ImageCreationInfos&& o) noexcept;
+    ImageCreationInfos(ImageCreationInfos const&) = delete;
+    ImageCreationInfos() = default;
+    ImageCreationInfos& operator=(const ImageCreationInfos&) = delete;
+};
+    
+ImageCreationInfos nosVulkan_API CalculateImageCreationInfos(vk::Device* device, ImageCreateInfo const& info);
+
+ImageCreateInfo nosVulkan_API GetTempImageCreateRequest(VkExtent2D extent, VkFormat format);
+    
 struct nosVulkan_API Image : SharedFactory<Image>, ResourceBase<VkImage>
 {
 private:
@@ -59,8 +77,8 @@ public:
     void CopyFrom(rc<CommandBuffer> Cmd, rc<Image> Src);
     void ResolveFrom(rc<CommandBuffer> Cmd, rc<Image> Src);
 
-    VkExtent2D GetEffectiveExtent() const { return { Extent.width / (1 + IsYCbCr(Format)), Extent.height}; }
-    VkFormat GetEffectiveFormat() const { return IsYCbCr(Format) ? VK_FORMAT_R8G8B8A8_UNORM : Format; }
+    VkExtent2D GetEffectiveExtent() const;
+    VkFormat GetEffectiveFormat() const;
     VkFormat GetFormat() const { return Format; }
     VkExtent2D GetExtent() const { return Extent; }
 
@@ -89,11 +107,7 @@ public:
         return (Format == VK_FORMAT_D32_SFLOAT) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
     }
 
-    VkImageType GetImageType() const
-    {
-        return VK_IMAGE_TYPE_2D; // Temporary fix for color nodes.
-        return (1 >= Extent.height) ? VK_IMAGE_TYPE_1D : VK_IMAGE_TYPE_2D;
-    }
+    VkImageType GetImageType() const;
 };
 
 }; // namespace nos::vk
