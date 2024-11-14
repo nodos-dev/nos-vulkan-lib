@@ -156,7 +156,7 @@ bool Device::CheckSupport(VkPhysicalDevice PhysicalDevice)
 
     // These have fallbacks
     // CHECK_SUPPORT(set.vk13, synchronization2);
-    // CHECK_SUPPORT(set.vk13, dynamicRendering);
+	// CHECK_SUPPORT(set.vk13, dynamicRendering); // Fallback is not working properly
 
     CHECK_SUPPORT(set.features, fillModeNonSolid);
     CHECK_SUPPORT(set.features, samplerAnisotropy);
@@ -168,7 +168,10 @@ bool Device::CheckSupport(VkPhysicalDevice PhysicalDevice)
             }) == extensionProps.end())
         {
             printf("%s does not support extension: %s\n", name.c_str(), ext);
-            supported = false;
+            if (ext == "VK_KHR_dynamic_rendering")
+                GLog.E("Device %s does not support dynamic rendering. Therefore you can't use graphics pipeline related operations.\n", name.c_str());
+            else
+                supported = false;
         }
     }
 

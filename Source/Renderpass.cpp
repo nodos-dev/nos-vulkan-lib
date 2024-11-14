@@ -180,6 +180,11 @@ void Renderpass::Draw(rc<vk::CommandBuffer> Cmd, const VertexData* Verts)
 
 void Renderpass::Exec(rc<vk::CommandBuffer> cmd, const ExecPassInfo& info)
 {
+    if (!Vk->Features.dynamicRendering)
+    {
+        GLog.E("Dynamic rendering is not supported on this device");
+        return;
+    }
     BindResources(cmd);
     Begin(cmd, info.BeginInfo);
     Draw(cmd, info.VtxData);
