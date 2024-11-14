@@ -17,7 +17,7 @@ static f64 GetPeriod(Device* Vk)
     return props.limits.timestampPeriod;
 }
 
-QueryPool::QueryPool(Device* Vk) : DeviceChild(Vk), Results(Buffer::New(Vk, BufferCreateInfo {
+QueryPool::QueryPool(Device* Vk) : DeviceChild(Vk), Results(Buffer::New(Vk, BufferCreateRequest {
         .Size = (1<<16)*8,
         .Usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT,
         .MemProps = { .Mapped = true, .Download = true },

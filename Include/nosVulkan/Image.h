@@ -52,9 +52,9 @@ struct ImageCreationInfos
     ImageCreationInfos& operator=(const ImageCreationInfos&) = delete;
 };
     
-ImageCreationInfos nosVulkan_API CalculateImageCreationInfos(vk::Device* device, ImageCreateInfo const& info);
+ImageCreationInfos nosVulkan_API CalculateImageCreationInfos(vk::Device* device, ImageCreateRequest const& info);
 
-ImageCreateInfo nosVulkan_API GetTempImageCreateRequest(VkExtent2D extent, VkFormat format);
+ImageCreateRequest nosVulkan_API GetTempImageCreateRequest(VkExtent2D extent, VkFormat format);
     
 struct nosVulkan_API Image : SharedFactory<Image>, ResourceBase<VkImage>
 {
@@ -69,7 +69,7 @@ public:
     std::map<u64, rc<ImageView>> Views;
 	rc<vk::Semaphore> ExtSemaphore;
 
-    Image(Device* Vk, ImageCreateInfo const& createInfo, VkResult* re = 0);
+    Image(Device* Vk, ImageCreateRequest const& createInfo, VkResult* re = 0);
 	Image(Device* Vk, VkImage img, VkExtent2D extent, VkFormat format, VkImageUsageFlags usage);
 
     void Transition(rc<CommandBuffer> Cmd, ImageState Dst);

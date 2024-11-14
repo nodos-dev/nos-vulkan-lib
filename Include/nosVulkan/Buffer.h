@@ -29,9 +29,9 @@ struct nosVulkan_API BufferCreationInfos
 	BufferCreationInfos& operator=(const BufferCreationInfos&) = delete;
 };
 
-BufferCreationInfos nosVulkan_API CalculateBufferCreationInfos(vk::Device* device, BufferCreateInfo const& info);
+BufferCreationInfos nosVulkan_API CalculateBufferCreationInfos(vk::Device* device, BufferCreateRequest const& info);
 
-BufferCreateInfo nosVulkan_API GetBufferCreateRequestForTempUploadBuffer(uint64_t size);
+BufferCreateRequest nosVulkan_API GetBufferCreateRequestForTempUploadBuffer(uint64_t size);
 
 struct nosVulkan_API Buffer : SharedFactory<Buffer>, ResourceBase<VkBuffer>
 {
@@ -52,7 +52,7 @@ struct nosVulkan_API Buffer : SharedFactory<Buffer>, ResourceBase<VkBuffer>
     void Bind(VkDescriptorType type, u32 bind, VkDescriptorSet set);
     DescriptorResourceInfo GetDescriptorInfo() const;
 
-    Buffer(Device* device, BufferCreateInfo const& info);
+    Buffer(Device* device, BufferCreateRequest const& info);
     ~Buffer();
 
     void Upload(rc<CommandBuffer> Cmd, rc<Buffer> Buffer, const VkBufferCopy* Region = 0);

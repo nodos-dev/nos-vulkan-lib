@@ -20,9 +20,9 @@ BufferCreationInfos::BufferCreationInfos(BufferCreationInfos&& o) noexcept
 		this->BufCreateInfo.pNext = &ExtMemCreateInfo;
 }
 
-BufferCreateInfo GetBufferCreateRequestForTempUploadBuffer(uint64_t size)
+BufferCreateRequest GetBufferCreateRequestForTempUploadBuffer(uint64_t size)
 {
-	return vk::BufferCreateInfo{
+	return vk::BufferCreateRequest{
 		.Size = size,
 		.Usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 		.MemProps = {.Mapped = true, .VRAM = false, .Download = false,},
@@ -31,7 +31,7 @@ BufferCreateInfo GetBufferCreateRequestForTempUploadBuffer(uint64_t size)
 	};
 }
 
-BufferCreationInfos CalculateBufferCreationInfos(vk::Device* device, BufferCreateInfo const& info)
+BufferCreationInfos CalculateBufferCreationInfos(vk::Device* device, BufferCreateRequest const& info)
 {
 	BufferCreationInfos ret;
 	auto& extMemHandleType = (ret.ExtMemHandleType = info.ExternalMemoryHandleType);
@@ -97,7 +97,7 @@ BufferCreationInfos CalculateBufferCreationInfos(vk::Device* device, BufferCreat
 }
 
 
-Buffer::Buffer(Device* device, BufferCreateInfo const& info)
+Buffer::Buffer(Device* device, BufferCreateRequest const& info)
 	: ResourceBase(device), Alignment(info.MemProps.Alignment), Usage(info.Usage),
 	  State{.StageMask = VK_PIPELINE_STAGE_2_NONE,
 	        .AccessMask = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT}, ElementType(info.ElementType)

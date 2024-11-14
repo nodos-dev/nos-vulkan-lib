@@ -13,9 +13,9 @@
 namespace nos::vk
 {
 
-Stream::Resource::Resource(u32 idx, Device* Vk, ImageCreateInfo const& info) : idx(idx), Image(Vk, info) { }
+Stream::Resource::Resource(u32 idx, Device* Vk, ImageCreateRequest const& info) : idx(idx), Image(Vk, info) { }
 
-Stream::Stream(Device* Vk, u32 Size, ImageCreateInfo const& info) : Head(Size), Tail(Size), Size(Size),  Info(info)
+Stream::Stream(Device* Vk, u32 Size, ImageCreateRequest const& info) : Head(Size), Tail(Size), Size(Size),  Info(info)
 {
     for(u32 i = 0; i < Size; ++i)
     {
