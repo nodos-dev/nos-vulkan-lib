@@ -22,7 +22,7 @@ Renderpass::Renderpass(rc<GraphicsPipeline> PL) : Basepass(PL)
 rc<Buffer> Basepass::CreateUniformSizedBuffer()
 {
 	// TODO: Use the resource pool for uniform buffers
-	return Buffer::New(Vk, vk::BufferCreateInfo{
+	return Buffer::New(Vk, vk::BufferCreateRequest{
 						   .Size = PL->Layout->UniformSize,
 						   .Usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
 						   .MemProps = {.Mapped = true},
@@ -181,7 +181,7 @@ void Renderpass::Begin(rc<CommandBuffer> cmd, const BeginPassInfo& info)
 	rc<Image> localMsBuffer = nullptr;
     if(PL->MS > 1)
     {
-		localMsBuffer = GetDevice()->ResourcePools.Image->Get(ImageCreateInfo{
+		localMsBuffer = GetDevice()->ResourcePools.Image->Get(ImageCreateRequest{
 									   .Extent = info.OutImage->GetEffectiveExtent(),
 									   .Format = info.OutImage->GetEffectiveFormat(),
 									   .Usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,

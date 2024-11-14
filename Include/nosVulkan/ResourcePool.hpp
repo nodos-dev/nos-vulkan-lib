@@ -204,9 +204,9 @@ protected:
 namespace detail
 {
 // Since some of the fields of createinfo structs are not used, hashers and equality checks are implemented here instead of nosVulkan.
-struct ImageCreateInfoHasher
+struct ImageCreateRequestHasher
 {
-	size_t operator()(vk::ImageCreateInfo const& info) const
+	size_t operator()(vk::ImageCreateRequest const& info) const
 	{
 		size_t result = 0;
 		vk::hash_combine(result, info.Extent.width, info.Extent.height, info.Format, info.Usage, info.Samples, info.Tiling, info.Flags, info.ExternalMemoryHandleType, info.Temporary);
@@ -214,18 +214,18 @@ struct ImageCreateInfoHasher
 	}
 };
 
-struct ImageCreateInfoEquals
+struct ImageCreateRequestEquals
 {
-	bool operator()(vk::ImageCreateInfo const& l, vk::ImageCreateInfo const& r) const
+	bool operator()(vk::ImageCreateRequest const& l, vk::ImageCreateRequest const& r) const
 	{
 		return l.Extent == r.Extent && l.Format == r.Format && l.Usage == r.Usage && l.Samples == r.
 			   Samples && l.Tiling == r.Tiling && l.Flags == r.Flags && l.ExternalMemoryHandleType == r.ExternalMemoryHandleType && l.Temporary == r.Temporary;
 	}
 };
 
-struct BufferCreateInfoHasher
+struct BufferCreateRequestHasher
 {
-	size_t operator()(vk::BufferCreateInfo const& info) const
+	size_t operator()(vk::BufferCreateRequest const& info) const
 	{
 		size_t result = 0;
 		vk::hash_combine(result, info.Size, info.MemProps.Mapped, info.MemProps.VRAM, info.MemProps.Download, info.Usage, info.ExternalMemoryHandleType, info.Temporary);
@@ -233,16 +233,16 @@ struct BufferCreateInfoHasher
 	}
 };
 
-struct BufferCreateInfoEquals
+struct BufferCreateRequestEquals
 {
-	bool operator()(vk::BufferCreateInfo const& l, vk::BufferCreateInfo const& r) const
+	bool operator()(vk::BufferCreateRequest const& l, vk::BufferCreateRequest const& r) const
 	{
 		return l.Size == r.Size && l.MemProps == r.MemProps && l.Usage == r.Usage && l.ExternalMemoryHandleType == r.ExternalMemoryHandleType && l.Temporary == r.Temporary;
 	}
 };
 } // namespace detail
 
-using ImagePool = ResourcePool<vk::Image, vk::ImageCreateInfo, detail::ImageCreateInfoHasher, detail::ImageCreateInfoEquals>;
-using BufferPool = ResourcePool<vk::Buffer, vk::BufferCreateInfo, detail::BufferCreateInfoHasher, detail::BufferCreateInfoEquals>;
+using ImagePool = ResourcePool<vk::Image, vk::ImageCreateRequest, detail::ImageCreateRequestHasher, detail::ImageCreateRequestEquals>;
+using BufferPool = ResourcePool<vk::Buffer, vk::BufferCreateRequest, detail::BufferCreateRequestHasher, detail::BufferCreateRequestEquals>;
 
 }

@@ -244,7 +244,7 @@ constexpr auto PLATFORM_EXTERNAL_MEMORY_HANDLE_TYPE = VK_EXTERNAL_MEMORY_HANDLE_
 constexpr auto PLATFORM_EXTERNAL_MEMORY_HANDLE_TYPE = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
 #endif
 
-struct BufferCreateInfo
+struct BufferCreateRequest
 {
     u64 Size = 0;
     VkBufferUsageFlags Usage;
@@ -256,7 +256,7 @@ struct BufferCreateInfo
 	int ElementType = 0;
 };
 
-struct ImageCreateInfo
+struct ImageCreateRequest
 {
     VkExtent2D Extent;
     VkFormat Format;

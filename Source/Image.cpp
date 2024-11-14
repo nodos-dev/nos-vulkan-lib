@@ -84,7 +84,7 @@ ImageCreationInfos::ImageCreationInfos(ImageCreationInfos&& o) noexcept
 		this->ImgCreateInfo.pNext = &ExtMemCreateInfo;
 }
 
-ImageCreationInfos CalculateImageCreationInfos(vk::Device* device, ImageCreateInfo const& request)
+ImageCreationInfos CalculateImageCreationInfos(vk::Device* device, ImageCreateRequest const& request)
 {
 	ImageCreationInfos ret;
 	auto& extMemHandleType = (ret.ExtMemHandleType = request.ExternalMemoryHandleType);
@@ -173,7 +173,7 @@ ImageCreationInfos CalculateImageCreationInfos(vk::Device* device, ImageCreateIn
     }
 }
 
-ImageCreateInfo GetTempImageCreateRequest(VkExtent2D extent, VkFormat format)
+ImageCreateRequest GetTempImageCreateRequest(VkExtent2D extent, VkFormat format)
 {
 	return {
 		.Extent = {extent.width, extent.height},
@@ -185,7 +185,7 @@ ImageCreateInfo GetTempImageCreateRequest(VkExtent2D extent, VkFormat format)
 	};
 }
 
-Image::Image(Device* Vk, ImageCreateInfo const& createInfo, VkResult* re)
+Image::Image(Device* Vk, ImageCreateRequest const& createInfo, VkResult* re)
 	: ResourceBase(Vk), Extent(createInfo.Extent), Format(createInfo.Format), Usage(createInfo.Usage),
 	  State{
 		  .StageMask = VK_PIPELINE_STAGE_NONE,
@@ -317,7 +317,7 @@ rc<Image> Image::Copy(rc<CommandBuffer> Cmd)
 {
     assert(Usage & VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
 
-    rc<Image> Img = Image::New(Vk, ImageCreateInfo{
+    rc<Image> Img = Image::New(Vk, ImageCreateRequest{
                                                     .Extent = Extent,
                                                     .Format = Format,
                                                     .Usage  = Usage | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
@@ -356,7 +356,7 @@ rc<Buffer> Image::Download(rc<CommandBuffer> Cmd)
 {
     assert(Usage & VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
 
-    rc<Buffer> StagingBuffer = Buffer::New(Vk, BufferCreateInfo { 
+    rc<Buffer> StagingBuffer = Buffer::New(Vk, BufferCreateRequest { 
         .Size = (u32)Size, 
         .Usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT, 
     });
