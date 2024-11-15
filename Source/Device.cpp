@@ -136,6 +136,9 @@ bool Device::CheckSupport(VkPhysicalDevice PhysicalDevice)
     std::string name = vk::GetName(PhysicalDevice);
     bool supported = true;
 
+    VkPhysicalDeviceProperties props;
+	vkGetPhysicalDeviceProperties(PhysicalDevice, &props);
+
     u32 count;
     NOSVK_ASSERT(vkEnumerateDeviceExtensionProperties(PhysicalDevice, 0, &count, 0));
     std::vector<VkExtensionProperties> extensionProps(count);
@@ -298,7 +301,7 @@ void Device::InitializeVMA()
 		.pDeviceMemoryCallbacks = &deviceMemoryCallbacks,
         .pVulkanFunctions = &funcs,
         .instance = Instance,
-        .vulkanApiVersion = API_VERSION_USED,
+		.vulkanApiVersion = Context->ApiVersion,
 		.pTypeExternalMemoryHandleTypes = handleTypes.data(),
     };
 	NOSVK_ASSERT(vmaCreateAllocator(&createInfo, &Allocator));
@@ -464,13 +467,26 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, const nos::
     Devices.insert(this);
 }
 
-void Context::OrderDevices()
+void Context::OrderDevices(std::vector<VkPhysicalDevice>& PhysicalDevices)
 {
     //TODO: Order devices in order to best device to work on is in the first index (Devices[0])
-    std::sort(Devices.begin(), Devices.end(), [](auto a, auto b) {
+	std::sort(PhysicalDevices.begin(), PhysicalDevices.end(), [](auto a, auto b) {
         VkPhysicalDeviceProperties props[2] = {};
-        vkGetPhysicalDeviceProperties(a->PhysicalDevice, &props[0]);
-        vkGetPhysicalDeviceProperties(b->PhysicalDevice, &props[1]);
+        vkGetPhysicalDeviceProperties(a, &props[0]);
+		vkGetPhysicalDeviceProperties(b, &props[1]);
+		// If both are discrete, prefer same major-bigger minor version
+		if ((VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU == props[0].deviceType) ==
+			(VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU == props[1].deviceType))
+		{
+			if (VK_API_VERSION_MAJOR(props[0].apiVersion) != VK_API_VERSION_MAJOR(MAX_API_VERSION_USED) ||
+				VK_API_VERSION_MAJOR(props[1].apiVersion) != VK_API_VERSION_MAJOR(MAX_API_VERSION_USED))
+				return (VK_API_VERSION_MAJOR(props[0].apiVersion) == VK_API_VERSION_MAJOR(MAX_API_VERSION_USED)) >
+					   (VK_API_VERSION_MAJOR(props[1].apiVersion) == VK_API_VERSION_MAJOR(MAX_API_VERSION_USED));
+			// Prefer the GPU with bigger minor version
+			if (VK_API_VERSION_MINOR(props[0].apiVersion) != VK_API_VERSION_MINOR(props[1].apiVersion))
+				return VK_API_VERSION_MINOR(props[0].apiVersion) < VK_API_VERSION_MINOR(props[1].apiVersion);
+			return false;
+		}
         return
             (VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU == props[0].deviceType) > 
             (VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU == props[1].deviceType);
@@ -545,34 +561,65 @@ void Context::EnableValidationLayers(bool enable)
 Context::Context(DebugCallback* debugCallback, const char* cacheFolder)
     : CacheFolder(cacheFolder ? cacheFolder : "")
 {
-    u32 count;
-    try
-    {
-        vkLoader = std::make_unique<::vk::DynamicLoader>();
-        NOSVK_ASSERT(vkl_init(vkLoader->getProcAddress<PFN_vkGetInstanceProcAddr>("vkGetInstanceProcAddr")));
-    }
-    catch (std::exception& e)
-    {
-        printf("Failed to load Vulkan library: %s\n", e.what());
-        assert(0);
-    }
-    VkApplicationInfo app = {
-        .sType      = VK_STRUCTURE_TYPE_APPLICATION_INFO,
-        .apiVersion = API_VERSION_USED
-    };
+	std::vector<VkPhysicalDevice> pDevices;
+	auto createInstance = [&]() {
+		try
+		{
+			vkLoader = std::make_unique<::vk::DynamicLoader>();
+			NOSVK_ASSERT(vkl_init(vkLoader->getProcAddress<PFN_vkGetInstanceProcAddr>("vkGetInstanceProcAddr")));
+		}
+		catch (std::exception& e)
+		{
+			printf("Failed to load Vulkan library: %s\n", e.what());
+			assert(0);
+		}
+		VkApplicationInfo app = {.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO, .apiVersion = ApiVersion};
 
-    VkInstanceCreateInfo info = {
+		VkInstanceCreateInfo info = {
         .sType                   = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
         .pApplicationInfo        = &app,
         .enabledLayerCount       = (u32)layers.size(),
         .ppEnabledLayerNames     = layers.data(),
         .enabledExtensionCount   = (u32)extensions.size(),
-        .ppEnabledExtensionNames = extensions.data(),
-    };
+			.ppEnabledExtensionNames = extensions.data(),
+		};
 
     NOS_VULKAN_KEEP_TRYING_INVALIDATE(vkCreateInstance(&info, 0, &Instance), "Failed to create Vulkan instance!\n", Instance);
 
-    vkl_load_instance_functions(Instance);
+		vkl_load_instance_functions(Instance);
+
+        uint32_t count = 0;
+		NOS_VULKAN_KEEP_TRYING(vkEnumeratePhysicalDevices(Instance, &count, 0),
+							   "Failed to find physical Vulkan device that supports the Vulkan version\n");
+
+		pDevices.resize(count);
+		NOS_VULKAN_KEEP_TRYING(vkEnumeratePhysicalDevices(Instance, &count, pDevices.data()),
+							   "Failed to access found physical Vulkan devices\n");
+		Devices.reserve(count);
+	};
+
+    createInstance();
+    
+    // Detect the proper Vulkan instance version with most capable Vulkan device
+	OrderDevices(pDevices);
+	{
+		VkPhysicalDeviceProperties props;
+		vkGetPhysicalDeviceProperties(pDevices[0], &props);
+
+		uint32_t firstDeviceApiVersion = VK_MAKE_API_VERSION(0, VK_API_VERSION_MAJOR(props.apiVersion), VK_API_VERSION_MINOR(props.apiVersion), 0);
+		if (firstDeviceApiVersion >= MAX_API_VERSION_USED)
+			ApiVersion = MAX_API_VERSION_USED;
+        else
+        {
+			GLog.E("Most capable Vulkan device doesn't support Vulkan version used by backend. There may be unexpected crashes!");
+			ApiVersion = firstDeviceApiVersion;
+        }
+
+        vkDestroyInstance(Instance, 0);
+    }
+	createInstance();
+	OrderDevices(pDevices);
+
 
     if(!debugCallback)
 		debugCallback = DefaultDebugCallback;
@@ -592,9 +639,10 @@ Context::Context(DebugCallback* debugCallback, const char* cacheFolder)
 	};
     NOS_VULKAN_KEEP_TRYING_INVALIDATE(vkCreateDebugUtilsMessengerEXT(Instance, &msgInfo, 0, &Msger), "Failed to find Vulkan Debug Utils\n", Msger);
 
-    NOSVK_ASSERT(vkEnumerateInstanceLayerProperties(&count, 0));
-    std::vector<VkLayerProperties> layerProps(count);
-    NOSVK_ASSERT(vkEnumerateInstanceLayerProperties(&count, layerProps.data()));
+	u32 layerCount;
+	NOSVK_ASSERT(vkEnumerateInstanceLayerProperties(&layerCount, 0));
+	std::vector<VkLayerProperties> layerProps(layerCount);
+	NOSVK_ASSERT(vkEnumerateInstanceLayerProperties(&layerCount, layerProps.data()));
 
     for (auto layer : layers)
     {
@@ -607,14 +655,7 @@ Context::Context(DebugCallback* debugCallback, const char* cacheFolder)
         }
     }
 
-    NOS_VULKAN_KEEP_TRYING(vkEnumeratePhysicalDevices(Instance, &count, 0), "Failed to find physical Vulkan device that supports the Vulkan version\n");
-
-    std::vector<VkPhysicalDevice> pdevices(count);
-    Devices.reserve(count);
-
-    NOS_VULKAN_KEEP_TRYING(vkEnumeratePhysicalDevices(Instance, &count, pdevices.data()), "Failed to access found physical Vulkan devices\n");
-
-    for (auto pdev : pdevices)
+    for (auto pdev : pDevices)
     {
         if(Device::CheckSupport(pdev))
         {
@@ -631,7 +672,6 @@ Context::Context(DebugCallback* debugCallback, const char* cacheFolder)
         printf("We do not support any of your graphics cards currently\n");
         return;
     }
-    OrderDevices();
 }
 
 Context::~Context()

@@ -196,7 +196,7 @@ struct CircularIndex
 	operator u64() const { return Val % Max; }
 };
 
-constexpr auto API_VERSION_USED = VK_API_VERSION_1_3;
+constexpr auto MAX_API_VERSION_USED = VK_API_VERSION_1_3;
 
 struct Device;
 struct Queue;

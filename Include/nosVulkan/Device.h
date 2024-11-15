@@ -320,11 +320,12 @@ struct nosVulkan_API Context : SharedFactory<Context>
     VkDebugUtilsMessengerEXT Msger = 0;
     std::vector<rc<Device>> Devices;
     std::string CacheFolder;
+	uint32_t ApiVersion = VK_API_VERSION_1_0; // It will be decided by the devices on the system
 
     rc<Device> CreateDevice(u64 luid) const;
     ~Context();
-    Context(DebugCallback* = 0, const char* CacheFolder = nullptr);
-    void OrderDevices();
+	Context(DebugCallback* = 0, const char* CacheFolder = nullptr);
+	void OrderDevices(std::vector<VkPhysicalDevice>& PhysicalDevices);
 	static void EnableValidationLayers(bool enable);
 };
 } // namespace nos::vk
