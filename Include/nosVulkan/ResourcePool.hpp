@@ -206,7 +206,7 @@ struct ImageCreateRequestHasher
 	size_t operator()(vk::ImageCreateRequest const& info) const
 	{
 		size_t result = 0;
-		vk::hash_combine(result, info.Extent.width, info.Extent.height, info.Format, info.Usage, info.Samples, info.Tiling, info.Flags, info.ExternalMemoryHandleType, info.Temporary);
+		hash_combine(result, info.Extent.width, info.Extent.height, info.Format, info.Usage, info.Samples, info.Tiling, info.Flags, info.ExternalMemoryHandleType, info.Temporary);
 		return result;
 	}
 };
@@ -225,7 +225,7 @@ struct BufferCreateRequestHasher
 	size_t operator()(vk::BufferCreateRequest const& info) const
 	{
 		size_t result = 0;
-		vk::hash_combine(result, info.Size, info.MemProps.Mapped, info.MemProps.VRAM, info.MemProps.Download, info.Usage, info.ExternalMemoryHandleType, info.Temporary);
+		hash_combine(result, info.Size, info.MemProps.Mapped, info.MemProps.VRAM, info.MemProps.Download, info.Usage, info.ExternalMemoryHandleType, info.Temporary);
 		return result;
 	}
 };

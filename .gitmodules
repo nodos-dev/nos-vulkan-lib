@@ -7,3 +7,6 @@
 [submodule "External/SPIRV-Cross"]
 	path = External/SPIRV-Cross
 	url = https://github.com/KhronosGroup/SPIRV-Cross.git
+[submodule "External/nosCppUtilities"]
+	path = External/nosCppUtilities
+	url = https://github.com/nodos-dev/cpp-utilities.git

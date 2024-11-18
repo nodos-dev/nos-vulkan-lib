@@ -24,7 +24,7 @@ struct std::hash<VkSamplerCreateInfo>
     size_t operator()(VkSamplerCreateInfo const& info) const 
     {
         size_t re = 0;
-        nos::vk::hash_combine(re, 
+        nos::hash_combine(re, 
             info.flags, 
             info.magFilter, 
             info.minFilter, 
@@ -37,8 +37,8 @@ struct std::hash<VkSamplerCreateInfo>
             info.maxLod, 
             info.borderColor, 
             (bool)info.unnormalizedCoordinates);
-            if(info.compareEnable) nos::vk::hash_combine(re, info.compareOp);
-            if(info.anisotropyEnable) nos::vk::hash_combine(re, info.maxAnisotropy);
+            if(info.compareEnable) nos::hash_combine(re, info.compareOp);
+            if(info.anisotropyEnable) nos::hash_combine(re, info.maxAnisotropy);
         return re;
     }
 };
