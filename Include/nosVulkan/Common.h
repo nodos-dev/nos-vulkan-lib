@@ -168,9 +168,10 @@ bool nosVulkan_API IsFormatSupportedByDevice(const VkFormat&, const VkPhysicalDe
 
 struct MemoryProperties
 {
-	bool Mapped = 0;
-	bool VRAM = 0;
-	bool Download = 0;
+	bool Mapped = false;
+	bool VRAM = false;
+	bool Download = false;
+    bool ForceHostMemory = false;
 	uint32_t Alignment = 0;
 
     auto operator<=>(const MemoryProperties&) const = default;

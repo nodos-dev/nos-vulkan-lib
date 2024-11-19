@@ -35,7 +35,7 @@ BufferCreationInfos CalculateBufferCreationInfos(vk::Device* device, BufferCreat
 {
 	BufferCreationInfos ret;
 	auto& extMemHandleType = (ret.ExtMemHandleType = info.ExternalMemoryHandleType);
-	auto& requestedMemProps = info.MemProps;
+	auto requestedMemProps = info.MemProps;
 	auto& extMemCreateInfo = ret.ExtMemCreateInfo;
 	auto& bufferCreateInfo = ret.BufCreateInfo;
 	auto& allocCreateInfo = ret.AllocCreateInfo;
@@ -52,6 +52,12 @@ BufferCreationInfos CalculateBufferCreationInfos(vk::Device* device, BufferCreat
 		.usage = info.Usage,
 	};
 
+	if(requestedMemProps.VRAM && requestedMemProps.ForceHostMemory)
+	{
+		GLog.W("Buffer requested to be created in VRAM but also forced to be created in host memory");
+		requestedMemProps.VRAM = false;
+	}
+
 	auto& memProps = (ret.MemProps = 0);
 	if (requestedMemProps.VRAM)
 		memProps |= VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
@@ -63,17 +69,17 @@ BufferCreationInfos CalculateBufferCreationInfos(vk::Device* device, BufferCreat
 	else
 	{
 		allocCreateInfo = {
-			.flags = requestedMemProps.Mapped ? VMA_ALLOCATION_CREATE_MAPPED_BIT : (VmaAllocationCreateFlags)0,
-			.usage = (requestedMemProps.Download && requestedMemProps.Mapped)
-																? VMA_MEMORY_USAGE_AUTO_PREFER_HOST
-																: VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
+			.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
 			.requiredFlags = memProps,
 		};
 		if (requestedMemProps.Mapped)
 		{
+			allocCreateInfo.flags |= VMA_ALLOCATION_CREATE_MAPPED_BIT;
 			allocCreateInfo.flags |= requestedMemProps.Download ? VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT
 																: VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
 		}
+		if(requestedMemProps.ForceHostMemory || (requestedMemProps.Download && requestedMemProps.Mapped))
+			allocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST;
 
 		auto& memoryTypeIndex = (ret.MemoryTypeIndex = UINT32_MAX);
 		auto res = vmaFindMemoryTypeIndexForBufferInfo(device->Allocator, &bufferCreateInfo, &allocCreateInfo, &memoryTypeIndex);
