@@ -393,7 +393,7 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, const nos::
             }
 
             printf("Device extension %s requested but not available\n", ext);
-            assert(0);
+			return;
         }
         else deviceExtensionsToAsk.push_back(ext);
     }
