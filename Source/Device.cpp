@@ -599,7 +599,15 @@ Context::Context(DebugCallback* debugCallback, const char* cacheFolder)
 	};
 
     createInstance();
-    
+	if (Instance == NOS_VULKAN_INVALID_HANDLE(VkInstance))
+		return;
+
+	if (pDevices.size() == 0)
+	{
+		GLog.E("No Vulkan devices found\n");
+		return;
+	}
+
     // Detect the proper Vulkan instance version with most capable Vulkan device
 	OrderDevices(pDevices);
 	{
@@ -618,6 +626,9 @@ Context::Context(DebugCallback* debugCallback, const char* cacheFolder)
         vkDestroyInstance(Instance, 0);
     }
 	createInstance();
+    if (Instance == NOS_VULKAN_INVALID_HANDLE(VkInstance))
+        return;
+
 	OrderDevices(pDevices);
 
 
