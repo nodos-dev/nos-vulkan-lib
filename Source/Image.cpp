@@ -97,26 +97,44 @@ ImageCreationInfos CalculateImageCreationInfos(vk::Device* device, ImageCreateRe
 	VkFormatProperties props;
 	vkGetPhysicalDeviceFormatProperties(device->PhysicalDevice, GetEffectiveFormat(request.Format), &props);
 
-	auto Ft = props.optimalTilingFeatures;
-	bool Opt = true;
 	VkImageTiling tiling = request.Tiling;
 
-	if (tiling == VK_IMAGE_TILING_OPTIMAL)
-	{
-		if (((request.Usage & VK_IMAGE_USAGE_SAMPLED_BIT) && !(Ft & VK_FORMAT_FEATURE_2_SAMPLED_IMAGE_BIT)) ||
-			((request.Usage & VK_IMAGE_USAGE_SAMPLED_BIT) && !(Ft & VK_FORMAT_FEATURE_2_SAMPLED_IMAGE_BIT)) ||
-			((request.Usage & VK_IMAGE_USAGE_TRANSFER_SRC_BIT) && !(Ft & VK_FORMAT_FEATURE_2_TRANSFER_SRC_BIT)) ||
-			((request.Usage & VK_IMAGE_USAGE_TRANSFER_DST_BIT) && !(Ft & VK_FORMAT_FEATURE_2_TRANSFER_DST_BIT)) ||
-			((request.Usage & VK_IMAGE_USAGE_SAMPLED_BIT) && !(Ft & VK_FORMAT_FEATURE_2_SAMPLED_IMAGE_BIT)) ||
-			((request.Usage & VK_IMAGE_USAGE_STORAGE_BIT) && !(Ft & VK_FORMAT_FEATURE_2_STORAGE_IMAGE_BIT)) ||
-			((request.Usage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) && !(Ft & VK_FORMAT_FEATURE_2_COLOR_ATTACHMENT_BIT)) ||
-			((request.Usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) &&
-			 !(Ft & VK_FORMAT_FEATURE_2_DEPTH_STENCIL_ATTACHMENT_BIT)))
-		{
-			tiling = VK_IMAGE_TILING_LINEAR;
-		}
-	}
+	constexpr auto getSupportedUsages = [](VkFormatFeatureFlags features, VkImageUsageFlags usage) -> VkImageUsageFlags {
+        auto ret = usage;
+		if (!(features & VK_FORMAT_FEATURE_2_SAMPLED_IMAGE_BIT))
+			ret &= ~VK_IMAGE_USAGE_SAMPLED_BIT;
+		if (!(features & VK_FORMAT_FEATURE_2_TRANSFER_SRC_BIT))
+			ret &= ~VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+		if (!(features & VK_FORMAT_FEATURE_2_TRANSFER_DST_BIT))
+			ret &= ~VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+		if (!(features & VK_FORMAT_FEATURE_2_STORAGE_IMAGE_BIT))
+			ret &= ~VK_IMAGE_USAGE_STORAGE_BIT;
+		if (!(features & VK_FORMAT_FEATURE_2_COLOR_ATTACHMENT_BIT))
+			ret &= ~VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+		if (!(features & VK_FORMAT_FEATURE_2_DEPTH_STENCIL_ATTACHMENT_BIT))
+			ret &= ~VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+		return ret;
+    };
 
+    auto supportedUsage = request.Usage;
+
+	auto optiomalUsage = getSupportedUsages(props.optimalTilingFeatures, request.Usage);
+	auto linearUsage = getSupportedUsages(props.linearTilingFeatures, request.Usage);
+
+    if (std::popcount(uint32_t(getSupportedUsages(props.optimalTilingFeatures, request.Usage))) >= std::popcount(uint32_t(getSupportedUsages(props.linearTilingFeatures, request.Usage)))) 
+    {
+		tiling = VK_IMAGE_TILING_OPTIMAL;
+		supportedUsage = optiomalUsage;
+    }
+    else
+    {
+		tiling = VK_IMAGE_TILING_LINEAR;
+		supportedUsage = linearUsage;
+    }
+    if (supportedUsage != request.Usage)
+	    GLog.W("Unsupported image usage, proceeding with the most features possible.");
+    if (request.Tiling != tiling)
+		GLog.W("Tiling is not suitable with image usage, selecting the tiling with most suitable for image usages.");
 
 	extMemCreateInfo = {
 		.sType = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
@@ -134,7 +152,7 @@ ImageCreationInfos CalculateImageCreationInfos(vk::Device* device, ImageCreateRe
 		.arrayLayers = 1,
 		.samples = request.Samples,
 		.tiling = tiling,
-		.usage = request.Usage,
+		.usage = supportedUsage,
 		.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
 		.queueFamilyIndexCount = 0,
 		.pQueueFamilyIndices = nullptr,
@@ -186,7 +204,7 @@ ImageCreateRequest GetTempImageCreateRequest(VkExtent2D extent, VkFormat format)
 }
 
 Image::Image(Device* Vk, ImageCreateRequest const& createInfo, VkResult* re)
-	: ResourceBase(Vk), Extent(createInfo.Extent), Format(createInfo.Format), Usage(createInfo.Usage),
+	: ResourceBase(Vk), Extent(createInfo.Extent), Format(createInfo.Format),
 	  State{
 		  .StageMask = VK_PIPELINE_STAGE_NONE,
 		  .AccessMask = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT,
@@ -200,6 +218,7 @@ Image::Image(Device* Vk, ImageCreateRequest const& createInfo, VkResult* re)
 	    assert(IsImportable(Vk->PhysicalDevice, Format, Usage, VkExternalMemoryHandleTypeFlagBits(createInfo.Imported->HandleType)));
     }
 	auto icInfos = CalculateImageCreationInfos(Vk, createInfo);
+	Usage = icInfos.ImgCreateInfo.usage;
 
     VkResult result;
 	if (auto* imported = createInfo.Imported)
