@@ -676,6 +676,15 @@ Result<ImageCreateRequest> Image::TryGetRelaxedSuitableCreateRequest(Device* Vk,
 		if (auto res = CalculateImageCreationInfos(Vk, request); auto err = res.Error())
 			return *err;
 	}
-	return request;
+return request;
+}
+Result<rc<Image>> Image::CreateRelaxed(Device* Vk, ImageCreateRequest const& createInfo, VkResult* vkRes)
+{
+	if(vkRes)
+		*vkRes = VK_SUCCESS;
+	if (auto res = TryGetRelaxedSuitableCreateRequest(Vk, createInfo); auto val = res.Get())
+		return Create(Vk, *val, vkRes);
+	else
+		return *res.Error();
 }
 } // namespace nos::vk

@@ -66,6 +66,7 @@ public:
     static Result<rc<Image>> Create(Device* Vk, ImageCreateRequest const& createInfo, VkResult* outVkRes = nullptr);
     static rc<Image> FromExisting(Device* Vk, VkImage img, VkExtent2D extent, VkFormat format, VkImageUsageFlags usage, std::optional<Allocation> allocation, VkDeviceSize size);
     static Result<ImageCreateRequest> TryGetRelaxedSuitableCreateRequest(Device* Vk, ImageCreateRequest const& info);
+    static Result<rc<Image>> CreateRelaxed(Device* Vk, ImageCreateRequest const& createInfo, VkResult* vkRes = nullptr);
 	vk::Image* AsImage() override { return this; }
     VkImageUsageFlags Usage = 0;
 

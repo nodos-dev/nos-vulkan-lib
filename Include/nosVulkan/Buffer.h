@@ -41,6 +41,7 @@ public:
 	static Result<rc<Buffer>> Create(Device* device, BufferCreateRequest const& info, VkResult* outVkRes = nullptr);
 	static rc<Buffer> FromExisting(Device* device, VkBuffer buffer, VkBufferUsageFlags usage, uint32_t alignment, int elementType, std::optional<Allocation> alloc, VkDeviceSize size);
 	static Result<BufferCreateRequest> TryGetRelaxedSuitableCreateRequest(Device* Vk, BufferCreateRequest const& info);
+	static Result<rc<Buffer>> CreateRelaxed(Device* Vk, BufferCreateRequest const& createInfo, VkResult* vkRes = nullptr);
 	vk::Buffer* AsBuffer() override { return this; }
     VkBufferUsageFlags Usage;
 	BufferMemoryState State;

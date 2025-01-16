@@ -189,6 +189,16 @@ Result<BufferCreateRequest> Buffer::TryGetRelaxedSuitableCreateRequest(Device* V
 	return request;
 }
 
+Result<rc<Buffer>> Buffer::CreateRelaxed(Device* Vk, BufferCreateRequest const& createInfo, VkResult* vkRes)
+{
+	if (vkRes)
+		*vkRes = VK_SUCCESS;
+	if (auto res = TryGetRelaxedSuitableCreateRequest(Vk, createInfo); auto val = res.Get())
+		return Create(Vk, *val, vkRes);
+	else
+		return *res.Error();
+}
+
 void Buffer::Bind(VkDescriptorType type, u32 bind, VkDescriptorSet set)
 {
     VkDescriptorBufferInfo info = {

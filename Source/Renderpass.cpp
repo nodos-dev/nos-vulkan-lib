@@ -22,33 +22,33 @@ Renderpass::Renderpass(rc<GraphicsPipeline> PL) : Basepass(PL)
 rc<Buffer> Basepass::CreateUniformSizedBuffer()
 {
 	// TODO: Use the resource pool for uniform buffers
-	auto relaxedRequest = Buffer::TryGetRelaxedSuitableCreateRequest(Vk, vk::BufferCreateRequest{
+	auto bufRes = Buffer::CreateRelaxed(Vk, vk::BufferCreateRequest{
 		.Size = PL->Layout->UniformSize,
 		.Usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
 		.MemProps = {.Mapped = true, .Download = false},
 		.ExternalMemoryHandleType = 0
 		});
-    if(auto err = relaxedRequest.Error())
+    if(auto err = bufRes.Error())
 	{
-		GLog.E("Basepass::CreateUniformSizedBuffer: Failed to create buffer");
+		GLog.E("Basepass::CreateUniformSizedBuffer: Failed to create buffer: %s", err->c_str());
 		return nullptr;
 	}
-	return *Buffer::Create(Vk, *relaxedRequest.Get()).Get();
+	return *bufRes.Get();
 }
 
 rc<Buffer> Basepass::CreateStorageBuffer(u64 size) {
-	auto relaxedRequest = Buffer::TryGetRelaxedSuitableCreateRequest(Vk, vk::BufferCreateRequest{
+	auto bufRes = Buffer::CreateRelaxed(Vk, vk::BufferCreateRequest{
 		.Size = size,
 		.Usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
 		.MemProps = {.Mapped = true, .Download = false},
 		.ExternalMemoryHandleType = 0
 		});
-	if (auto err = relaxedRequest.Error())
+	if (auto err = bufRes.Error())
 	{
-		GLog.E("Basepass::CreateStorageBuffer: Failed to create buffer");
+		GLog.E("Basepass::CreateStorageBuffer: Failed to create buffer: %s", err->c_str());
 		return nullptr;
 	}
-    return *Buffer::Create(Vk, *relaxedRequest.Get()).Get();
+    return *bufRes.Get();
 }
 
 Basepass::Basepass(rc<Pipeline> PL) : DeviceChild(PL->GetDevice()), PL(PL), PassDescriptorPool(PL->Layout->CreatePool())
