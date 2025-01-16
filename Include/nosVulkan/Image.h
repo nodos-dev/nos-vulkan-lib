@@ -52,25 +52,26 @@ struct ImageCreationInfos
     ImageCreationInfos& operator=(const ImageCreationInfos&) = delete;
 };
     
-ImageCreationInfos nosVulkan_API CalculateImageCreationInfos(vk::Device* device, ImageCreateRequest const& info);
+Result<ImageCreationInfos> nosVulkan_API CalculateImageCreationInfos(vk::Device* device, ImageCreateRequest const& info);
 
 ImageCreateRequest nosVulkan_API GetTempImageCreateRequest(VkExtent2D extent, VkFormat format);
     
 struct nosVulkan_API Image : SharedFactory<Image>, ResourceBase<VkImage>
 {
-private:
+protected:
     VkExtent2D Extent = {0, 0};
     VkFormat Format = VK_FORMAT_UNDEFINED;
+	Image(Device* Vk, VkImage img, VkExtent2D extent, VkFormat format, VkImageUsageFlags usage, std::optional<Allocation> allocation, VkDeviceSize size);
 public:
+    static Result<rc<Image>> Create(Device* Vk, ImageCreateRequest const& createInfo, VkResult* outVkRes = nullptr);
+    static rc<Image> FromExisting(Device* Vk, VkImage img, VkExtent2D extent, VkFormat format, VkImageUsageFlags usage, std::optional<Allocation> allocation, VkDeviceSize size);
+    static Result<ImageCreateRequest> TryGetRelaxedSuitableCreateRequest(Device* Vk, ImageCreateRequest const& info);
+    static Result<rc<Image>> CreateRelaxed(Device* Vk, ImageCreateRequest const& createInfo, VkResult* vkRes = nullptr);
 	vk::Image* AsImage() override { return this; }
     VkImageUsageFlags Usage = 0;
 
     ImageState State = {}; // This is not thread safe.
     std::map<u64, rc<ImageView>> Views;
-	rc<vk::Semaphore> ExtSemaphore;
-
-    Image(Device* Vk, ImageCreateRequest const& createInfo, VkResult* re = 0);
-	Image(Device* Vk, VkImage img, VkExtent2D extent, VkFormat format, VkImageUsageFlags usage);
 
     void Transition(rc<CommandBuffer> Cmd, ImageState Dst);
     void BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src, VkFilter Filter);
@@ -108,6 +109,8 @@ public:
     }
 
     VkImageType GetImageType() const;
+
+
 };
 
 }; // namespace nos::vk

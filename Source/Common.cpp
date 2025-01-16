@@ -18,45 +18,6 @@ HandleImporter GHandleImporter = {
 	.DuplicateHandle = [](NOS_PID pid, NOS_HANDLE handle) { return PlatformDupeHandle(pid, handle); },
 	.CloseHandle = [](NOS_HANDLE handle) { return PlatformCloseHandle(handle); }};
 
-VkExternalMemoryProperties GetExportProperties(VkPhysicalDevice PhysicalDevice, VkFormat Format, VkImageUsageFlags Usage, VkExternalMemoryHandleTypeFlagBits Type)
-{
-    VkPhysicalDeviceExternalImageFormatInfo externalimageFormatInfo = {
-        .sType      = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_IMAGE_FORMAT_INFO,
-        .handleType = Type,
-    };
-
-    VkPhysicalDeviceImageFormatInfo2 imageFormatInfo = {
-        .sType  = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_FORMAT_INFO_2,
-        .pNext  = &externalimageFormatInfo,
-        .format = Format,
-        .type   = VK_IMAGE_TYPE_2D,
-        .tiling = VK_IMAGE_TILING_OPTIMAL,
-        .usage  = Usage,
-        .flags  = VK_IMAGE_CREATE_ALIAS_BIT,
-    };
-
-    VkExternalImageFormatProperties extProps = {
-        .sType = VK_STRUCTURE_TYPE_EXTERNAL_IMAGE_FORMAT_PROPERTIES,
-    };
-
-    VkImageFormatProperties2 props = {
-        .sType = VK_STRUCTURE_TYPE_IMAGE_FORMAT_PROPERTIES_2,
-        .pNext = &extProps,
-    };
-
-    NOSVK_ASSERT(vkGetPhysicalDeviceImageFormatProperties2(PhysicalDevice, &imageFormatInfo, &props));
-    return extProps.externalMemoryProperties;
-}
-
-bool IsImportable(VkPhysicalDevice PhysicalDevice, VkFormat Format, VkImageUsageFlags Usage, VkExternalMemoryHandleTypeFlagBits Type)
-{
-    VkExternalMemoryProperties extProps = GetExportProperties(PhysicalDevice, Format, Usage, Type);
-
-    //assert(!(extProps.externalMemoryProperties.externalMemoryFeatures & VK_EXTERNAL_MEMORY_FEATURE_DEDICATED_ONLY_BIT));
-
-    return extProps.externalMemoryFeatures & VK_EXTERNAL_MEMORY_FEATURE_IMPORTABLE_BIT;
-}
-
 void ImageLayoutTransition(VkImage Image,
                            rc<CommandBuffer> Cmd,
                            ImageState Src,

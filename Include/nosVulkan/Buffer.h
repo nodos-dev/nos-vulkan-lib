@@ -29,12 +29,19 @@ struct nosVulkan_API BufferCreationInfos
 	BufferCreationInfos& operator=(const BufferCreationInfos&) = delete;
 };
 
-BufferCreationInfos nosVulkan_API CalculateBufferCreationInfos(vk::Device* device, BufferCreateRequest const& info);
+Result<BufferCreationInfos> nosVulkan_API CalculateBufferCreationInfos(vk::Device* device, BufferCreateRequest const& info);
 
 BufferCreateRequest nosVulkan_API GetBufferCreateRequestForTempUploadBuffer(uint64_t size);
 
 struct nosVulkan_API Buffer : SharedFactory<Buffer>, ResourceBase<VkBuffer>
 {
+protected:
+    Buffer(Device* device, VkBuffer buffer, VkBufferUsageFlags usage, uint32_t alignment, int elementType, std::optional<Allocation> alloc, VkDeviceSize size);
+public:
+	static Result<rc<Buffer>> Create(Device* device, BufferCreateRequest const& info, VkResult* outVkRes = nullptr);
+	static rc<Buffer> FromExisting(Device* device, VkBuffer buffer, VkBufferUsageFlags usage, uint32_t alignment, int elementType, std::optional<Allocation> alloc, VkDeviceSize size);
+	static Result<BufferCreateRequest> TryGetRelaxedSuitableCreateRequest(Device* Vk, BufferCreateRequest const& info);
+	static Result<rc<Buffer>> CreateRelaxed(Device* Vk, BufferCreateRequest const& createInfo, VkResult* vkRes = nullptr);
 	vk::Buffer* AsBuffer() override { return this; }
     VkBufferUsageFlags Usage;
 	BufferMemoryState State;
@@ -52,7 +59,6 @@ struct nosVulkan_API Buffer : SharedFactory<Buffer>, ResourceBase<VkBuffer>
     void Bind(VkDescriptorType type, u32 bind, VkDescriptorSet set);
     DescriptorResourceInfo GetDescriptorInfo() const;
 
-    Buffer(Device* device, BufferCreateRequest const& info);
     ~Buffer();
 
     void Upload(rc<CommandBuffer> Cmd, rc<Buffer> Buffer, const VkBufferCopy* Region = 0);

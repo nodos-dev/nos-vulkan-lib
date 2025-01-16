@@ -17,11 +17,12 @@ static f64 GetPeriod(Device* Vk)
     return props.limits.timestampPeriod;
 }
 
-QueryPool::QueryPool(Device* Vk) : DeviceChild(Vk), Results(Buffer::New(Vk, BufferCreateRequest {
+QueryPool::QueryPool(Device* Vk) : DeviceChild(Vk), Results(*Buffer::Create(Vk, BufferCreateRequest {
         .Size = (1<<16)*8,
         .Usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT,
         .MemProps = { .Mapped = true, .Download = true },
-    })), Period(GetPeriod(Vk)), Queries(1<<16)
+		.ExternalMemoryHandleType = 0
+    }).Get()), Period(GetPeriod(Vk)), Queries(1<<16)
 {
     VkQueryPoolCreateInfo info = {
         .sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO,

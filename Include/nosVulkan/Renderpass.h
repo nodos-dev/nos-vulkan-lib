@@ -141,14 +141,14 @@ struct nosVulkan_API Renderpass : SharedFactory<Renderpass>, Basepass
     };
 
     rc<GraphicsPipeline> GetPL() const { return ((GraphicsPipeline*)PL.get())->shared_from_this(); }
-	void Begin(rc<CommandBuffer> cmd, const BeginPassInfo& info);
+    std::optional<std::string> Begin(rc<CommandBuffer> cmd, const BeginPassInfo& info);
     void End(rc<CommandBuffer> Cmd);
 	struct ExecPassInfo
 	{
 		BeginPassInfo BeginInfo = {};
 		const VertexData* VtxData = 0;
 	};
-    void Exec(rc<vk::CommandBuffer> Cmd, const ExecPassInfo& info);
+    std::optional<std::string> Exec(rc<vk::CommandBuffer> Cmd, const ExecPassInfo& info);
     void Draw(rc<vk::CommandBuffer> Cmd, const VertexData* Verts = 0);
 };
 }
