@@ -84,7 +84,7 @@ ImageCreationInfos::ImageCreationInfos(ImageCreationInfos&& o) noexcept
 		this->ImgCreateInfo.pNext = &ExtMemCreateInfo;
 }
 
-ImageCreationInfos CalculateImageCreationInfos(vk::Device* device, ImageCreateRequest const& request)
+Result<ImageCreationInfos> CalculateImageCreationInfos(vk::Device* device, ImageCreateRequest const& request)
 {
 	ImageCreationInfos ret;
 	auto& extMemHandleType = (ret.ExtMemHandleType = request.ExternalMemoryHandleType);
@@ -92,49 +92,38 @@ ImageCreationInfos CalculateImageCreationInfos(vk::Device* device, ImageCreateRe
 	auto& imageCreateInfo = ret.ImgCreateInfo;
 	auto& allocCreateInfo = ret.AllocCreateInfo;
 
-	// assert(IsImportable(Vk->PhysicalDevice, Format, Usage, VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT));
-
-	VkFormatProperties props;
-	vkGetPhysicalDeviceFormatProperties(device->PhysicalDevice, GetEffectiveFormat(request.Format), &props);
-
-	VkImageTiling tiling = request.Tiling;
-
-	constexpr auto getSupportedUsages = [](VkFormatFeatureFlags features, VkImageUsageFlags usage) -> VkImageUsageFlags {
-		auto ret = usage;
-		if (!(features & VK_FORMAT_FEATURE_2_SAMPLED_IMAGE_BIT))
-			ret &= ~VK_IMAGE_USAGE_SAMPLED_BIT;
-		if (!(features & VK_FORMAT_FEATURE_2_TRANSFER_SRC_BIT))
-			ret &= ~VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-		if (!(features & VK_FORMAT_FEATURE_2_TRANSFER_DST_BIT))
-			ret &= ~VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-		if (!(features & VK_FORMAT_FEATURE_2_STORAGE_IMAGE_BIT))
-			ret &= ~VK_IMAGE_USAGE_STORAGE_BIT;
-		if (!(features & VK_FORMAT_FEATURE_2_COLOR_ATTACHMENT_BIT))
-			ret &= ~VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-		if (!(features & VK_FORMAT_FEATURE_2_DEPTH_STENCIL_ATTACHMENT_BIT))
-			ret &= ~VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-		return ret;
+	VkPhysicalDeviceImageFormatInfo2 formatInfo = {
+		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_FORMAT_INFO_2,
+		.format = GetEffectiveFormat(request.Format),
+		.type = GetImageType(),
+		.tiling = request.Tiling,
+		.usage = request.Usage,
+		.flags = request.Flags,
 	};
 
-	auto supportedUsage = request.Usage;
+	VkExternalImageFormatProperties extProps = {
+		.sType = VK_STRUCTURE_TYPE_EXTERNAL_IMAGE_FORMAT_PROPERTIES,
+	};
 
-	auto optiomalUsage = getSupportedUsages(props.optimalTilingFeatures, request.Usage);
-	auto linearUsage = getSupportedUsages(props.linearTilingFeatures, request.Usage);
+	VkImageFormatProperties2 props
+	{
+		.sType = VK_STRUCTURE_TYPE_IMAGE_FORMAT_PROPERTIES_2,
+		.pNext = request.ExternalMemoryHandleType ? &extProps : nullptr,
+	};
 
-	if (std::popcount(uint32_t(getSupportedUsages(props.optimalTilingFeatures, request.Usage))) >= std::popcount(uint32_t(getSupportedUsages(props.linearTilingFeatures, request.Usage)))) 
+	auto res = vkGetPhysicalDeviceImageFormatProperties2(device->PhysicalDevice, &formatInfo, &props);
+	if (NOS_VULKAN_FAILED(res))
+		return "Failed to get image format properties.";
+
+	if (extMemHandleType)
 	{
-		tiling = VK_IMAGE_TILING_OPTIMAL;
-		supportedUsage = optiomalUsage;
+		if (request.Imported && !(extProps.externalMemoryProperties.externalMemoryFeatures & VK_EXTERNAL_MEMORY_FEATURE_IMPORTABLE_BIT))
+			return "External memory not importable.";
+		else if (!(extProps.externalMemoryProperties.externalMemoryFeatures & VK_EXTERNAL_MEMORY_FEATURE_EXPORTABLE_BIT))
+			return "External memory not exportable.";
+		if (!(extProps.externalMemoryProperties.compatibleHandleTypes & extMemHandleType))
+			return "External memory handle type not supported.";
 	}
-	else
-	{
-		tiling = VK_IMAGE_TILING_LINEAR;
-		supportedUsage = linearUsage;
-	}
-	if (supportedUsage != request.Usage)
-		GLog.W("Unsupported image usage, proceeding with the most features possible.");
-	if (request.Tiling != tiling)
-		GLog.W("Tiling is not suitable with image usage, selecting the tiling with most suitable for image usages.");
 
 	extMemCreateInfo = {
 		.sType = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
@@ -151,8 +140,8 @@ ImageCreationInfos CalculateImageCreationInfos(vk::Device* device, ImageCreateRe
 		.mipLevels = 1,
 		.arrayLayers = 1,
 		.samples = request.Samples,
-		.tiling = tiling,
-		.usage = supportedUsage,
+		.tiling = request.Tiling,
+		.usage = request.Usage,
 		.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
 		.queueFamilyIndexCount = 0,
 		.pQueueFamilyIndices = nullptr,
@@ -162,9 +151,7 @@ ImageCreationInfos CalculateImageCreationInfos(vk::Device* device, ImageCreateRe
 	ret.MemProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
 	if (auto* imported = request.Imported)
-	{
 		return ret;
-	}
 	else // Exported
 	{
 		allocCreateInfo = {.usage = VMA_MEMORY_USAGE_AUTO, .requiredFlags = ret.MemProps};
@@ -174,18 +161,8 @@ ImageCreationInfos CalculateImageCreationInfos(vk::Device* device, ImageCreateRe
 		if (res != VK_SUCCESS)
 		{
 			if (extMemHandleType)
-			{
-				GLog.W("Failed to find memory type index for image, trying again without external memory handle type");
-				imageCreateInfo.pNext = nullptr;
-				extMemHandleType = 0;
-				res = vmaFindMemoryTypeIndexForImageInfo(device->Allocator, &imageCreateInfo, &allocCreateInfo, &memoryTypeIndex);
-				
-			}
-			if (res != VK_SUCCESS)
-			{
-				GLog.E("Failed to find memory type index for image");
-				return ret;
-			}
+				return "Failed to find memory type index for image, maybe try to create it without exporting.";
+			return "Failed to find memory type index for image.";
 		}
 		return ret;
 	}
@@ -203,57 +180,7 @@ ImageCreateRequest GetTempImageCreateRequest(VkExtent2D extent, VkFormat format)
 	};
 }
 
-Image::Image(Device* Vk, ImageCreateRequest const& createInfo, VkResult* re)
-	: ResourceBase(Vk), Extent(createInfo.Extent), Format(createInfo.Format),
-	  State{
-		  .StageMask = VK_PIPELINE_STAGE_NONE,
-		  .AccessMask = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT,
-		  .Layout = VK_IMAGE_LAYOUT_UNDEFINED,
-	  }
-{
-	AllocationInfo = vk::Allocation{};
-	if (createInfo.Imported)
-	{
-		State.Layout = VK_IMAGE_LAYOUT_PREINITIALIZED;
-		assert(IsImportable(Vk->PhysicalDevice, Format, Usage, VkExternalMemoryHandleTypeFlagBits(createInfo.Imported->HandleType)));
-	}
-	auto icInfos = CalculateImageCreationInfos(Vk, createInfo);
-	Usage = icInfos.ImgCreateInfo.usage;
-
-	VkResult result;
-	if (auto* imported = createInfo.Imported)
-	{
-		result = Vk->CreateImage(&icInfos.ImgCreateInfo, 0, &Handle);
-		if (NOS_VULKAN_SUCCEEDED(result))
-			result = AllocationInfo->Import(Vk, Handle, *imported, icInfos.MemProps);
-	}
-	else // Exported
-	{
-		if (icInfos.MemoryTypeIndex != UINT32_MAX && createInfo.Temporary)
-		{
-			auto it = Vk->TempMemoryPools.find(icInfos.MemoryTypeIndex);
-			if (it != Vk->TempMemoryPools.end())
-				icInfos.AllocCreateInfo.pool = it->second;
-		}
-		result = vmaCreateImage(Vk->Allocator, &icInfos.ImgCreateInfo, &icInfos.AllocCreateInfo, &Handle, &AllocationInfo->Handle, &AllocationInfo->Info);
-	}
-	
-	if (NOS_VULKAN_SUCCEEDED(result))
-	{
-		VkMemoryRequirements memReq = {};
-		Vk->GetImageMemoryRequirements(Handle, &memReq);
-		assert(memReq.size == AllocationInfo->GetSize());
-	}
-
-	if (NOS_VULKAN_SUCCEEDED(result) && icInfos.ExtMemHandleType)
-		result = AllocationInfo->SetExternalMemoryHandleType(Vk, icInfos.ExtMemHandleType);
-
-	if (re)
-		*re = result;
-	Size = AllocationInfo->GetSize();
-}
-
-Image::Image(Device* vk, VkImage img, VkExtent2D extent, VkFormat format, VkImageUsageFlags usage)
+Image::Image(Device* vk, VkImage img, VkExtent2D extent, VkFormat format, VkImageUsageFlags usage, std::optional<Allocation> allocation, VkDeviceSize size)
 	: ResourceBase(vk), Extent(extent), Format(format), Usage(usage),
 	  State{
 		  .StageMask = VK_PIPELINE_STAGE_NONE,
@@ -261,10 +188,14 @@ Image::Image(Device* vk, VkImage img, VkExtent2D extent, VkFormat format, VkImag
 		  .Layout = VK_IMAGE_LAYOUT_UNDEFINED,
 	  }
 {
+	AllocationInfo = std::move(allocation);
+	Size = size;
 	Handle = img;
 	VkMemoryRequirements memReq = {};
+#ifndef NDEBUG
 	Vk->GetImageMemoryRequirements(Handle, &memReq);
-	Size = memReq.size;
+	assert(Size == memReq.size);
+#endif
 }
 
 void Image::Transition(
@@ -337,13 +268,19 @@ rc<Image> Image::Copy(rc<CommandBuffer> Cmd)
 {
 	assert(Usage & VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
 
-	rc<Image> Img = Image::New(Vk, ImageCreateRequest{
+	auto imgRes = Create(Vk, ImageCreateRequest{
 													.Extent = Extent,
 													.Format = Format,
 													.Usage  = Usage | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
 												});
 
-	Img->Transition(Cmd, ImageState{
+	if (auto err = imgRes.Error())
+	{
+		GLog.E("Image::Copy: Failed to create image: {}", err->c_str());
+		return nullptr;
+	}
+	auto& img = *imgRes.Get();
+	img->Transition(Cmd, ImageState{
 							 .StageMask  = VK_PIPELINE_STAGE_TRANSFER_BIT,
 							 .AccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
 							 .Layout     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
@@ -360,15 +297,15 @@ rc<Image> Image::Copy(rc<CommandBuffer> Cmd)
 			.layerCount = 1,
 		},
 		.dstSubresource = {
-			.aspectMask = Img->GetAspect(),
+			.aspectMask = img->GetAspect(),
 			.layerCount = 1,
 		},
 		.extent = {GetEffectiveExtent().width, Extent.height, 1},
 	};
 
-	Cmd->CopyImage(Handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, Img->Handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+	Cmd->CopyImage(Handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, img->Handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 
-	return Img;
+	return img;
 }
 
 
@@ -376,13 +313,19 @@ rc<Buffer> Image::Download(rc<CommandBuffer> Cmd)
 {
 	assert(Usage & VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
 
-	rc<Buffer> StagingBuffer = Buffer::New(Vk, BufferCreateRequest { 
+	auto stagingBufferRes = Buffer::Create(Vk, BufferCreateRequest { 
 		.Size = (u32)Size, 
 		.Usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT, 
 	});
+
+	if(auto err = stagingBufferRes.Error())
+	{
+		GLog.E("Image::Download: Failed to create staging buffer");
+		return nullptr;
+	}
 	
-	Download(Cmd, StagingBuffer);
-	return StagingBuffer;
+	Download(Cmd, *stagingBufferRes.Get());
+	return *stagingBufferRes.Get();
 }
 
 void Image::Download(rc<CommandBuffer> Cmd, rc<Buffer> Buffer)
@@ -602,5 +545,78 @@ rc<ImageView> Image::GetView(VkFormat Format, VkImageUsageFlags Usage)
 VkImageType Image::GetImageType() const
 {
 	return vk::GetImageType();
+}
+Result<rc<Image>> Image::Create(Device* Vk, ImageCreateRequest const& createInfo, VkResult* outVkRes)
+{
+	VkResult res{};
+	if (!outVkRes)
+		outVkRes = &res;
+	// Might return error without vulkan failure
+	*outVkRes = VK_SUCCESS;
+
+	ImageState state{
+			.StageMask = VK_PIPELINE_STAGE_NONE,
+			.AccessMask = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT,
+			.Layout = VK_IMAGE_LAYOUT_UNDEFINED,
+	};
+	auto icInfosRes = CalculateImageCreationInfos(Vk, createInfo);
+	if (auto err = icInfosRes.Error())
+		return std::move(*err);
+
+	auto& icInfos = *icInfosRes.Get();
+
+	auto allocationInfo = vk::Allocation{};
+
+	VkImage handle{};
+	if (auto* imported = createInfo.Imported)
+	{
+		state.Layout = VK_IMAGE_LAYOUT_PREINITIALIZED;
+		if(NOS_VULKAN_FAILED(*outVkRes = Vk->CreateImage(&icInfos.ImgCreateInfo, 0, &handle)))
+			return "Error while creating imported image.";
+		if (NOS_VULKAN_FAILED(*outVkRes = allocationInfo.Import(Vk, handle, *imported, icInfos.MemProps)))
+		{
+			Vk->DestroyImage(handle, 0);
+			return "Error while importing image memory.";
+		}
+	}
+	else // Exported
+	{
+		if (icInfos.MemoryTypeIndex != UINT32_MAX && createInfo.Temporary)
+		{
+			auto it = Vk->TempMemoryPools.find(icInfos.MemoryTypeIndex);
+			if (it != Vk->TempMemoryPools.end())
+				icInfos.AllocCreateInfo.pool = it->second;
+		}
+		if (NOS_VULKAN_FAILED(*outVkRes = vmaCreateImage(Vk->Allocator, &icInfos.ImgCreateInfo, &icInfos.AllocCreateInfo, &handle, &allocationInfo.Handle, &allocationInfo.Info)))
+		{
+			if(handle)
+				Vk->DestroyImage(handle, 0);
+			return "Error while creating image.";
+		}
+	}
+
+#ifndef NDEBUG
+	VkMemoryRequirements memReq = {};
+	Vk->GetImageMemoryRequirements(handle, &memReq);
+	assert(memReq.size == allocationInfo.GetSize());
+#endif
+
+	if (icInfos.ExtMemHandleType)
+		if (NOS_VULKAN_FAILED(*outVkRes = allocationInfo.SetExternalMemoryHandleType(Vk, icInfos.ExtMemHandleType)))
+		{
+			assert(!createInfo.Imported);
+			Vk->DestroyImage(handle, 0);
+			return "Error while setting external memory handle type.";
+		}
+
+	return FromExisting(Vk, handle, createInfo.Extent, createInfo.Format, createInfo.Usage, std::move(allocationInfo), allocationInfo.GetSize());
+}
+rc<Image> Image::FromExisting(Device* Vk, VkImage img, VkExtent2D extent, VkFormat format, VkImageUsageFlags usage, std::optional<Allocation> allocation, VkDeviceSize size)
+{
+	return New(Vk, img, extent, format, usage, std::move(allocation), size);
+}
+Result<ImageCreateRequest> Image::TryGetRelaxedSuitableCreateRequest(Device* Vk, ImageCreateRequest const& info)
+{
+	return info;
 }
 } // namespace nos::vk

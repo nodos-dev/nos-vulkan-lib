@@ -237,8 +237,10 @@ void Device::PreAllocateTempMemoryPools()
         if (idx != UINT32_MAX)
             indices.insert(idx);
     };
-    addIfValid(preAllocatedTempMemTypeIndices, CalculateBufferCreationInfos(this, GetBufferCreateRequestForTempUploadBuffer(0)).MemoryTypeIndex);
-    addIfValid(preAllocatedTempMemTypeIndices, CalculateImageCreationInfos(this, GetTempImageCreateRequest({0 , 0}, VK_FORMAT_R8G8B8A8_SRGB)).MemoryTypeIndex);
+	if (auto bufferCreateInfo = CalculateBufferCreationInfos(this, GetBufferCreateRequestForTempUploadBuffer(0)).Get())
+		addIfValid(preAllocatedTempMemTypeIndices, bufferCreateInfo->MemoryTypeIndex);
+	if (auto imageCreateInfo = CalculateImageCreationInfos(this, GetTempImageCreateRequest({ 0, 0 }, VK_FORMAT_R8G8B8A8_UNORM)).Get())
+		addIfValid(preAllocatedTempMemTypeIndices, imageCreateInfo->MemoryTypeIndex);
     for (auto& i : preAllocatedTempMemTypeIndices)
     {
         VmaPoolCreateInfo memPoolCreateInfo {

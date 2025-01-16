@@ -31,7 +31,7 @@ BufferCreateRequest GetBufferCreateRequestForTempUploadBuffer(uint64_t size)
 	};
 }
 
-BufferCreationInfos CalculateBufferCreationInfos(vk::Device* device, BufferCreateRequest const& info)
+Result<BufferCreationInfos> CalculateBufferCreationInfos(vk::Device* device, BufferCreateRequest const& info)
 {
 	BufferCreationInfos ret;
 	auto& extMemHandleType = (ret.ExtMemHandleType = info.ExternalMemoryHandleType);
@@ -53,10 +53,7 @@ BufferCreationInfos CalculateBufferCreationInfos(vk::Device* device, BufferCreat
 	};
 
 	if(requestedMemProps.VRAM && requestedMemProps.ForceHostMemory)
-	{
-		GLog.W("Buffer requested to be created in VRAM but also forced to be created in host memory");
-		requestedMemProps.VRAM = false;
-	}
+		return "Buffer requested to be created in VRAM but also forced to be created in host memory.";
 
 	auto& memProps = (ret.MemProps = 0);
 	if (requestedMemProps.VRAM)
@@ -66,57 +63,59 @@ BufferCreationInfos CalculateBufferCreationInfos(vk::Device* device, BufferCreat
 
 	if (info.Imported)
 		return ret;
-	else
+	allocCreateInfo = {
+		.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
+		.requiredFlags = memProps,
+	};
+	if (requestedMemProps.Mapped)
 	{
-		allocCreateInfo = {
-			.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
-			.requiredFlags = memProps,
-		};
-		if (requestedMemProps.Mapped)
-		{
-			allocCreateInfo.flags |= VMA_ALLOCATION_CREATE_MAPPED_BIT;
-			allocCreateInfo.flags |= requestedMemProps.Download ? VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT
-																: VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
-		}
-		if(requestedMemProps.ForceHostMemory || (requestedMemProps.Download && requestedMemProps.Mapped))
-			allocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST;
-
-		auto& memoryTypeIndex = (ret.MemoryTypeIndex = UINT32_MAX);
-		auto res = vmaFindMemoryTypeIndexForBufferInfo(device->Allocator, &bufferCreateInfo, &allocCreateInfo, &memoryTypeIndex);
-		if (res != VK_SUCCESS)
-		{
-			if (extMemHandleType)
-			{
-				GLog.W("Failed to find memory type index for buffer, trying again without external memory handle type");
-				bufferCreateInfo.pNext = nullptr;
-				extMemHandleType = 0;
-				res = vmaFindMemoryTypeIndexForBufferInfo(device->Allocator, &bufferCreateInfo, &allocCreateInfo, &memoryTypeIndex);
-			}
-			if (res != VK_SUCCESS)
-			{
-				GLog.E("Failed to find memory type index for buffer");
-				return ret;
-			}
-		}
-		return ret;
+		allocCreateInfo.flags |= VMA_ALLOCATION_CREATE_MAPPED_BIT;
+		allocCreateInfo.flags |= requestedMemProps.Download ? VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT
+															: VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
 	}
+	if(requestedMemProps.ForceHostMemory || (requestedMemProps.Download && requestedMemProps.Mapped))
+		allocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST;
+
+	auto& memoryTypeIndex = (ret.MemoryTypeIndex = UINT32_MAX);
+	auto res = vmaFindMemoryTypeIndexForBufferInfo(device->Allocator, &bufferCreateInfo, &allocCreateInfo, &memoryTypeIndex);
+	if (res != VK_SUCCESS)
+	{
+		if (extMemHandleType)
+			return "Failed to find memory type index for buffer, maybe try again without exporting.";
+		return "Failed to find memory type index for buffer.";
+	}
+	return ret;
 }
 
 
-Buffer::Buffer(Device* device, BufferCreateRequest const& info)
-	: ResourceBase(device), Alignment(info.MemProps.Alignment), Usage(info.Usage),
-	  State{.StageMask = VK_PIPELINE_STAGE_2_NONE,
-	        .AccessMask = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT}, ElementType(info.ElementType)
+Result<rc<Buffer>> Buffer::Create(Device* device, BufferCreateRequest const& info, VkResult* outVkRes)
 {
-	Size = info.Size;
-	AllocationInfo = vk::Allocation{};
-	auto bcInfos = CalculateBufferCreationInfos(device, info);
-	AllocationInfo->MemProps = info.MemProps;
+	VkResult res{};
+	if (!outVkRes)
+		outVkRes = &res;
+	// Might return error without vulkan failure
+	*outVkRes = VK_SUCCESS;
 
+	auto allocationInfo = vk::Allocation{};
+	auto bcInfosRes = CalculateBufferCreationInfos(device, info);
+	if (auto* err = bcInfosRes.Error())
+		return std::move(*err);
+	
+	auto& bcInfos = *bcInfosRes.Get();
+	allocationInfo.MemProps = info.MemProps;
+
+	VkBuffer handle{};
 	if (auto* imported = info.Imported)
 	{
-		NOSVK_ASSERT(device->CreateBuffer(&bcInfos.BufCreateInfo, 0, &Handle));
-		NOSVK_ASSERT(AllocationInfo->Import(device, Handle, *imported, bcInfos.MemProps));
+		if (NOS_VULKAN_FAILED(*outVkRes = device->CreateBuffer(&bcInfos.BufCreateInfo, 0, &handle)))
+		{
+			return "Error while creating imported buffer.";
+		}
+		if (NOS_VULKAN_FAILED(*outVkRes = allocationInfo.Import(device, handle, *imported, bcInfos.MemProps)))
+		{
+			device->DestroyBuffer(handle, 0);
+			return "Error while importing buffer memory.";
+		}
 	}
 	else
 	{
@@ -126,15 +125,49 @@ Buffer::Buffer(Device* device, BufferCreateRequest const& info)
 			if (it != device->TempMemoryPools.end())
 				bcInfos.AllocCreateInfo.pool = it->second;
 		}
-		NOSVK_ASSERT(vmaCreateBufferWithAlignment(device->Allocator, &bcInfos.BufCreateInfo, &bcInfos.AllocCreateInfo, Alignment, &Handle, &AllocationInfo->Handle, &AllocationInfo->Info));
+		if (NOS_VULKAN_FAILED(*outVkRes = vmaCreateBufferWithAlignment(device->Allocator, &bcInfos.BufCreateInfo, &bcInfos.AllocCreateInfo, info.MemProps.Alignment, &handle, &allocationInfo.Handle, &allocationInfo.Info)))
+		{
+			if (handle)
+				device->DestroyBuffer(handle, 0);
+			return "Error while creating buffer.";
+		}
 	}
 
+#ifndef NDEBUG
 	VkMemoryRequirements memReq = {};
-	device->GetBufferMemoryRequirements(Handle, &memReq);
-	assert(memReq.size == AllocationInfo->GetSize());
+	device->GetBufferMemoryRequirements(handle, &memReq);
+	assert(memReq.size == allocationInfo.GetSize());
+#endif
 
 	if (bcInfos.ExtMemHandleType || info.Imported)
-		NOSVK_ASSERT(AllocationInfo->SetExternalMemoryHandleType(device, info.ExternalMemoryHandleType));
+		if (NOS_VULKAN_FAILED(*outVkRes = allocationInfo.SetExternalMemoryHandleType(device, info.ExternalMemoryHandleType)))
+		{
+			assert(!info.Imported);
+			device->DestroyBuffer(handle, 0);
+			return "Error while setting external memory handle type.";
+		}
+
+	return FromExisting(device, handle, info.Usage, info.MemProps.Alignment, info.ElementType, std::move(allocationInfo), info.Size);
+}
+
+Buffer::Buffer(Device* device, VkBuffer buffer, VkBufferUsageFlags usage, uint32_t alignment, int elementType, std::optional<Allocation> alloc, VkDeviceSize size)
+	: ResourceBase(device), Usage(usage), Alignment(alignment), ElementType(elementType),
+	State{ .StageMask = VK_PIPELINE_STAGE_2_NONE,
+		  .AccessMask = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT }
+{
+	Handle = buffer;
+	Size = size;
+	AllocationInfo = std::move(alloc);
+}
+
+rc<Buffer> Buffer::FromExisting(Device* device, VkBuffer buffer, VkBufferUsageFlags usage, uint32_t alignment, int elementType, std::optional<Allocation> alloc, VkDeviceSize size)
+{
+	return New(device, buffer, usage, alignment, elementType, std::move(alloc), size);
+}
+
+Result<BufferCreateRequest> Buffer::TryGetRelaxedSuitableCreateRequest(Device* Vk, BufferCreateRequest const& info)
+{
+	return info;
 }
 
 void Buffer::Bind(VkDescriptorType type, u32 bind, VkDescriptorSet set)

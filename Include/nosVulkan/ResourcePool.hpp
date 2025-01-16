@@ -37,16 +37,17 @@ public:
 	ResourcePool(vk::Device* device, std::chrono::milliseconds maxUnusedTime)
 		: Device(device), MaxUnusedTime(maxUnusedTime) {}
 	
-	rc<ResourceT> Get(CreationInfoT const& info, std::string tag)
+	Result<rc<ResourceT>> Get(CreationInfoT const& info, std::string tag)
 	{
 		std::unique_lock guard(Mutex);
 		auto freeIt = Free.find(info);
 		if (freeIt == Free.end() || freeIt->second.empty())
 		{
 			guard.unlock();
-			auto res = ResourceT::New(Device, info); //was typename
-			if (!res)
-				return nullptr;
+			auto result = ResourceT::Create(Device, info); //was typename
+			if (auto err = result.Error())
+				return std::move(*err);
+			auto res = *result.Get();
 			guard.lock();
 			Used[uint64_t(res->Handle)] = { tag, info, res };
 			UsedResourceMemoryUsage += res->Size;

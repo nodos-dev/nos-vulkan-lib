@@ -22,20 +22,33 @@ Renderpass::Renderpass(rc<GraphicsPipeline> PL) : Basepass(PL)
 rc<Buffer> Basepass::CreateUniformSizedBuffer()
 {
 	// TODO: Use the resource pool for uniform buffers
-	return Buffer::New(Vk, vk::BufferCreateRequest{
-						   .Size = PL->Layout->UniformSize,
-						   .Usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-						   .MemProps = {.Mapped = true},
-						   .ExternalMemoryHandleType = 0
-					   });
+	auto relaxedRequest = Buffer::TryGetRelaxedSuitableCreateRequest(Vk, vk::BufferCreateRequest{
+		.Size = PL->Layout->UniformSize,
+		.Usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+		.MemProps = {.Mapped = true, .Download = false},
+		.ExternalMemoryHandleType = 0
+		});
+    if(auto err = relaxedRequest.Error())
+	{
+		GLog.E("Basepass::CreateUniformSizedBuffer: Failed to create buffer");
+		return nullptr;
+	}
+	return *Buffer::Create(Vk, *relaxedRequest.Get()).Get();
 }
 
 rc<Buffer> Basepass::CreateStorageBuffer(u64 size) {
-    return Buffer::New(Vk, vk::BufferCreateRequest{
-                               .Size = size,
-                               .Usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                               .MemProps = {.Mapped = true},
-                           });
+	auto relaxedRequest = Buffer::TryGetRelaxedSuitableCreateRequest(Vk, vk::BufferCreateRequest{
+		.Size = size,
+		.Usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+		.MemProps = {.Mapped = true, .Download = false},
+		.ExternalMemoryHandleType = 0
+		});
+	if (auto err = relaxedRequest.Error())
+	{
+		GLog.E("Basepass::CreateStorageBuffer: Failed to create buffer");
+		return nullptr;
+	}
+    return *Buffer::Create(Vk, *relaxedRequest.Get()).Get();
 }
 
 Basepass::Basepass(rc<Pipeline> PL) : DeviceChild(PL->GetDevice()), PL(PL), PassDescriptorPool(PL->Layout->CreatePool())
@@ -178,17 +191,18 @@ void Renderpass::Draw(rc<vk::CommandBuffer> Cmd, const VertexData* Verts)
     }
 }
 
-void Renderpass::Exec(rc<vk::CommandBuffer> cmd, const ExecPassInfo& info)
+std::optional<std::string> Renderpass::Exec(rc<vk::CommandBuffer> cmd, const ExecPassInfo& info)
 {
     if (!Vk->Features.dynamicRendering)
     {
-        GLog.E("Dynamic rendering is not supported on this device");
-        return;
+        return "Dynamic rendering is not supported on this device.";
     }
     BindResources(cmd);
-    Begin(cmd, info.BeginInfo);
+    if (auto err = Begin(cmd, info.BeginInfo))
+        return err;
     Draw(cmd, info.VtxData);
     End(cmd);
+    return std::nullopt;
 }
 
 void Basepass::BindResources(rc<vk::CommandBuffer> Cmd)
@@ -202,9 +216,10 @@ void Basepass::BindResources(rc<vk::CommandBuffer> Cmd)
     RefreshBuffer(Cmd);
 }
 
-void Renderpass::Begin(rc<CommandBuffer> cmd, const BeginPassInfo& info)
+std::optional<std::string> Renderpass::Begin(rc<CommandBuffer> cmd, const BeginPassInfo& info)
 {
-    assert(info.OutImage);
+    if(!info.OutImage)
+		return "No output image provided";
     
     rc<ImageView> img = info.OutImage->GetView(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
 
@@ -218,12 +233,18 @@ void Renderpass::Begin(rc<CommandBuffer> cmd, const BeginPassInfo& info)
 	rc<Image> localMsBuffer = nullptr;
     if(PL->MS > 1)
     {
-		localMsBuffer = GetDevice()->ResourcePools.Image->Get(ImageCreateRequest{
-									   .Extent = info.OutImage->GetEffectiveExtent(),
-									   .Format = info.OutImage->GetEffectiveFormat(),
-									   .Usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-									   .Samples = (VkSampleCountFlagBits)PL->MS,
-									   .ExternalMemoryHandleType = 0}, "Temporary Multisample Resource");
+        auto relaxedRequest = Image::TryGetRelaxedSuitableCreateRequest(Vk, ImageCreateRequest{
+                                       .Extent = info.OutImage->GetEffectiveExtent(),
+                                       .Format = info.OutImage->GetEffectiveFormat(),
+                                       .Usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+                                       .Samples = (VkSampleCountFlagBits)PL->MS,
+                                       .ExternalMemoryHandleType = 0 });
+		if (auto err = relaxedRequest.Error())
+			return "Failed to create temporary multisample resource: " + *err;
+        auto result = GetDevice()->ResourcePools.Image->Get(*relaxedRequest.Get(), "Temporary Multisample Resource");
+        if(auto err = result.Error())
+			return "Failed to create temporary multisample resource: " + *err;
+        localMsBuffer = *result.Get();
         localMsBuffer->Transition(cmd, ImageState{
                                             .StageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                                             .AccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
@@ -258,15 +279,6 @@ void Renderpass::Begin(rc<CommandBuffer> cmd, const BeginPassInfo& info)
 												.Layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
 			});
     }
-
-     //for (auto &set : DescriptorSets)
-     //{
-     //    for (auto [img, state] : set->BindStates)
-     //    {
-     //        img->Transition(Cmd, state);
-     //    }
-     //    set->Bind(Cmd);
-     //}
 
     VkViewport viewport = {
         .width = (f32)extent.width,
@@ -373,19 +385,15 @@ void Renderpass::Begin(rc<CommandBuffer> cmd, const BeginPassInfo& info)
 	PL->PushConstants(cmd, constants);
 	if (localMsBuffer)
 		GetDevice()->ResourcePools.Image->Release(uint64_t(localMsBuffer->Handle));
-
+    return std::nullopt;
 }
 
 void Renderpass::End(rc<CommandBuffer> Cmd)
 {
     if (!Vk->Features.dynamicRendering)
-    {
         Cmd->EndRenderPass();
-    }
     else
-    {
         Cmd->EndRendering();
-    }
 
     Bindings.clear();
 }
