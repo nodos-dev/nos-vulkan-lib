@@ -123,8 +123,11 @@ Result<ImageCreationInfos> CalculateImageCreationInfos(vk::Device* device, Image
 
 	if (extMemHandleType)
 	{
-		if (request.Imported && !(extProps.externalMemoryProperties.externalMemoryFeatures & VK_EXTERNAL_MEMORY_FEATURE_IMPORTABLE_BIT))
-			return "External memory not importable.";
+		if (request.Imported)
+		{
+			if(!(extProps.externalMemoryProperties.externalMemoryFeatures & VK_EXTERNAL_MEMORY_FEATURE_IMPORTABLE_BIT))
+				return "External memory not importable.";
+		}
 		else if (!(extProps.externalMemoryProperties.externalMemoryFeatures & VK_EXTERNAL_MEMORY_FEATURE_EXPORTABLE_BIT))
 			return "External memory not exportable.";
 		if (!(extProps.externalMemoryProperties.compatibleHandleTypes & extMemHandleType))
@@ -623,6 +626,56 @@ rc<Image> Image::FromExisting(Device* Vk, VkImage img, VkExtent2D extent, VkForm
 }
 Result<ImageCreateRequest> Image::TryGetRelaxedSuitableCreateRequest(Device* Vk, ImageCreateRequest const& info)
 {
-	return info;
+	auto request = info;
+
+	VkFormatProperties formatProps{};
+	vkGetPhysicalDeviceFormatProperties(Vk->PhysicalDevice, request.Format, &formatProps);
+
+	constexpr auto getSupportedUsages = [](VkFormatFeatureFlags features, VkImageUsageFlags usage) -> VkImageUsageFlags {
+		auto ret = usage;
+		if (!(features & VK_FORMAT_FEATURE_2_SAMPLED_IMAGE_BIT))
+			ret &= ~VK_IMAGE_USAGE_SAMPLED_BIT;
+		if (!(features & VK_FORMAT_FEATURE_2_TRANSFER_SRC_BIT))
+			ret &= ~VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+		if (!(features & VK_FORMAT_FEATURE_2_TRANSFER_DST_BIT))
+			ret &= ~VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+		if (!(features & VK_FORMAT_FEATURE_2_STORAGE_IMAGE_BIT))
+			ret &= ~VK_IMAGE_USAGE_STORAGE_BIT;
+		if (!(features & VK_FORMAT_FEATURE_2_COLOR_ATTACHMENT_BIT))
+			ret &= ~VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+		if (!(features & VK_FORMAT_FEATURE_2_DEPTH_STENCIL_ATTACHMENT_BIT))
+			ret &= ~VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+		return ret;
+		};
+
+	auto tilingFeatures = request.Tiling == VK_IMAGE_TILING_LINEAR ? formatProps.linearTilingFeatures : formatProps.optimalTilingFeatures;
+
+	if (auto curUsage = getSupportedUsages(tilingFeatures, request.Usage); curUsage != request.Usage)
+	{
+		GLog.W("CreateImage: Requested usage not supported, trying to relax.");
+		tilingFeatures = request.Tiling == VK_IMAGE_TILING_LINEAR ? formatProps.optimalTilingFeatures : formatProps.linearTilingFeatures;
+		auto otherUsage = getSupportedUsages(tilingFeatures, request.Usage);
+		if (std::popcount(curUsage) < std::popcount(otherUsage))
+		{
+			GLog.W("CreateImage: Better relaxed usage found with different tiling.");
+			request.Usage = otherUsage;
+			request.Tiling = request.Tiling == VK_IMAGE_TILING_LINEAR ? VK_IMAGE_TILING_OPTIMAL : VK_IMAGE_TILING_LINEAR;
+		}
+		else
+			request.Usage = curUsage;
+	}
+
+	if (auto res = CalculateImageCreationInfos(Vk, request); auto err = res.Error())
+	{
+		if(request.Imported)
+			return *err;
+		if(!request.ExternalMemoryHandleType)
+			return *err;
+		GLog.W("CreateImage: Failed to calculate image creation info(%s), trying without exporting memory.", err->c_str());
+		request.ExternalMemoryHandleType = 0;
+		if (auto res = CalculateImageCreationInfos(Vk, request); auto err = res.Error())
+			return *err;
+	}
+	return request;
 }
 } // namespace nos::vk
