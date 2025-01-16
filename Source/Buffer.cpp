@@ -167,7 +167,26 @@ rc<Buffer> Buffer::FromExisting(Device* device, VkBuffer buffer, VkBufferUsageFl
 
 Result<BufferCreateRequest> Buffer::TryGetRelaxedSuitableCreateRequest(Device* Vk, BufferCreateRequest const& info)
 {
-	return info;
+	auto request = info;
+
+	if (request.MemProps.VRAM && request.MemProps.ForceHostMemory)
+	{
+		GLog.W("Buffer requested to be created in VRAM but also forced to be created in host memory");
+		request.MemProps.VRAM = false;
+	}
+
+	if (auto res = CalculateBufferCreationInfos(Vk, request); auto err = res.Error())
+	{
+		if (request.Imported)
+			return *err;
+		if (!request.ExternalMemoryHandleType)
+			return *err;
+		GLog.W("CreateBuffer: Failed to calculate buffer creation info(%s), trying without exporting memory.", err->c_str());
+		request.ExternalMemoryHandleType = 0;
+		if (auto res = CalculateBufferCreationInfos(Vk, request); auto err = res.Error())
+			return *err;
+	}
+	return request;
 }
 
 void Buffer::Bind(VkDescriptorType type, u32 bind, VkDescriptorSet set)
