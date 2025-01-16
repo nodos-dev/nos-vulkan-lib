@@ -92,8 +92,14 @@ Result<ImageCreationInfos> CalculateImageCreationInfos(vk::Device* device, Image
 	auto& imageCreateInfo = ret.ImgCreateInfo;
 	auto& allocCreateInfo = ret.AllocCreateInfo;
 
+	VkPhysicalDeviceExternalImageFormatInfo externalimageFormatInfo = {
+	.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_IMAGE_FORMAT_INFO,
+	.handleType = VkExternalMemoryHandleTypeFlagBits(extMemHandleType),
+	};
+
 	VkPhysicalDeviceImageFormatInfo2 formatInfo = {
 		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_FORMAT_INFO_2,
+		.pNext = extMemHandleType ? &externalimageFormatInfo : nullptr,
 		.format = GetEffectiveFormat(request.Format),
 		.type = GetImageType(),
 		.tiling = request.Tiling,
