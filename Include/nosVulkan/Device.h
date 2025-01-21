@@ -324,7 +324,7 @@ struct nosVulkan_API Context : SharedFactory<Context>
 
     rc<Device> CreateDevice(u64 luid) const;
     ~Context();
-	Context(DebugCallback* = 0, const char* CacheFolder = nullptr);
+	Context(DebugCallback* = 0, const char* CacheFolder = nullptr, bool enableValidationLayer = false);
 	void OrderDevices(std::vector<VkPhysicalDevice>& PhysicalDevices);
 	static void EnableValidationLayers(bool enable);
 };

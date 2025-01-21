@@ -551,16 +551,13 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL DefaultDebugCallback(
 
 void Context::EnableValidationLayers(bool enable)
 {
-    #ifndef NOS_DEV_BUILD
-        return;
-    #endif
     if(!enable) return layers.clear();
     layers = {
         "VK_LAYER_KHRONOS_validation",
         "VK_LAYER_KHRONOS_synchronization2",
     };
 }
-Context::Context(DebugCallback* debugCallback, const char* cacheFolder)
+Context::Context(DebugCallback* debugCallback, const char* cacheFolder, bool enableValidationLayer)
     : CacheFolder(cacheFolder ? cacheFolder : "")
 {
 	std::vector<VkPhysicalDevice> pDevices;
@@ -576,6 +573,7 @@ Context::Context(DebugCallback* debugCallback, const char* cacheFolder)
 			assert(0);
 		}
 		VkApplicationInfo app = {.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO, .apiVersion = ApiVersion};
+        EnableValidationLayers(enableValidationLayer);
 
 		VkInstanceCreateInfo info = {
         .sType                   = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
