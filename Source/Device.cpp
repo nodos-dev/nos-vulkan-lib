@@ -211,10 +211,14 @@ void CreateDevicePipelineCache(Device* Vk) {
     pipelineCacheCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
     pipelineCacheCreateInfo.initialDataSize = buffer.size();
     pipelineCacheCreateInfo.pInitialData = buffer.size() ? buffer.data() : nullptr;
-    vkCreatePipelineCache(Vk->handle, &pipelineCacheCreateInfo, nullptr, &Vk->PipelineCache);
+    auto res = vkCreatePipelineCache(Vk->handle, &pipelineCacheCreateInfo, nullptr, &Vk->PipelineCache);
+    if (VK_SUCCESS != res)
+        GLog.E("Failed to create pipeline cache for device %s", Vk->GetName().c_str());
 }
 
 void DestroyDevicePipelineCache(Device* Vk) {
+    if (Vk->PipelineCache == VK_NULL_HANDLE)
+        return;
     size_t size = 0;
     vkGetPipelineCacheData(Vk->handle, Vk->PipelineCache, &size, nullptr);
     std::vector<char> buffer(size);
