@@ -700,18 +700,6 @@ Context::~Context()
         vkDestroyInstance(Instance, 0);
 }
 
-rc<Device> Context::CreateDevice(u64 luid) const
-{
-    for (auto dev : Devices)
-    {
-        if (dev->GetLuid() == luid)
-        {
-            return Device::New(Instance, dev->PhysicalDevice, this);
-        }
-    }
-    return 0;
-}
-
 u64 Device::GetLuid() const
 {
     VkPhysicalDeviceIDProperties IDProps = {
