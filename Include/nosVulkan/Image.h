@@ -61,10 +61,18 @@ struct nosVulkan_API Image : SharedFactory<Image>, ResourceBase<VkImage>
 protected:
     VkExtent2D Extent = {0, 0};
     VkFormat Format = VK_FORMAT_UNDEFINED;
-	Image(Device* Vk, VkImage img, VkExtent2D extent, VkFormat format, VkImageUsageFlags usage, std::optional<Allocation> allocation, VkDeviceSize size);
+	Image(Device* Vk,
+		  VkImage img,
+		  VkExtent2D extent,
+		  VkFormat format,
+		  VkImageUsageFlags usage,
+		  ImageState state,
+          std::optional<Allocation> allocation,
+		  VkDeviceSize size);
+
 public:
     static Result<rc<Image>> Create(Device* Vk, ImageCreateRequest const& createInfo, VkResult* outVkRes = nullptr);
-    static rc<Image> FromExisting(Device* Vk, VkImage img, VkExtent2D extent, VkFormat format, VkImageUsageFlags usage, std::optional<Allocation> allocation, VkDeviceSize size);
+    static rc<Image> FromExisting(Device* Vk, VkImage img, VkExtent2D extent, VkFormat format, VkImageUsageFlags usage, ImageState state, std::optional<Allocation> allocation, VkDeviceSize size);
     static Result<ImageCreateRequest> TryGetRelaxedSuitableCreateRequest(Device* Vk, ImageCreateRequest const& info);
     static Result<rc<Image>> CreateRelaxed(Device* Vk, ImageCreateRequest const& createInfo, VkResult* vkRes = nullptr);
 	vk::Image* AsImage() override { return this; }

@@ -189,13 +189,15 @@ ImageCreateRequest GetTempImageCreateRequest(VkExtent2D extent, VkFormat format)
 	};
 }
 
-Image::Image(Device* vk, VkImage img, VkExtent2D extent, VkFormat format, VkImageUsageFlags usage, std::optional<Allocation> allocation, VkDeviceSize size)
-	: ResourceBase(vk), Extent(extent), Format(format), Usage(usage),
-	  State{
-		  .StageMask = VK_PIPELINE_STAGE_NONE,
-		  .AccessMask = 0,
-		  .Layout = VK_IMAGE_LAYOUT_UNDEFINED,
-	  }
+Image::Image(Device* vk,
+			 VkImage img,
+			 VkExtent2D extent,
+			 VkFormat format,
+			 VkImageUsageFlags usage,
+			 ImageState state,
+			 std::optional<Allocation> allocation,
+			 VkDeviceSize size)
+	: ResourceBase(vk), Extent(extent), Format(format), Usage(usage), State(state)
 {
 	AllocationInfo = std::move(allocation);
 	Size = size;
@@ -618,11 +620,18 @@ Result<rc<Image>> Image::Create(Device* Vk, ImageCreateRequest const& createInfo
 			return "Error while setting external memory handle type.";
 		}
 
-	return FromExisting(Vk, handle, createInfo.Extent, createInfo.Format, createInfo.Usage, std::move(allocationInfo), allocationInfo.GetSize());
+	return FromExisting(Vk, handle, createInfo.Extent, createInfo.Format, createInfo.Usage, state, std::move(allocationInfo), allocationInfo.GetSize());
 }
-rc<Image> Image::FromExisting(Device* Vk, VkImage img, VkExtent2D extent, VkFormat format, VkImageUsageFlags usage, std::optional<Allocation> allocation, VkDeviceSize size)
+rc<Image> Image::FromExisting(Device* Vk,
+							  VkImage img,
+							  VkExtent2D extent,
+							  VkFormat format,
+							  VkImageUsageFlags usage,
+							  ImageState state,
+							  std::optional<Allocation> allocation,
+							  VkDeviceSize size)
 {
-	return New(Vk, img, extent, format, usage, std::move(allocation), size);
+	return New(Vk, img, extent, format, usage, state, std::move(allocation), size);
 }
 Result<ImageCreateRequest> Image::TryGetRelaxedSuitableCreateRequest(Device* Vk, ImageCreateRequest const& info)
 {
