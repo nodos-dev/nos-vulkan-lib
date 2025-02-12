@@ -572,8 +572,6 @@ Result<rc<Image>> Image::Create(Device* Vk, ImageCreateRequest const& createInfo
 	if (auto err = icInfosRes.Error())
 		return std::move(*err);
 	ImageState state{
-		.StageMask = VK_PIPELINE_STAGE_NONE,
-		.AccessMask = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT,
 		.Layout = icInfosRes.Get()->ImgCreateInfo.initialLayout,
 	};
 

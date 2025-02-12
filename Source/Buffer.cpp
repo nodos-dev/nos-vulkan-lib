@@ -152,8 +152,7 @@ Result<rc<Buffer>> Buffer::Create(Device* device, BufferCreateRequest const& inf
 
 Buffer::Buffer(Device* device, VkBuffer buffer, VkBufferUsageFlags usage, uint32_t alignment, int elementType, std::optional<Allocation> alloc, VkDeviceSize size)
 	: ResourceBase(device), Usage(usage), Alignment(alignment), ElementType(elementType),
-	State{ .StageMask = VK_PIPELINE_STAGE_2_NONE,
-		  .AccessMask = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT }
+	State{ .StageMask = VK_PIPELINE_STAGE_2_NONE, .AccessMask = VK_ACCESS_2_NONE }
 {
 	Handle = buffer;
 	Size = size;
