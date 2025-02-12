@@ -160,7 +160,10 @@ Result<ImageCreationInfos> CalculateImageCreationInfos(vk::Device* device, Image
 	ret.MemProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
 	if (auto* imported = request.Imported)
+	{
+		imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_PREINITIALIZED;
 		return ret;
+	}
 	else // Exported
 	{
 		allocCreateInfo = {.usage = VMA_MEMORY_USAGE_AUTO, .requiredFlags = ret.MemProps};
@@ -565,14 +568,14 @@ Result<rc<Image>> Image::Create(Device* Vk, ImageCreateRequest const& createInfo
 	// Might return error without vulkan failure
 	*outVkRes = VK_SUCCESS;
 
-	ImageState state{
-			.StageMask = VK_PIPELINE_STAGE_NONE,
-			.AccessMask = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT,
-			.Layout = VK_IMAGE_LAYOUT_UNDEFINED,
-	};
 	auto icInfosRes = CalculateImageCreationInfos(Vk, createInfo);
 	if (auto err = icInfosRes.Error())
 		return std::move(*err);
+	ImageState state{
+		.StageMask = VK_PIPELINE_STAGE_NONE,
+		.AccessMask = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT,
+		.Layout = icInfosRes.Get()->ImgCreateInfo.initialLayout,
+	};
 
 	auto& icInfos = *icInfosRes.Get();
 
@@ -581,7 +584,6 @@ Result<rc<Image>> Image::Create(Device* Vk, ImageCreateRequest const& createInfo
 	VkImage handle{};
 	if (auto* imported = createInfo.Imported)
 	{
-		state.Layout = VK_IMAGE_LAYOUT_PREINITIALIZED;
 		if(NOS_VULKAN_FAILED(*outVkRes = Vk->CreateImage(&icInfos.ImgCreateInfo, 0, &handle)))
 			return "Error while creating imported image.";
 		if (NOS_VULKAN_FAILED(*outVkRes = allocationInfo.Import(Vk, handle, *imported, icInfos.MemProps)))
