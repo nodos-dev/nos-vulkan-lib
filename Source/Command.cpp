@@ -4,6 +4,7 @@
 #include "nosVulkan/Device.h"
 #include "nosVulkan/Image.h"
 #include "vkl.h"
+#include <chrono>
 
 namespace nos::vk
 {
