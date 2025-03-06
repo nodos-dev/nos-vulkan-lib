@@ -136,7 +136,6 @@ struct nosVulkan_API Renderpass : SharedFactory<Renderpass>, Basepass
 		bool Wireframe = false;
 		bool Clear = true;
 		u64 FrameNumber = 0;
-		float DeltaSeconds = .0f;
 		std::array<float, 4> ClearCol = {0.0f};
     };
 

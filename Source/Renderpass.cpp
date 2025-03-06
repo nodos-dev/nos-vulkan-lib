@@ -379,9 +379,8 @@ std::optional<std::string> Renderpass::Begin(rc<CommandBuffer> cmd, const BeginP
 	{
 		VkExtent2D Extent;
 		u64 FrameNumber;
-		float DeltaSeconds;
 	}
-	constants = { img->Src->GetExtent(), info.FrameNumber, info.DeltaSeconds };
+	constants = { img->Src->GetExtent(), info.FrameNumber };
 	PL->PushConstants(cmd, constants);
 	if (localMsBuffer)
 		GetDevice()->ResourcePools.Image->Release(uint64_t(localMsBuffer->Handle));
