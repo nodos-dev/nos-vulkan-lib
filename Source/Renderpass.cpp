@@ -158,6 +158,7 @@ void Basepass::BindData(std::string const& name, const void* data, uint32_t sz)
     u32 baseOffset = PL->Layout->OffsetMap[((u64)idx.set << 32ull) | idx.binding];
     u32 offset = baseOffset + idx.offset;
     uint32_t copySize = sz ? std::min(sz, type->Size) : type->Size;
+    uint32_t clearSize = std::max(4u, sz);
 
 
 	// If the data is a VLA, copy all of the passed data
@@ -170,7 +171,7 @@ void Basepass::BindData(std::string const& name, const void* data, uint32_t sz)
 
     UpdateOrInsert(Bindings[idx.set], vk::Binding(buffer, idx.binding, baseOffset, 0));
 
-    memset(ptr, 0, type->Size);
+    memset(ptr, 0, clearSize);
     memcpy(ptr, data, copySize);
 }
 
