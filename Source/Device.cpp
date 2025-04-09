@@ -719,19 +719,15 @@ Device::LUID Device::GetLuid() const
 
     vkGetPhysicalDeviceProperties2(PhysicalDevice, &props);
 
-    Device::LUID luid = {};
     if (IDProps.deviceLUIDValid == VK_FALSE){
         std::array<uint8_t, 16> wrapped;
         std::memcpy(wrapped.data(), IDProps.deviceUUID, 16);
-        luid = LUID::FromByteArray(wrapped);
-    }
-    else{
-        std::array<uint8_t, 8> wrapped;
-        std::memcpy(wrapped.data(), IDProps.deviceLUID, 8);
-        luid = LUID::FromShortArray(wrapped, IDProps.deviceNodeMask);
+        return LUID::FromByteArray(wrapped);
     }
 
-    return luid;
+    std::array<uint8_t, 8> wrapped;
+    std::memcpy(wrapped.data(), IDProps.deviceLUID, 8);
+    return LUID::FromShortArray(wrapped, IDProps.deviceNodeMask);
 }
 
 VkSampler Device::GetSampler(VkSamplerCreateInfo const& info)

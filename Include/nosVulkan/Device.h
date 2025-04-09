@@ -297,64 +297,62 @@ struct nosVulkan_API Device : SharedFactory<Device>,
 
     struct LUID
     {
-        std::array<uint32_t, 4> Data; // 128-bit = 4 × 32-bit
-    
-        // Convert to decimal string
+        std::array<uint32_t, 4> Data;
+
+        // Returns true if not all-zero
+        explicit operator bool() const {
+            return Data[0] || Data[1] || Data[2] || Data[3];
+        }
+
+        bool operator==(const LUID& other) const {
+            return Data == other.Data;
+        }
+
+        bool operator!=(const LUID& other) const {
+            return !(*this == other);
+        }
+
+        // Convert to hex string
         std::string ToString() const {
-            __uint128_t value = 0;
-            value |= static_cast<__uint128_t>(Data[0]);
-            value |= static_cast<__uint128_t>(Data[1]) << 32;
-            value |= static_cast<__uint128_t>(Data[2]) << 64;
-            value |= static_cast<__uint128_t>(Data[3]) << 96;
-    
-            if (value == 0) return "0";
-    
-            std::string result;
-            while (value > 0) {
-                result.insert(result.begin(), '0' + (value % 10));
-                value /= 10;
+            std::ostringstream oss;
+            for (int i = 3; i >= 0; --i) {
+                oss << std::hex << std::setfill('0') << std::setw(8) << Data[i];
             }
-            return result;
+            return oss.str();
         }
-    
-        // Parse from decimal string
-        static LUID FromString(const std::string& str) {
-            __uint128_t value = 0;
-            for (char c : str) {
-                if (c < '0' || c > '9')
-                    throw std::invalid_argument("Invalid character in LUID string");
-                value = value * 10 + (c - '0');
+
+        // Parse from hex string (must be 32 hex digits)
+        static LUID FromString(const std::string& hexStr) {
+            if (hexStr.size() != 32)
+                throw std::invalid_argument("LUID hex string must be 32 characters");
+
+            LUID luid{};
+            for (int i = 0; i < 4; ++i) {
+                std::string part = hexStr.substr((3 - i) * 8, 8);
+                luid.Data[i] = static_cast<uint32_t>(std::stoul(part, nullptr, 16));
             }
-    
-            return LUID{
-                .Data = {
-                    static_cast<uint32_t>(value),
-                    static_cast<uint32_t>(value >> 32),
-                    static_cast<uint32_t>(value >> 64),
-                    static_cast<uint32_t>(value >> 96)
-                }
-            };
+            return luid;
         }
-    
+
         // Load from 16-byte array
         static LUID FromByteArray(const std::array<uint8_t, 16>& arr) {
             LUID luid;
             std::memcpy(luid.Data.data(), arr.data(), 16);
             return luid;
         }
-    
+
         // Export to 16-byte array
         std::array<uint8_t, 16> ToByteArray() const {
             std::array<uint8_t, 16> arr;
             std::memcpy(arr.data(), Data.data(), 16);
             return arr;
         }
-    
-        // Load from 8-byte array and a 4-byte uint
+
+		// Load from 8-byte array + 4-byte extra
         static LUID FromShortArray(const std::array<uint8_t, 8>& bytes, uint32_t extra) {
             uint64_t low64;
             std::memcpy(&low64, bytes.data(), 8);
-    
+
             return LUID{
                 .Data = {
                     static_cast<uint32_t>(low64),
@@ -364,16 +362,8 @@ struct nosVulkan_API Device : SharedFactory<Device>,
                 }
             };
         }
-        
-        explicit operator bool() const {
-            return Data[0] || Data[1] || Data[2] || Data[3];
-        }
-            
-        bool operator==(const LUID& other) const {
-            return Data == other.Data;
-        }
-    
-        // Export to 8-byte array and 4-byte uint
+
+        // Export LUID to 8-byte array + 4-byte extra
         void ToShortArray(std::array<uint8_t, 8>& outBytes, uint32_t& outExtra) const {
             uint64_t low64 = (static_cast<uint64_t>(Data[1]) << 32) | Data[0];
             std::memcpy(outBytes.data(), &low64, 8);
@@ -409,7 +399,6 @@ struct nosVulkan_API Context : SharedFactory<Context>
     std::string CacheFolder;
 	uint32_t ApiVersion = VK_API_VERSION_1_0; // It will be decided by the devices on the system
 
-    rc<Device> CreateDevice(u64 luid) const;
     ~Context();
 	Context(DebugCallback* = 0, const char* CacheFolder = nullptr, bool enableValidationLayer = false);
 	void OrderDevices(std::vector<VkPhysicalDevice>& PhysicalDevices);
