@@ -294,7 +294,94 @@ struct nosVulkan_API Device : SharedFactory<Device>,
 
     Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, const nos::vk::Context* context);
     ~Device();
-    u64 GetLuid() const;
+
+    struct LUID
+    {
+        std::array<uint32_t, 4> Data; // 128-bit = 4 × 32-bit
+    
+        // Convert to decimal string
+        std::string ToString() const {
+            __uint128_t value = 0;
+            value |= static_cast<__uint128_t>(Data[0]);
+            value |= static_cast<__uint128_t>(Data[1]) << 32;
+            value |= static_cast<__uint128_t>(Data[2]) << 64;
+            value |= static_cast<__uint128_t>(Data[3]) << 96;
+    
+            if (value == 0) return "0";
+    
+            std::string result;
+            while (value > 0) {
+                result.insert(result.begin(), '0' + (value % 10));
+                value /= 10;
+            }
+            return result;
+        }
+    
+        // Parse from decimal string
+        static LUID FromString(const std::string& str) {
+            __uint128_t value = 0;
+            for (char c : str) {
+                if (c < '0' || c > '9')
+                    throw std::invalid_argument("Invalid character in LUID string");
+                value = value * 10 + (c - '0');
+            }
+    
+            return LUID{
+                .Data = {
+                    static_cast<uint32_t>(value),
+                    static_cast<uint32_t>(value >> 32),
+                    static_cast<uint32_t>(value >> 64),
+                    static_cast<uint32_t>(value >> 96)
+                }
+            };
+        }
+    
+        // Load from 16-byte array
+        static LUID FromByteArray(const std::array<uint8_t, 16>& arr) {
+            LUID luid;
+            std::memcpy(luid.Data.data(), arr.data(), 16);
+            return luid;
+        }
+    
+        // Export to 16-byte array
+        std::array<uint8_t, 16> ToByteArray() const {
+            std::array<uint8_t, 16> arr;
+            std::memcpy(arr.data(), Data.data(), 16);
+            return arr;
+        }
+    
+        // Load from 8-byte array and a 4-byte uint
+        static LUID FromShortArray(const std::array<uint8_t, 8>& bytes, uint32_t extra) {
+            uint64_t low64;
+            std::memcpy(&low64, bytes.data(), 8);
+    
+            return LUID{
+                .Data = {
+                    static_cast<uint32_t>(low64),
+                    static_cast<uint32_t>(low64 >> 32),
+                    extra,
+                    0
+                }
+            };
+        }
+        
+        explicit operator bool() const {
+            return Data[0] || Data[1] || Data[2] || Data[3];
+        }
+            
+        bool operator==(const LUID& other) const {
+            return Data == other.Data;
+        }
+    
+        // Export to 8-byte array and 4-byte uint
+        void ToShortArray(std::array<uint8_t, 8>& outBytes, uint32_t& outExtra) const {
+            uint64_t low64 = (static_cast<uint64_t>(Data[1]) << 32) | Data[0];
+            std::memcpy(outBytes.data(), &low64, 8);
+            outExtra = Data[2];
+        }
+    };
+
+    LUID GetLuid() const;
 
     static bool CheckSupport(VkPhysicalDevice PhysicalDevice);
     std::string GetName() const;
