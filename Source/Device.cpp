@@ -139,6 +139,12 @@ bool Device::CheckSupport(VkPhysicalDevice PhysicalDevice)
     VkPhysicalDeviceProperties props;
 	vkGetPhysicalDeviceProperties(PhysicalDevice, &props);
 
+    if(props.deviceType == VK_PHYSICAL_DEVICE_TYPE_CPU)
+    {
+        GLog.W("Device %s is CPU. No GPU support", name.c_str());
+        return false;
+    }
+
     u32 count;
     NOSVK_ASSERT(vkEnumerateDeviceExtensionProperties(PhysicalDevice, 0, &count, 0));
     std::vector<VkExtensionProperties> extensionProps(count);
@@ -523,15 +529,15 @@ Device::~Device()
     }
 
     DeviceWaitIdle();
-	{
-		std::unique_lock ulock(ImmPoolsMutex);
-		ImmPools.clear();
-	}
+    {
+        std::unique_lock ulock(ImmPoolsMutex);
+        ImmPools.clear();
+    }
     for (auto& [memTypeIndex, pool] : TempMemoryPools)
     {
         vmaDestroyPool(Allocator, pool);
     }
-	vmaDestroyAllocator(Allocator);
+    vmaDestroyAllocator(Allocator);
     DestroyDevice(0);
 }
 
@@ -700,7 +706,7 @@ Context::~Context()
         vkDestroyInstance(Instance, 0);
 }
 
-u64 Device::GetLuid() const
+Device::UID Device::GetLuid() const
 {
     VkPhysicalDeviceIDProperties IDProps = {
         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES,
@@ -713,9 +719,15 @@ u64 Device::GetLuid() const
 
     vkGetPhysicalDeviceProperties2(PhysicalDevice, &props);
 
-    assert(IDProps.deviceLUIDValid);
+    if (IDProps.deviceLUIDValid == VK_FALSE){
+        std::array<uint8_t, VK_UUID_SIZE> wrapped;
+        std::memcpy(wrapped.data(), IDProps.deviceUUID, VK_UUID_SIZE);
+        return UID::FromUUID(wrapped);
+    }
 
-    return std::bit_cast<u64, u8[VK_LUID_SIZE]>(IDProps.deviceLUID);
+    std::array<uint8_t, VK_LUID_SIZE> wrapped;
+    std::memcpy(wrapped.data(), IDProps.deviceLUID, VK_LUID_SIZE);
+    return UID::FromLUID(wrapped, IDProps.deviceNodeMask);
 }
 
 VkSampler Device::GetSampler(VkSamplerCreateInfo const& info)
