@@ -295,7 +295,7 @@ struct nosVulkan_API Device : SharedFactory<Device>,
     Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, const nos::vk::Context* context);
     ~Device();
 
-    struct LUID
+    struct UID
     {
         std::array<uint32_t, 4> Data;
 
@@ -304,7 +304,7 @@ struct nosVulkan_API Device : SharedFactory<Device>,
             return Data[0] || Data[1] || Data[2] || Data[3];
         }
 
-        bool operator==(const LUID& other) const {
+        bool operator==(const UID& other) const {
             return Data == other.Data;
         }
 
@@ -318,11 +318,11 @@ struct nosVulkan_API Device : SharedFactory<Device>,
         }
 
         // Parse from hex string (must be 32 hex digits)
-        static LUID FromString(const std::string& hexStr) {
+        static UID FromString(const std::string& hexStr) {
             if (hexStr.size() != 32)
                 throw std::invalid_argument("LUID hex string must be 32 characters");
 
-            LUID luid{};
+            UID luid{};
             for (int i = 0; i < 4; ++i) {
                 std::string part = hexStr.substr((3 - i) * 8, 8);
                 luid.Data[i] = static_cast<uint32_t>(std::stoul(part, nullptr, 16));
@@ -331,18 +331,18 @@ struct nosVulkan_API Device : SharedFactory<Device>,
         }
 
         // Load from 16-byte array
-        static LUID FromByteArray(const std::array<uint8_t, 16>& arr) {
-            LUID luid;
+        static UID FromUUID(const std::array<uint8_t, 16>& arr) {
+            UID luid;
             std::memcpy(luid.Data.data(), arr.data(), 16);
             return luid;
         }
 
 		// Load from 8-byte array + 4-byte extra
-        static LUID FromShortArray(const std::array<uint8_t, 8>& bytes, uint32_t extra) {
+        static UID FromLUID(const std::array<uint8_t, 8>& bytes, uint32_t extra) {
             uint64_t low64;
             std::memcpy(&low64, bytes.data(), 8);
 
-            return LUID{
+            return UID{
                 .Data = {
                     static_cast<uint32_t>(low64),
                     static_cast<uint32_t>(low64 >> 32),
@@ -353,7 +353,7 @@ struct nosVulkan_API Device : SharedFactory<Device>,
         }
     };
 
-    LUID GetLuid() const;
+    UID GetLuid() const;
 
     static bool CheckSupport(VkPhysicalDevice PhysicalDevice);
     std::string GetName() const;

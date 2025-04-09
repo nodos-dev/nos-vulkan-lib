@@ -706,7 +706,7 @@ Context::~Context()
         vkDestroyInstance(Instance, 0);
 }
 
-Device::LUID Device::GetLuid() const
+Device::UID Device::GetLuid() const
 {
     VkPhysicalDeviceIDProperties IDProps = {
         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES,
@@ -722,12 +722,12 @@ Device::LUID Device::GetLuid() const
     if (IDProps.deviceLUIDValid == VK_FALSE){
         std::array<uint8_t, VK_UUID_SIZE> wrapped;
         std::memcpy(wrapped.data(), IDProps.deviceUUID, VK_UUID_SIZE);
-        return LUID::FromByteArray(wrapped);
+        return UID::FromUUID(wrapped);
     }
 
     std::array<uint8_t, VK_LUID_SIZE> wrapped;
     std::memcpy(wrapped.data(), IDProps.deviceLUID, VK_LUID_SIZE);
-    return LUID::FromShortArray(wrapped, IDProps.deviceNodeMask);
+    return UID::FromLUID(wrapped, IDProps.deviceNodeMask);
 }
 
 VkSampler Device::GetSampler(VkSamplerCreateInfo const& info)
