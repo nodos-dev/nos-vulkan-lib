@@ -720,13 +720,13 @@ Device::LUID Device::GetLuid() const
     vkGetPhysicalDeviceProperties2(PhysicalDevice, &props);
 
     if (IDProps.deviceLUIDValid == VK_FALSE){
-        std::array<uint8_t, 16> wrapped;
-        std::memcpy(wrapped.data(), IDProps.deviceUUID, 16);
+        std::array<uint8_t, VK_UUID_SIZE> wrapped;
+        std::memcpy(wrapped.data(), IDProps.deviceUUID, VK_UUID_SIZE);
         return LUID::FromByteArray(wrapped);
     }
 
-    std::array<uint8_t, 8> wrapped;
-    std::memcpy(wrapped.data(), IDProps.deviceLUID, 8);
+    std::array<uint8_t, VK_LUID_SIZE> wrapped;
+    std::memcpy(wrapped.data(), IDProps.deviceLUID, VK_LUID_SIZE);
     return LUID::FromShortArray(wrapped, IDProps.deviceNodeMask);
 }
 

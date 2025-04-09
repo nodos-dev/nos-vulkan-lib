@@ -308,10 +308,6 @@ struct nosVulkan_API Device : SharedFactory<Device>,
             return Data == other.Data;
         }
 
-        bool operator!=(const LUID& other) const {
-            return !(*this == other);
-        }
-
         // Convert to hex string
         std::string ToString() const {
             std::ostringstream oss;
@@ -341,13 +337,6 @@ struct nosVulkan_API Device : SharedFactory<Device>,
             return luid;
         }
 
-        // Export to 16-byte array
-        std::array<uint8_t, 16> ToByteArray() const {
-            std::array<uint8_t, 16> arr;
-            std::memcpy(arr.data(), Data.data(), 16);
-            return arr;
-        }
-
 		// Load from 8-byte array + 4-byte extra
         static LUID FromShortArray(const std::array<uint8_t, 8>& bytes, uint32_t extra) {
             uint64_t low64;
@@ -361,13 +350,6 @@ struct nosVulkan_API Device : SharedFactory<Device>,
                     0
                 }
             };
-        }
-
-        // Export LUID to 8-byte array + 4-byte extra
-        void ToShortArray(std::array<uint8_t, 8>& outBytes, uint32_t& outExtra) const {
-            uint64_t low64 = (static_cast<uint64_t>(Data[1]) << 32) | Data[0];
-            std::memcpy(outBytes.data(), &low64, 8);
-            outExtra = Data[2];
         }
     };
 
