@@ -367,6 +367,42 @@ Device::MemoryUsage Device::GetCurrentMemoryUsage() const
 	return res;
 }
 
+static std::optional<uint32_t> FindDedicatedQueue(VkQueueFlagBits queue, std::vector<VkQueueFamilyProperties> const& props)
+{
+	std::optional<uint32_t> foundQueue = std::nullopt;
+	uint32_t minExtraFlags = UINT32_MAX;
+
+	for (uint32_t i = 0; i < props.size(); ++i)
+	{
+		VkQueueFlags flags = props[i].queueFlags;
+
+		if (flags & queue)
+		{
+			// Count how many other bits are set besides desired queue flag
+			VkQueueFlags extraFlags = flags & ~queue;
+
+			// Count bits set in extraFlags (number of non-transfer bits)
+			uint32_t extraBitCount = 0;
+			for (uint32_t b = extraFlags; b != 0; b >>= 1)
+			{
+				extraBitCount += (b & 1);
+			}
+
+			// Prefer fewer extra flags
+			if (extraBitCount < minExtraFlags)
+			{
+				foundQueue = i;
+				minExtraFlags = extraBitCount;
+
+				// If no extra flags, this is the ideal queue
+				if (extraBitCount == 0)
+					break;
+			}
+		}
+	}
+	return foundQueue;
+}
+
 Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, const nos::vk::Context* context)
     : Instance(Instance), PhysicalDevice(PhysicalDevice), Features(PhysicalDevice), ResourcePools(this), Context(context)
 {
@@ -426,14 +462,31 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, const nos::
         mainQueueFamilyIdx++;
     }
 
+	auto transferQueueFamily = FindDedicatedQueue(VK_QUEUE_TRANSFER_BIT, props);
+
     float prio = 1.f;
 
-    VkDeviceQueueCreateInfo qinfo = {
+    VkDeviceQueueCreateInfo graphicsQueueCreateInfo = {
         .sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
         .queueFamilyIndex = mainQueueFamilyIdx,
         .queueCount       = 1,
         .pQueuePriorities = &prio,
     };
+
+	std::vector<VkDeviceQueueCreateInfo> queueCreateInfos = {
+		graphicsQueueCreateInfo,
+	};
+
+	auto transferQueueFamilyIdx = FindDedicatedQueue(VK_QUEUE_TRANSFER_BIT, props);
+	if (transferQueueFamilyIdx)
+	{
+		VkDeviceQueueCreateInfo transferQueueCreateInfo = {
+			.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+			.queueFamilyIndex = *transferQueueFamilyIdx,
+			.queueCount = 1,
+			.pQueuePriorities = &prio,
+		};
+	}
 
     FeatureSet set;
     
@@ -458,8 +511,8 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, const nos::
     VkDeviceCreateInfo info = {
         .sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
         .pNext                   = available.pnext(),
-        .queueCreateInfoCount    = 1,
-        .pQueueCreateInfos       = &qinfo,
+        .queueCreateInfoCount    = (u32)queueCreateInfos.size(),
+        .pQueueCreateInfos       = queueCreateInfos.data(),
         .enabledLayerCount       = (u32)layers.size(),
         .ppEnabledLayerNames     = layers.data(),
         .enabledExtensionCount   = (u32)deviceExtensionsToAsk.size(),
@@ -469,6 +522,8 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, const nos::
     NOS_VULKAN_KEEP_TRYING_INVALIDATE(vkCreateDevice(PhysicalDevice, &info, 0, &handle), "Failed to create logical Vulkan device\n", handle);
     vkl_load_device_functions(handle, this);
     MainQueue = Queue::New(this, mainQueueFamilyIdx);
+	if (transferQueueFamilyIdx)
+		TransferQueue = Queue::New(this, *transferQueueFamilyIdx);
 	InitializeVMA();
     GetSampler(VK_FILTER_NEAREST);
     GetSampler(VK_FILTER_LINEAR);
