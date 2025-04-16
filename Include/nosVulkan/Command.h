@@ -13,11 +13,10 @@ struct Device;
 
 struct nosVulkan_API Queue : SharedFactory<Queue>, VklQueueFunctions
 {
-    u32 Family;
-    u32 Idx;
+    u32 FamilyIndex;
     std::mutex Mutex;
 
-    Queue(Device* Device, u32 Family, u32 Index);
+    Queue(Device* device, u32 familyIndex);
     Device* GetDevice();
     VkResult Submit(uint32_t submitCount, const VkSubmitInfo* pSubmits, VkFence fence);
     VkResult Submit(std::vector<rc<CommandBuffer>> const& cmd);

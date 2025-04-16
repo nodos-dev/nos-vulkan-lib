@@ -414,8 +414,7 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, const nos::
     std::vector<VkQueueFamilyProperties> props(count);
     vkGetPhysicalDeviceQueueFamilyProperties(PhysicalDevice, &count, props.data());
 
-    u32 family = 0;
-
+    u32 mainQueueFamilyIdx = 0;
     for (auto& prop : props)
     {
         if ((prop.queueFlags & VK_QUEUE_GRAPHICS_BIT) &&
@@ -424,14 +423,14 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, const nos::
         {
             break;
         }
-        family++;
+        mainQueueFamilyIdx++;
     }
 
     float prio = 1.f;
 
     VkDeviceQueueCreateInfo qinfo = {
         .sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-        .queueFamilyIndex = family,
+        .queueFamilyIndex = mainQueueFamilyIdx,
         .queueCount       = 1,
         .pQueuePriorities = &prio,
     };
@@ -469,7 +468,7 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, const nos::
 
     NOS_VULKAN_KEEP_TRYING_INVALIDATE(vkCreateDevice(PhysicalDevice, &info, 0, &handle), "Failed to create logical Vulkan device\n", handle);
     vkl_load_device_functions(handle, this);
-    MainQueue = Queue::New(this, family, 0);
+    MainQueue = Queue::New(this, mainQueueFamilyIdx);
 	InitializeVMA();
     GetSampler(VK_FILTER_NEAREST);
     GetSampler(VK_FILTER_LINEAR);
