@@ -45,11 +45,20 @@ Result<BufferCreationInfos> CalculateBufferCreationInfos(vk::Device* device, Buf
 		.handleTypes = extMemHandleType,
 	};
 
+	// TODO: Do not make buffers concurrent if not needed
+	std::vector<uint32_t> queueFamilyIndices;
+	if (device->MainQueue)
+		queueFamilyIndices.push_back(device->MainQueue->FamilyIndex);
+	if (device->TransferQueue)
+		queueFamilyIndices.push_back(device->TransferQueue->FamilyIndex);
 	bufferCreateInfo = {
 		.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
 		.pNext = extMemHandleType ? &extMemCreateInfo : nullptr,
 		.size = info.Size,
 		.usage = info.Usage,
+		.sharingMode = VK_SHARING_MODE_CONCURRENT,
+		.queueFamilyIndexCount = queueFamilyIndices.size(),
+		.pQueueFamilyIndices = queueFamilyIndices.data()
 	};
 
 	if(requestedMemProps.VRAM && requestedMemProps.ForceHostMemory)
