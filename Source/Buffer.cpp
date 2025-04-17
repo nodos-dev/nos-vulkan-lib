@@ -280,7 +280,7 @@ void Buffer::Transition(rc<CommandBuffer> cmd, BufferMemoryState dst, VkDeviceSi
 		};
 		VkDependencyInfo depInfo = {
 			.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-			.dependencyFlags = VK_DEPENDENCY_DEVICE_GROUP_BIT,
+			.dependencyFlags = 0,
 			.bufferMemoryBarrierCount = 1,
 			.pBufferMemoryBarriers = &barrier,
 		};
