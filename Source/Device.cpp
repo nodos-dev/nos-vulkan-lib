@@ -450,32 +450,20 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, const nos::
     std::vector<VkQueueFamilyProperties> props(count);
     vkGetPhysicalDeviceQueueFamilyProperties(PhysicalDevice, &count, props.data());
 
-    u32 mainQueueFamilyIdx = 0;
-    for (auto& prop : props)
-    {
-        if ((prop.queueFlags & VK_QUEUE_GRAPHICS_BIT) &&
-            (prop.queueFlags & VK_QUEUE_COMPUTE_BIT) &&
-            (prop.queueFlags & VK_QUEUE_TRANSFER_BIT))
-        {
-            break;
-        }
-        mainQueueFamilyIdx++;
-    }
+	std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
+	float priority = 1.f;
 
-	auto transferQueueFamily = FindDedicatedQueue(VK_QUEUE_TRANSFER_BIT, props);
-
-    float prio = 1.f;
-
-    VkDeviceQueueCreateInfo graphicsQueueCreateInfo = {
-        .sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-        .queueFamilyIndex = mainQueueFamilyIdx,
-        .queueCount       = 1,
-        .pQueuePriorities = &prio,
-    };
-
-	std::vector<VkDeviceQueueCreateInfo> queueCreateInfos = {
-		graphicsQueueCreateInfo,
-	};
+	auto mainQueueFamilyIdx = FindDedicatedQueue(VkQueueFlagBits(VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT), props);
+	if (mainQueueFamilyIdx)
+	{
+		VkDeviceQueueCreateInfo graphicsQueueCreateInfo = {
+			.sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+			.queueFamilyIndex = *mainQueueFamilyIdx,
+			.queueCount       = 1,
+			.pQueuePriorities = &priority,
+		};
+		queueCreateInfos.push_back(graphicsQueueCreateInfo);
+	}
 
 	auto transferQueueFamilyIdx = FindDedicatedQueue(VK_QUEUE_TRANSFER_BIT, props);
 	if (transferQueueFamilyIdx)
@@ -484,8 +472,9 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, const nos::
 			.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
 			.queueFamilyIndex = *transferQueueFamilyIdx,
 			.queueCount = 1,
-			.pQueuePriorities = &prio,
+			.pQueuePriorities = &priority,
 		};
+		queueCreateInfos.push_back(transferQueueCreateInfo);
 	}
 
     FeatureSet set;
@@ -521,7 +510,8 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, const nos::
 
     NOS_VULKAN_KEEP_TRYING_INVALIDATE(vkCreateDevice(PhysicalDevice, &info, 0, &handle), "Failed to create logical Vulkan device\n", handle);
     vkl_load_device_functions(handle, this);
-    MainQueue = Queue::New(this, mainQueueFamilyIdx);
+	if (mainQueueFamilyIdx)
+		MainQueue = Queue::New(this, *mainQueueFamilyIdx);
 	if (transferQueueFamilyIdx)
 		TransferQueue = Queue::New(this, *transferQueueFamilyIdx);
 	InitializeVMA();

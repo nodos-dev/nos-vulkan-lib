@@ -24,7 +24,7 @@ VkResult Queue::Submit(std::vector<rc<CommandBuffer>> const& cmd)
 Queue::Queue(Device* device, u32 familyIndex)
     : VklQueueFunctions{device}, FamilyIndex(familyIndex)
 {
-    device->GetDeviceQueue(familyIndex, familyIndex, &handle);
+    device->GetDeviceQueue(familyIndex, 0, &handle);
 }
 
 Device* Queue::GetDevice()
