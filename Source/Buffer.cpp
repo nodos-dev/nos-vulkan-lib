@@ -248,14 +248,12 @@ void Buffer::Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src, const VkBufferCopy* R
 
 	Src->Transition(Cmd,
 					BufferMemoryState{.StageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-									  .AccessMask = VK_ACCESS_2_TRANSFER_READ_BIT,
-									  .QueueFamilyIndex = Cmd->Pool->PoolQueue->FamilyIndex},
+									  .AccessMask = VK_ACCESS_2_TRANSFER_READ_BIT},
 					Region->srcOffset,
 					Region->size);
 	Transition(Cmd,
 			   BufferMemoryState{.StageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-								 .AccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
-								 .QueueFamilyIndex = Cmd->Pool->PoolQueue->FamilyIndex},
+								 .AccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT},
 			   Region->dstOffset,
 			   Region->size);
 	
@@ -264,6 +262,7 @@ void Buffer::Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src, const VkBufferCopy* R
 
 void Buffer::Transition(rc<CommandBuffer> cmd, BufferMemoryState dst, VkDeviceSize offset, VkDeviceSize size)
 {
+	dst.QueueFamilyIndex = cmd->Pool->PoolQueue->FamilyIndex;
 	if (Vk->Features.synchronization2)
 	{
 		VkBufferMemoryBarrier2 barrier {

@@ -78,6 +78,7 @@ void Basepass::TransitionInput(rc<vk::CommandBuffer> Cmd, std::string const& nam
 			.StageMask = GetStage(),
 			.AccessMask = vk::Binding::MapTypeToAccess(dsl.DescriptorType), // TODO: Look into access flags to optimize image memory barriers for VK_DESCRIPTOR_TYPE_STORAGE_IMAGEs
 			.Layout = vk::Binding::MapTypeToLayout(dsl.DescriptorType),
+			.QueueFamilyIndex = Cmd->Pool->PoolQueue->FamilyIndex
 		};
 		img->Transition(Cmd, state);
 	}

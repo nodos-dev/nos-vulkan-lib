@@ -1,15 +1,12 @@
 // Copyright MediaZ Teknoloji A.S. All Rights Reserved.
 
 
-#include "nosVulkan/Image.h"
 #include "nosVulkan/Device.h"
 #include "nosVulkan/Command.h"
 #include "nosVulkan/Platform.h"
 
 #include <algorithm>
 #include <bit>
-#include <iostream>
-#include <math.h>
 
 namespace nos::vk
 {
@@ -29,11 +26,8 @@ void ImageLayoutTransition(VkImage Image,
         .sType               = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
         .oldLayout           = Src.Layout,
         .newLayout           = Dst.Layout,
-        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_EXTERNAL,
-        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_EXTERNAL,
-        //.dstQueueFamilyIndex = Cmd->Pool->Queue->Family,
-        // .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-        // .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .srcQueueFamilyIndex = Src.QueueFamilyIndex,
+        .dstQueueFamilyIndex = Dst.QueueFamilyIndex,
         .image               = Image,
         .subresourceRange    = {
                .aspectMask   = Aspect,
@@ -63,8 +57,8 @@ void ImageLayoutTransition2(VkImage Image,
         .dstAccessMask = Dst.AccessMask,
         .oldLayout = Src.Layout,
         .newLayout = Dst.Layout,
-        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_EXTERNAL,
-        .dstQueueFamilyIndex = Cmd->Pool->PoolQueue->FamilyIndex,
+        .srcQueueFamilyIndex = Src.QueueFamilyIndex,
+        .dstQueueFamilyIndex = Dst.QueueFamilyIndex,
         // .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
         // .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
         .image = Image,

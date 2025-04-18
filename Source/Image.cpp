@@ -218,6 +218,7 @@ void Image::Transition(
 {
 	// Dst.AccessMask = 0;
 	// Dst.StageMask  = 0;
+	Dst.QueueFamilyIndex = Cmd->Pool->PoolQueue->FamilyIndex;
 	if (!Vk->Features.synchronization2)
 	{
 		ImageLayoutTransition(Handle, Cmd, State, Dst, GetAspect());
