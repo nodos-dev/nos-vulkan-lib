@@ -21,10 +21,10 @@ VkResult Queue::Submit(std::vector<rc<CommandBuffer>> const& cmd)
    return Submit(infos.size(), infos.data(), 0);
 }
 
-Queue::Queue(Device* Device, u32 Family, u32 Index)
-    : VklQueueFunctions{Device}, Family(Family), Idx(Index)
+Queue::Queue(Device* device, u32 familyIndex)
+    : VklQueueFunctions{device}, FamilyIndex(familyIndex)
 {
-    Device->GetDeviceQueue(Family, Index, &handle);
+    device->GetDeviceQueue(familyIndex, 0, &handle);
 }
 
 Device* Queue::GetDevice()
@@ -218,7 +218,7 @@ CommandPool::CommandPool(Device* Vk, rc<vk::Queue> queue, u64 PoolSize)
     VkCommandPoolCreateInfo info = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
         .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT | VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
-        .queueFamilyIndex = PoolQueue->Idx,
+        .queueFamilyIndex = PoolQueue->FamilyIndex,
     };
 
     NOSVK_ASSERT(Vk->CreateCommandPool(&info, 0, &Handle));

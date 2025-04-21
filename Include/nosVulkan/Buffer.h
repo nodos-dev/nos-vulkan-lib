@@ -13,6 +13,7 @@ struct BufferMemoryState
 {
 	VkPipelineStageFlags2 StageMask;
 	VkAccessFlags2 AccessMask; // Assumes VkAccessFlagsBits same as 2
+	uint32_t QueueFamilyIndex = VK_QUEUE_FAMILY_EXTERNAL;
 };
 
 struct nosVulkan_API BufferCreationInfos

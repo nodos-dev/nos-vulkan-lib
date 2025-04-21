@@ -144,6 +144,7 @@ struct ImageState
     VkPipelineStageFlags2 StageMask;
     VkAccessFlags2 AccessMask;
     VkImageLayout Layout;
+	uint32_t QueueFamilyIndex = VK_QUEUE_FAMILY_EXTERNAL;
 };
 
 union DescriptorResourceInfo {

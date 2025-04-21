@@ -50,6 +50,7 @@ Result<BufferCreationInfos> CalculateBufferCreationInfos(vk::Device* device, Buf
 		.pNext = extMemHandleType ? &extMemCreateInfo : nullptr,
 		.size = info.Size,
 		.usage = info.Usage,
+		.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
 	};
 
 	if(requestedMemProps.VRAM && requestedMemProps.ForceHostMemory)
@@ -244,15 +245,24 @@ void Buffer::Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src, const VkBufferCopy* R
 
 	if (!Region)
 		Region = &DefaultRegion;
-	
-	Src->Transition(Cmd, BufferMemoryState{.StageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT, .AccessMask = VK_ACCESS_2_TRANSFER_READ_BIT}, Region->srcOffset, Region->size);
-	Transition(Cmd, BufferMemoryState{.StageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT, .AccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT}, Region->dstOffset, Region->size);
+
+	Src->Transition(Cmd,
+					BufferMemoryState{.StageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+									  .AccessMask = VK_ACCESS_2_TRANSFER_READ_BIT},
+					Region->srcOffset,
+					Region->size);
+	Transition(Cmd,
+			   BufferMemoryState{.StageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+								 .AccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT},
+			   Region->dstOffset,
+			   Region->size);
 	
     Cmd->CopyBuffer(Src->Handle, this->Handle, 1, Region);
 }
 
 void Buffer::Transition(rc<CommandBuffer> cmd, BufferMemoryState dst, VkDeviceSize offset, VkDeviceSize size)
 {
+	dst.QueueFamilyIndex = cmd->Pool->PoolQueue->FamilyIndex;
 	if (Vk->Features.synchronization2)
 	{
 		VkBufferMemoryBarrier2 barrier {
@@ -261,13 +271,15 @@ void Buffer::Transition(rc<CommandBuffer> cmd, BufferMemoryState dst, VkDeviceSi
 			.srcAccessMask = State.AccessMask,
 			.dstStageMask = dst.StageMask,
 			.dstAccessMask = dst.AccessMask,
+			.srcQueueFamilyIndex = State.QueueFamilyIndex,
+			.dstQueueFamilyIndex = dst.QueueFamilyIndex,
 			.buffer = this->Handle,
 			.offset = offset,
 			.size = size,
 		};
 		VkDependencyInfo depInfo = {
 			.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-			.dependencyFlags = VK_DEPENDENCY_DEVICE_GROUP_BIT,
+			.dependencyFlags = 0,
 			.bufferMemoryBarrierCount = 1,
 			.pBufferMemoryBarriers = &barrier,
 		};
