@@ -166,6 +166,7 @@ struct nosVulkan_API Device : SharedFactory<Device>,
 	MemoryUsage GetCurrentMemoryUsage() const;
     
     rc<Queue> MainQueue;
+    rc<Queue> TransferQueue;
     FeatureSet Features;
     std::unordered_map<std::string, Global> Globals;
     std::vector<std::function<void()>> Callbacks;
