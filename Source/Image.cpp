@@ -213,22 +213,28 @@ Image::Image(Device* vk,
 }
 
 void Image::Transition(
-	rc<CommandBuffer> Cmd,
+	rc<CommandBuffer> curCmd,
 	ImageState Dst)
 {
 	// Dst.AccessMask = 0;
 	// Dst.StageMask  = 0;
-	Dst.QueueFamilyIndex = Cmd->Pool->PoolQueue->FamilyIndex;
+	Dst.QueueFamilyIndex = curCmd->Pool->PoolQueue->FamilyIndex;
+	if (State.PreviousCmd && State.PreviousCmd->Pool->PoolQueue->FamilyIndex != Dst.QueueFamilyIndex)
+	{
+		// Previous command buffer is in a different queue family. Add wait semaphore to current command buffer.
+		curCmd->WaitGroup[State.PreviousCmd->FinishedSem->Handle] = {State.PreviousCmd->SubmitCount, 0};
+	}
 	if (!Vk->Features.synchronization2)
-	{
-		ImageLayoutTransition(Handle, Cmd, State, Dst, GetAspect());
-	}
-	else 
-	{
-		ImageLayoutTransition2(Handle, Cmd, State, Dst, GetAspect());
-	}
+		ImageLayoutTransition(Handle, curCmd, State, Dst, GetAspect());
+	else
+		ImageLayoutTransition2(Handle, curCmd, State, Dst, GetAspect());
 	State = Dst;
-	Cmd->AddDependency(shared_from_this());
+	State.PreviousCmd = curCmd;
+	curCmd->Callbacks.push_back([this, cmd=curCmd.get()] {
+		if (State.PreviousCmd.get() == cmd)
+			State.PreviousCmd = nullptr;
+	});
+	curCmd->AddDependency(shared_from_this());
 }
 
 void Image::Clear(rc<CommandBuffer> Cmd, VkClearColorValue value)
