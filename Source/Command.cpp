@@ -47,6 +47,9 @@ CommandBuffer::CommandBuffer(CommandPool* Pool, VkCommandBuffer Handle)
         return;
     }
 
+    FinishedSem = vk::Semaphore::New(GetDevice(), VK_SEMAPHORE_TYPE_TIMELINE);
+    SubmitCount = 1;
+
 	Clear();
 }
 
@@ -148,6 +151,7 @@ rc<CommandBuffer> CommandBuffer::Submit(VkResult* res)
     std::vector<uint64_t> WaitValues;
     std::vector<uint64_t> SignalValues;
 
+    SignalGroup[FinishedSem->Handle] = ++SubmitCount;
 
     Wait.reserve(WaitGroup.size());
     WaitValues.reserve(WaitGroup.size());

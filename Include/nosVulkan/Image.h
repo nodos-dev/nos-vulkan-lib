@@ -81,7 +81,7 @@ public:
     ImageState State = {}; // This is not thread safe.
     std::map<u64, rc<ImageView>> Views;
 
-    void Transition(rc<CommandBuffer> Cmd, ImageState Dst);
+    void Transition(rc<CommandBuffer> curCmd, ImageState Dst);
     void BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src, VkFilter Filter);
     void CopyFrom(rc<CommandBuffer> Cmd, rc<Image> Src);
     void ResolveFrom(rc<CommandBuffer> Cmd, rc<Image> Src);
