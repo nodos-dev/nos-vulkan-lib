@@ -6,6 +6,9 @@
 
 #include "Common.h"
 #include <atomic>
+
+#include "Semaphore.h"
+
 namespace nos::vk
 {
 
@@ -56,6 +59,8 @@ struct nosVulkan_API CommandBuffer : SharedFactory<CommandBuffer>,
     std::map<VkSemaphore, std::pair<uint64_t, VkPipelineStageFlags>> WaitGroup;
     std::map<VkSemaphore, uint64_t> SignalGroup;
     std::atomic<State> State = Initial;
+    rc<Semaphore> FinishedSem;
+    uint64_t SubmitCount = 0;
     bool IsFree();
 	bool Wait(uint64_t timeOutNs = 3000000000ull);
     VkResult WaitAndClear();

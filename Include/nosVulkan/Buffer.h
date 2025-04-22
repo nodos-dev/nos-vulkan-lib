@@ -14,6 +14,7 @@ struct BufferMemoryState
 	VkPipelineStageFlags2 StageMask;
 	VkAccessFlags2 AccessMask; // Assumes VkAccessFlagsBits same as 2
 	uint32_t QueueFamilyIndex = VK_QUEUE_FAMILY_EXTERNAL;
+	rc<CommandBuffer> PreviousCmd = nullptr;
 };
 
 struct nosVulkan_API BufferCreationInfos
@@ -64,7 +65,7 @@ public:
 
     void Upload(rc<CommandBuffer> Cmd, rc<Buffer> Buffer, const VkBufferCopy* Region = 0);
 
-	void Transition(rc<CommandBuffer> cmd, BufferMemoryState dst, VkDeviceSize offset, VkDeviceSize size);
+	void Transition(rc<CommandBuffer> curCmd, BufferMemoryState dst, VkDeviceSize offset, VkDeviceSize size);
 	uint32_t Alignment;
 	int ElementType;
 };

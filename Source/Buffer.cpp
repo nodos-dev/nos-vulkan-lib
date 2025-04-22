@@ -260,9 +260,14 @@ void Buffer::Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src, const VkBufferCopy* R
     Cmd->CopyBuffer(Src->Handle, this->Handle, 1, Region);
 }
 
-void Buffer::Transition(rc<CommandBuffer> cmd, BufferMemoryState dst, VkDeviceSize offset, VkDeviceSize size)
+void Buffer::Transition(rc<CommandBuffer> curCmd, BufferMemoryState dst, VkDeviceSize offset, VkDeviceSize size)
 {
-	dst.QueueFamilyIndex = cmd->Pool->PoolQueue->FamilyIndex;
+	dst.QueueFamilyIndex = curCmd->Pool->PoolQueue->FamilyIndex;
+	if (State.PreviousCmd && State.PreviousCmd->Pool->PoolQueue->FamilyIndex != dst.QueueFamilyIndex)
+	{
+		// Previous command buffer is in a different queue family. Add wait semaphore to current command buffer.
+		curCmd->WaitGroup[State.PreviousCmd->FinishedSem->Handle] = {State.PreviousCmd->SubmitCount, 0};
+	}
 	if (Vk->Features.synchronization2)
 	{
 		VkBufferMemoryBarrier2 barrier {
@@ -283,14 +288,19 @@ void Buffer::Transition(rc<CommandBuffer> cmd, BufferMemoryState dst, VkDeviceSi
 			.bufferMemoryBarrierCount = 1,
 			.pBufferMemoryBarriers = &barrier,
 		};
-		cmd->PipelineBarrier2(&depInfo);
+		curCmd->PipelineBarrier2(&depInfo);
 	}
 	else
 	{
 		GLog.E("BufferTransition: Memory barriers are currently only implemented for synchronization2!");
 	}
 	State = dst;
-	cmd->AddDependency(shared_from_this());
+	State.PreviousCmd = curCmd;
+	curCmd->Callbacks.push_back([this, cmd=curCmd.get()] {
+		if (State.PreviousCmd.get() == cmd)
+			State.PreviousCmd = nullptr;
+	});
+	curCmd->AddDependency(shared_from_this());
 }
 
 void Buffer::Copy(size_t len, const void* pp, size_t offset)
