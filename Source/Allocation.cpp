@@ -48,10 +48,10 @@ uint32_t Allocation::GetMemoryTypeIndex() const
 
 VkResult Allocation::Import(Device* device, std::variant<VkBuffer, VkImage> handle, vk::MemoryExportInfo const& imported, VkMemoryPropertyFlags memProps)
 {
-	OsHandle = imported.Handle;
 	auto dupHandle = GHandleImporter.DuplicateHandle(imported.PID, imported.Handle);
 	if (!dupHandle)
 		return VK_ERROR_INVALID_EXTERNAL_HANDLE;
+	OsHandle = *dupHandle;
 
 	VkMemoryRequirements requirements;
 	if (auto buf = std::get_if<VkBuffer>(&handle))
@@ -113,7 +113,7 @@ VkResult Allocation::Import(Device* device, std::variant<VkBuffer, VkImage> hand
 		.memoryTypeIndex = typeIndex,
 	};
 
-	VkDeviceMemory mem;
+	VkDeviceMemory mem{};
 	res = device->AllocateMemory(&info, 0, &mem);
 	if (NOS_VULKAN_FAILED(res))
 		return res;
@@ -136,7 +136,8 @@ VkResult Allocation::SetExternalMemoryHandleType(Device* device, uint32_t handle
 	ExternalMemoryHandleType = handleType;
 	if(Imported)
 	{
-		if(!device->MemoryBlocks.contains(Info.deviceMemory))
+		std::unique_lock lock(device->MemoryBlocksMutex);
+		if (!device->MemoryBlocks.contains(Info.deviceMemory))
 			device->MemoryBlocks[Info.deviceMemory] = NOS_HANDLE(OsHandle);
 		else
 			printf("Memory already has a handle\n");

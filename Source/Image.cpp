@@ -30,7 +30,11 @@ Image::~Image()
 	if (AllocationInfo)
 	{
 		if (AllocationInfo->Imported)
+		{
 			Vk->DestroyImage(Handle, 0);
+			Vk->OnMemoryFreed(AllocationInfo->GetMemory());
+			Vk->FreeMemory(AllocationInfo->GetMemory(), 0);
+		}
 		else if (AllocationInfo->Handle)
 			vmaDestroyImage(Vk->Allocator, Handle, AllocationInfo->Handle);
 	}
