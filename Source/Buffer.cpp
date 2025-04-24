@@ -332,9 +332,13 @@ Buffer::~Buffer()
 {
     if (AllocationInfo)
     {
-        if (AllocationInfo->Imported)
-		    Vk->DestroyBuffer(Handle, 0);
-	    else if (AllocationInfo->Handle)
+		if (AllocationInfo->Imported)
+		{
+			Vk->DestroyBuffer(Handle, 0);
+			Vk->OnMemoryFreed(AllocationInfo->GetMemory());
+			Vk->FreeMemory(AllocationInfo->GetMemory(), 0);
+		}
+		else if (AllocationInfo->Handle)
 		    vmaDestroyBuffer(Vk->Allocator, Handle, AllocationInfo->Handle);
     }
 }

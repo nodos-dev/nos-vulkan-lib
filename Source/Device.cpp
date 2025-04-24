@@ -272,6 +272,16 @@ void Device::PreAllocateTempMemoryPools()
     }
 }
 
+void Device::OnMemoryFreed(VkDeviceMemory memory)
+{
+	std::lock_guard lock(MemoryBlocksMutex);
+	if (auto it = MemoryBlocks.find(memory); it != MemoryBlocks.end())
+	{
+		GHandleImporter.CloseHandle(NOS_HANDLE(it->second));
+		MemoryBlocks.erase(it);
+	}
+}
+
 void Device::InitializeVMA()
 {
     VmaVulkanFunctions funcs {
@@ -294,17 +304,13 @@ void Device::InitializeVMA()
 			handleTypes[i] = 0;
 	}
 
-    VmaDeviceMemoryCallbacks deviceMemoryCallbacks = {
+	VmaDeviceMemoryCallbacks deviceMemoryCallbacks = {
 		.pfnFree = [](VmaAllocator allocator, uint32_t memoryType, VkDeviceMemory memory, VkDeviceSize size, void* pUserData) {
-            auto* Vk = reinterpret_cast<Device*>(pUserData);
-            std::lock_guard lock(Vk->MemoryBlocksMutex);
-			if (auto it = Vk->MemoryBlocks.find(memory); it != Vk->MemoryBlocks.end())
-			{
-			    GHandleImporter.CloseHandle(NOS_HANDLE(it->second));
-			    Vk->MemoryBlocks.erase(it);
-            }
-		}, 
-        .pUserData = this
+            GLog.E("VMAFree size: %ull", size);
+			auto* Vk = reinterpret_cast<Device*>(pUserData);
+			Vk->OnMemoryFreed(memory);
+		},
+		.pUserData = this
 	};
 
     VmaAllocatorCreateInfo createInfo = {
