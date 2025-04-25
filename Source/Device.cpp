@@ -300,7 +300,6 @@ void Device::InitializeVMA()
 
 	VmaDeviceMemoryCallbacks deviceMemoryCallbacks = {
 		.pfnFree = [](VmaAllocator allocator, uint32_t memoryType, VkDeviceMemory memory, VkDeviceSize size, void* pUserData) {
-            GLog.E("VMAFree size: %ull", size);
 			auto* Vk = reinterpret_cast<Device*>(pUserData);
 			Vk->OnMemoryFreed(memory);
 		},
