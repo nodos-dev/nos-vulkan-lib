@@ -12,11 +12,16 @@ namespace nos::vk
 
 struct nosVulkan_API Semaphore : SharedFactory<Semaphore>, DeviceChild
 {
+	struct ImportInfo
+	{
+		NOS_HANDLE OsHandle{};
+		u64 Pid = 0;
+	};
 	VkSemaphore Handle = VK_NULL_HANDLE;
 	VkSemaphoreType Type;
-    NOS_HANDLE OSHandle{}, ImportedHandle{};
-	u64 PID{};
-    Semaphore(Device *Vk, VkSemaphoreType type, bool shouldExport, u64 pid = 0, NOS_HANDLE OSHandle = 0);
+    NOS_HANDLE LocalSemaphoreOsHandle{}; // OS handle of the vulkan semaphore created
+	ImportInfo Imported{};
+	Semaphore(Device* Vk, VkSemaphoreType type, bool shouldExport, ImportInfo importInfo = {});
 
     void Signal(uint64_t value);
     VkResult Wait(uint64_t value, uint64_t timeoutNs = UINT64_MAX);
