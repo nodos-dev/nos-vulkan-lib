@@ -14,7 +14,7 @@ struct nosVulkan_API Semaphore : SharedFactory<Semaphore>, DeviceChild
 {
 	VkSemaphore Handle = VK_NULL_HANDLE;
 	VkSemaphoreType Type;
-	NOS_HANDLE OSHandle{};
+    NOS_HANDLE OSHandle{}, ImportedHandle{};
 	u64 PID{};
     Semaphore(Device *Vk, VkSemaphoreType type, bool shouldExport, u64 pid = 0, NOS_HANDLE OSHandle = 0);
 

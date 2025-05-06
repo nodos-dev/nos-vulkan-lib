@@ -88,12 +88,13 @@ Semaphore::Semaphore(Device* Vk, VkSemaphoreType type, bool shouldExport, u64 pi
 		NOS_ASSERT(importedHandle);
 		if (importedHandle)
 		{
+			ImportedHandle = *importedHandle;
 #if defined(_WIN32)
 			VkImportSemaphoreWin32HandleInfoKHR importInfo = {
 				.sType = VK_STRUCTURE_TYPE_IMPORT_SEMAPHORE_WIN32_HANDLE_INFO_KHR,
 				.semaphore = Handle,
 				.handleType = HANDLE_TYPE,
-				.handle = *importedHandle,
+				.handle = ImportedHandle,
 			};
 			NOSVK_ASSERT(Vk->ImportSemaphoreWin32HandleKHR(&importInfo));
 #elif defined(__linux__)
@@ -101,7 +102,7 @@ Semaphore::Semaphore(Device* Vk, VkSemaphoreType type, bool shouldExport, u64 pi
 				.sType = VK_STRUCTURE_TYPE_IMPORT_SEMAPHORE_FD_INFO_KHR,
 				.semaphore = Handle,
 				.handleType = HANDLE_TYPE,
-				.fd = int(*importedHandle),
+				.fd = int(ImportedHandle),
 			};
 			NOSVK_ASSERT(Vk->ImportSemaphoreFdKHR(&importInfo));
 #endif
@@ -177,6 +178,8 @@ Semaphore::~Semaphore()
 {
 	if (OSHandle)
         GHandleImporter.CloseHandle(OSHandle);
+	if (ImportedHandle)
+		GHandleImporter.CloseHandle(ImportedHandle);
     if (Handle != NOS_VULKAN_INVALID_HANDLE(VkSemaphore))
         Vk->DestroySemaphore(Handle, 0);
 }
