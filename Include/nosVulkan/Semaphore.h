@@ -16,7 +16,7 @@ struct nosVulkan_API Semaphore : SharedFactory<Semaphore>, DeviceChild
 	VkSemaphoreType Type;
 	NOS_HANDLE OSHandle{};
 	u64 PID{};
-    Semaphore(Device *Vk, VkSemaphoreType type, u64 pid = 0, NOS_HANDLE OSHandle = 0);
+    Semaphore(Device *Vk, VkSemaphoreType type, bool shouldExport, u64 pid = 0, NOS_HANDLE OSHandle = 0);
 
     void Signal(uint64_t value);
     VkResult Wait(uint64_t value, uint64_t timeoutNs = UINT64_MAX);
