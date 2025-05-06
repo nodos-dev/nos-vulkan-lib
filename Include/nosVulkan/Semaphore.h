@@ -14,9 +14,10 @@ struct nosVulkan_API Semaphore : SharedFactory<Semaphore>, DeviceChild
 {
 	VkSemaphore Handle = VK_NULL_HANDLE;
 	VkSemaphoreType Type;
-	NOS_HANDLE OSHandle{};
-	u64 PID{};
-    Semaphore(Device *Vk, VkSemaphoreType type, u64 pid = 0, NOS_HANDLE OSHandle = 0);
+	std::optional<NOS_HANDLE> OsHandle; // If an imported semaphore is exported, they are the same handle.
+	std::optional<u64> ImportedPid;
+    // TODO: Image/Buffer resource like creation that handles failures
+    Semaphore(Device* Vk, VkSemaphoreType type, bool shouldExport, std::optional<uint64_t> importedSourcePid = std::nullopt, std::optional<NOS_HANDLE> importOsHandle = std::nullopt);
 
     void Signal(uint64_t value);
     VkResult Wait(uint64_t value, uint64_t timeoutNs = UINT64_MAX);

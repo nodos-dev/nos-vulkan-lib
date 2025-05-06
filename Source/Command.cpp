@@ -47,7 +47,7 @@ CommandBuffer::CommandBuffer(CommandPool* Pool, VkCommandBuffer Handle)
         return;
     }
 
-    FinishedSem = vk::Semaphore::New(GetDevice(), VK_SEMAPHORE_TYPE_TIMELINE);
+    FinishedSem = vk::Semaphore::New(GetDevice(), VK_SEMAPHORE_TYPE_TIMELINE, false);
     SubmitCount = 1;
 
 	Clear();
