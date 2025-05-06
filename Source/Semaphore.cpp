@@ -39,7 +39,7 @@ void CheckOsStatsForSemaphoreCreationFailure(){
     }
 }
 #endif
-Semaphore::Semaphore(Device* Vk, VkSemaphoreType type, bool shouldExport, ImportInfo importInfo) 
+Semaphore::Semaphore(Device* Vk, VkSemaphoreType type, bool shouldExport, uint64_t importedSourcePid, NOS_HANDLE importOsHandle)
     : DeviceChild(Vk), Type(type)
 {
 #if defined(_WIN32)
@@ -82,20 +82,20 @@ Semaphore::Semaphore(Device* Vk, VkSemaphoreType type, bool shouldExport, Import
         return;
     }
     NOSVK_ASSERT(res);
-    if(importInfo.OsHandle)
+    if(importOsHandle)
     {
-		auto importedHandle = GHandleImporter.DuplicateHandle(importInfo.Pid, importInfo.OsHandle);
+		auto importedHandle = GHandleImporter.DuplicateHandle(importedSourcePid, importOsHandle);
 		NOS_ASSERT(importedHandle);
 		if (importedHandle)
 		{
-			Imported.OsHandle = *importedHandle;
-            Imported.Pid = importInfo.Pid;
+			OsHandle = *importedHandle;
+            ImportedPid = importedSourcePid;
 #if defined(_WIN32)
 			VkImportSemaphoreWin32HandleInfoKHR importInfo = {
 				.sType = VK_STRUCTURE_TYPE_IMPORT_SEMAPHORE_WIN32_HANDLE_INFO_KHR,
 				.semaphore = Handle,
 				.handleType = HANDLE_TYPE,
-				.handle = Imported.OsHandle,
+				.handle = *OsHandle,
 			};
 			NOSVK_ASSERT(Vk->ImportSemaphoreWin32HandleKHR(&importInfo));
 #elif defined(__linux__)
@@ -110,16 +110,17 @@ Semaphore::Semaphore(Device* Vk, VkSemaphoreType type, bool shouldExport, Import
 		}
         
     }
-    if (shouldExport){
+    if (!importOsHandle && shouldExport){
         #if defined(_WIN32)
             VkSemaphoreGetWin32HandleInfoKHR getHandleInfo = {
                 .sType = VK_STRUCTURE_TYPE_SEMAPHORE_GET_WIN32_HANDLE_INFO_KHR,
                 .semaphore = Handle,
                 .handleType = HANDLE_TYPE,
             };
-        
-            NOSVK_ASSERT(Vk->GetSemaphoreWin32HandleKHR(&getHandleInfo, &LocalSemaphoreOsHandle));
-            assert(LocalSemaphoreOsHandle);
+            NOS_HANDLE exportedOsHandle = {};
+            NOSVK_ASSERT(Vk->GetSemaphoreWin32HandleKHR(&getHandleInfo, &exportedOsHandle));
+            assert(exportedOsHandle);
+			OsHandle = exportedOsHandle;
         #elif defined(__linux__)
             VkSemaphoreGetFdInfoKHR getHandleInfo = {
                 .sType = VK_STRUCTURE_TYPE_SEMAPHORE_GET_FD_INFO_KHR,
@@ -173,10 +174,8 @@ u64 Semaphore::GetValue() const
 
 Semaphore::~Semaphore()
 {
-	if (LocalSemaphoreOsHandle)
-        GHandleImporter.CloseHandle(LocalSemaphoreOsHandle);
-	if (Imported.OsHandle)
-		GHandleImporter.CloseHandle(Imported.OsHandle);
+	if (OsHandle)
+        GHandleImporter.CloseHandle(*OsHandle);
     if (Handle != NOS_VULKAN_INVALID_HANDLE(VkSemaphore))
         Vk->DestroySemaphore(Handle, 0);
 }
