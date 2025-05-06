@@ -39,7 +39,7 @@ void CheckOsStatsForSemaphoreCreationFailure(){
     }
 }
 #endif
-Semaphore::Semaphore(Device* Vk, VkSemaphoreType type, bool shouldExport, uint64_t importedSourcePid, NOS_HANDLE importOsHandle)
+Semaphore::Semaphore(Device* Vk, VkSemaphoreType type, bool shouldExport, std::optional<uint64_t> importedSourcePid, std::optional<NOS_HANDLE> importOsHandle)
     : DeviceChild(Vk), Type(type)
 {
 #if defined(_WIN32)
@@ -84,7 +84,9 @@ Semaphore::Semaphore(Device* Vk, VkSemaphoreType type, bool shouldExport, uint64
     NOSVK_ASSERT(res);
     if(importOsHandle)
     {
-		auto importedHandle = GHandleImporter.DuplicateHandle(importedSourcePid, importOsHandle);
+        if(!importedSourcePid)
+			importedSourcePid = vk::PlatformGetCurrentProcessId();
+		auto importedHandle = GHandleImporter.DuplicateHandle(*importedSourcePid, *importOsHandle);
 		NOS_ASSERT(importedHandle);
 		if (importedHandle)
 		{
