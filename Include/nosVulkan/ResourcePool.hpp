@@ -218,7 +218,7 @@ struct ImageCreateRequestEquals
 	bool operator()(vk::ImageCreateRequest const& l, vk::ImageCreateRequest const& r) const
 	{
 		// Assumes this will be not called for imported images.
-		assert(l.Resource.ExternalMemory.index() != 0 && r.Resource.ExternalMemory.index() != 0);
+		assert(!l.Resource.GetImportInfo() && !r.Resource.GetImportInfo());
 		return l.Extent == r.Extent && l.Format == r.Format && l.Usage == r.Usage && l.Samples == r.
 			   Samples && l.Tiling == r.Tiling && l.Flags == r.Flags &&
 			   	l.Resource.GetExportHandleTypes() == r.Resource.GetExportHandleTypes() &&
@@ -241,6 +241,7 @@ struct BufferCreateRequestEquals
 {
 	bool operator()(vk::BufferCreateRequest const& l, vk::BufferCreateRequest const& r) const
 	{
+		assert(!l.Resource.GetImportInfo() && !r.Resource.GetImportInfo());
 		return l.Size == r.Size && l.MemProps == r.MemProps && l.Usage == r.Usage
 			&& l.Resource.GetExportHandleTypes() == r.Resource.GetExportHandleTypes() && l.Resource.Temporary == r.Resource.Temporary;
 	}
