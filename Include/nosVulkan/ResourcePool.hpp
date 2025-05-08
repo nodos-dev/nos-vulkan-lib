@@ -207,17 +207,22 @@ struct ImageCreateRequestHasher
 	size_t operator()(vk::ImageCreateRequest const& info) const
 	{
 		size_t result = 0;
-		hash_combine(result, info.Extent.width, info.Extent.height, info.Format, info.Usage, info.Samples, info.Tiling, info.Flags, info.ExternalMemoryHandleType, info.Temporary);
+		hash_combine(result, info.Extent.width, info.Extent.height, info.Format, info.Usage, info.Samples, info.Tiling, info.Flags,
+			info.Resource.GetExportHandleTypes(), info.Resource.Temporary);
 		return result;
 	}
 };
-
+	
 struct ImageCreateRequestEquals
 {
 	bool operator()(vk::ImageCreateRequest const& l, vk::ImageCreateRequest const& r) const
 	{
+		// Assumes this will be not called for imported images.
+		assert(l.Resource.ExternalMemory.index() != 0 && r.Resource.ExternalMemory.index() != 0);
 		return l.Extent == r.Extent && l.Format == r.Format && l.Usage == r.Usage && l.Samples == r.
-			   Samples && l.Tiling == r.Tiling && l.Flags == r.Flags && l.ExternalMemoryHandleType == r.ExternalMemoryHandleType && l.Temporary == r.Temporary;
+			   Samples && l.Tiling == r.Tiling && l.Flags == r.Flags &&
+			   	l.Resource.GetExportHandleTypes() == r.Resource.GetExportHandleTypes() &&
+			   	l.Resource.Temporary == r.Resource.Temporary;
 	}
 };
 
@@ -226,7 +231,8 @@ struct BufferCreateRequestHasher
 	size_t operator()(vk::BufferCreateRequest const& info) const
 	{
 		size_t result = 0;
-		hash_combine(result, info.Size, info.MemProps.Mapped, info.MemProps.VRAM, info.MemProps.Download, info.Usage, info.ExternalMemoryHandleType, info.Temporary);
+		hash_combine(result, info.Size, info.MemProps.Mapped, info.MemProps.VRAM, info.MemProps.Download, info.Usage,
+			info.Resource.GetExportHandleTypes(), info.Resource.Temporary);
 		return result;
 	}
 };
@@ -235,7 +241,8 @@ struct BufferCreateRequestEquals
 {
 	bool operator()(vk::BufferCreateRequest const& l, vk::BufferCreateRequest const& r) const
 	{
-		return l.Size == r.Size && l.MemProps == r.MemProps && l.Usage == r.Usage && l.ExternalMemoryHandleType == r.ExternalMemoryHandleType && l.Temporary == r.Temporary;
+		return l.Size == r.Size && l.MemProps == r.MemProps && l.Usage == r.Usage
+			&& l.Resource.GetExportHandleTypes() == r.Resource.GetExportHandleTypes() && l.Resource.Temporary == r.Resource.Temporary;
 	}
 };
 } // namespace detail

@@ -196,30 +196,48 @@ constexpr auto PLATFORM_EXTERNAL_MEMORY_HANDLE_TYPE = VK_EXTERNAL_MEMORY_HANDLE_
 constexpr auto PLATFORM_EXTERNAL_MEMORY_HANDLE_TYPE = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
 #endif
 
+struct ResourceCreateRequest
+{
+	bool Temporary = false;
+	std::variant<VkExternalMemoryHandleTypeFlags, MemoryExportInfo> ExternalMemory = (VkExternalMemoryHandleTypeFlags)PLATFORM_EXTERNAL_MEMORY_HANDLE_TYPE;
+	const MemoryExportInfo* GetImportInfo() const
+	{
+		return std::get_if<MemoryExportInfo>(&ExternalMemory);
+	}
+	bool IsImported() const
+	{
+		return GetImportInfo() != nullptr;
+	}
+	VkExternalMemoryHandleTypeFlags GetExportHandleTypes() const
+	{
+		if (auto ext = std::get_if<VkExternalMemoryHandleTypeFlags>(&ExternalMemory))
+			return *ext;
+		return 0;
+	}
+	bool ShouldExport() const
+	{
+		return GetExportHandleTypes() != 0;
+	}
+};
+
 struct BufferCreateRequest
 {
+	ResourceCreateRequest Resource;
     u64 Size = 0;
     VkBufferUsageFlags Usage;
 	MemoryProperties MemProps;
-    uint32_t ExternalMemoryHandleType = PLATFORM_EXTERNAL_MEMORY_HANDLE_TYPE;
-	bool Temporary = false;
-	
-    const MemoryExportInfo* Imported = 0;
 	int ElementType = 0;
 };
 
 struct ImageCreateRequest
 {
+	ResourceCreateRequest Resource;
     VkExtent2D Extent;
     VkFormat Format;
     VkImageUsageFlags Usage;
     VkSampleCountFlagBits Samples = VK_SAMPLE_COUNT_1_BIT;
     VkImageTiling Tiling = VK_IMAGE_TILING_OPTIMAL;
     VkImageCreateFlags Flags = VK_IMAGE_CREATE_ALIAS_BIT;
-    uint32_t ExternalMemoryHandleType = PLATFORM_EXTERNAL_MEMORY_HANDLE_TYPE;
-	bool Temporary = false;
-	
-    const MemoryExportInfo* Imported = 0;
 };
 
 struct nosVulkan_API SVType

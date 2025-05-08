@@ -31,7 +31,7 @@ struct nosVulkan_API BufferCreationInfos
 	BufferCreationInfos& operator=(const BufferCreationInfos&) = delete;
 };
 
-Result<BufferCreationInfos> nosVulkan_API CalculateBufferCreationInfos(vk::Device* device, BufferCreateRequest const& info);
+Result<BufferCreationInfos> nosVulkan_API CalculateBufferCreationInfos(vk::Device* device, BufferCreateRequest const& request);
 
 BufferCreateRequest nosVulkan_API GetBufferCreateRequestForTempUploadBuffer(uint64_t size);
 
@@ -40,7 +40,7 @@ struct nosVulkan_API Buffer : SharedFactory<Buffer>, ResourceBase<VkBuffer>
 protected:
     Buffer(Device* device, VkBuffer buffer, VkBufferUsageFlags usage, uint32_t alignment, int elementType, std::optional<Allocation> alloc, VkDeviceSize size);
 public:
-	static Result<rc<Buffer>> Create(Device* device, BufferCreateRequest const& info, VkResult* outVkRes = nullptr);
+	static Result<rc<Buffer>> Create(Device* device, BufferCreateRequest const& request, VkResult* outVkRes = nullptr);
 	static rc<Buffer> FromExisting(Device* device, VkBuffer buffer, VkBufferUsageFlags usage, uint32_t alignment, int elementType, std::optional<Allocation> alloc, VkDeviceSize size);
 	static Result<BufferCreateRequest> TryGetRelaxedSuitableCreateRequest(Device* Vk, BufferCreateRequest const& info);
 	static Result<rc<Buffer>> CreateRelaxed(Device* Vk, BufferCreateRequest const& createInfo, VkResult* vkRes = nullptr);
