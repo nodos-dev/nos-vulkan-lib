@@ -22,20 +22,26 @@ BufferCreationInfos::BufferCreationInfos(BufferCreationInfos&& o) noexcept
 
 BufferCreateRequest GetBufferCreateRequestForTempUploadBuffer(uint64_t size)
 {
-	return vk::BufferCreateRequest{
+	return vk::BufferCreateRequest {
+		.Resource = {
+			.Temporary = true,
+			.ExternalMemory = VkExternalMemoryHandleTypeFlags(0),
+		},
 		.Size = size,
 		.Usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 		.MemProps = {.Mapped = true, .VRAM = false, .Download = false,},
-		.ExternalMemoryHandleType = 0,
-		.Temporary = true
 	};
 }
 
-Result<BufferCreationInfos> CalculateBufferCreationInfos(vk::Device* device, BufferCreateRequest const& info)
+Result<BufferCreationInfos> CalculateBufferCreationInfos(vk::Device* device, BufferCreateRequest const& request)
 {
 	BufferCreationInfos ret;
-	auto& extMemHandleType = (ret.ExtMemHandleType = info.ExternalMemoryHandleType);
-	auto requestedMemProps = info.MemProps;
+	uint32_t extMemHandleType = 0;
+	if (auto importInfo = request.Resource.GetImportInfo())
+		extMemHandleType = importInfo->HandleType;
+	else if (request.Resource.GetExportHandleTypes())
+		extMemHandleType = request.Resource.GetExportHandleTypes();
+	auto requestedMemProps = request.MemProps;
 	auto& extMemCreateInfo = ret.ExtMemCreateInfo;
 	auto& bufferCreateInfo = ret.BufCreateInfo;
 	auto& allocCreateInfo = ret.AllocCreateInfo;
@@ -48,8 +54,8 @@ Result<BufferCreationInfos> CalculateBufferCreationInfos(vk::Device* device, Buf
 	bufferCreateInfo = {
 		.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
 		.pNext = extMemHandleType ? &extMemCreateInfo : nullptr,
-		.size = info.Size,
-		.usage = info.Usage,
+		.size = request.Size,
+		.usage = request.Usage,
 		.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
 	};
 
@@ -62,7 +68,7 @@ Result<BufferCreationInfos> CalculateBufferCreationInfos(vk::Device* device, Buf
 	if (requestedMemProps.Mapped)
 		memProps |= VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
 
-	if (info.Imported)
+	if (request.Resource.IsImported())
 		return ret;
 	allocCreateInfo = {
 		.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
@@ -89,7 +95,7 @@ Result<BufferCreationInfos> CalculateBufferCreationInfos(vk::Device* device, Buf
 }
 
 
-Result<rc<Buffer>> Buffer::Create(Device* device, BufferCreateRequest const& info, VkResult* outVkRes)
+Result<rc<Buffer>> Buffer::Create(Device* device, BufferCreateRequest const& request, VkResult* outVkRes)
 {
 	VkResult res{};
 	if (!outVkRes)
@@ -98,15 +104,15 @@ Result<rc<Buffer>> Buffer::Create(Device* device, BufferCreateRequest const& inf
 	*outVkRes = VK_SUCCESS;
 
 	auto allocationInfo = vk::Allocation{};
-	auto bcInfosRes = CalculateBufferCreationInfos(device, info);
+	auto bcInfosRes = CalculateBufferCreationInfos(device, request);
 	if (auto* err = bcInfosRes.Error())
 		return std::move(*err);
 	
 	auto& bcInfos = *bcInfosRes.Get();
-	allocationInfo.MemProps = info.MemProps;
+	allocationInfo.MemProps = request.MemProps;
 
 	VkBuffer handle{};
-	if (auto* imported = info.Imported)
+	if (auto* imported = request.Resource.GetImportInfo())
 	{
 		if (NOS_VULKAN_FAILED(*outVkRes = device->CreateBuffer(&bcInfos.BufCreateInfo, 0, &handle)))
 		{
@@ -120,13 +126,13 @@ Result<rc<Buffer>> Buffer::Create(Device* device, BufferCreateRequest const& inf
 	}
 	else
 	{
-		if (bcInfos.MemoryTypeIndex != UINT32_MAX && info.Temporary && info.Size < vk::Device::TEMP_MEMORY_POOL_BLOCK_SIZE)
+		if (bcInfos.MemoryTypeIndex != UINT32_MAX && request.Resource.Temporary && request.Size < vk::Device::TEMP_MEMORY_POOL_BLOCK_SIZE)
 		{
 			auto it = device->TempMemoryPools.find(bcInfos.MemoryTypeIndex);
 			if (it != device->TempMemoryPools.end())
 				bcInfos.AllocCreateInfo.pool = it->second;
 		}
-		if (NOS_VULKAN_FAILED(*outVkRes = vmaCreateBufferWithAlignment(device->Allocator, &bcInfos.BufCreateInfo, &bcInfos.AllocCreateInfo, info.MemProps.Alignment, &handle, &allocationInfo.Handle, &allocationInfo.Info)))
+		if (NOS_VULKAN_FAILED(*outVkRes = vmaCreateBufferWithAlignment(device->Allocator, &bcInfos.BufCreateInfo, &bcInfos.AllocCreateInfo, request.MemProps.Alignment, &handle, &allocationInfo.Handle, &allocationInfo.Info)))
 		{
 			if (handle)
 				device->DestroyBuffer(handle, 0);
@@ -140,15 +146,15 @@ Result<rc<Buffer>> Buffer::Create(Device* device, BufferCreateRequest const& inf
 	assert(memReq.size == allocationInfo.GetSize());
 #endif
 
-	if (bcInfos.ExtMemHandleType || info.Imported)
-		if (NOS_VULKAN_FAILED(*outVkRes = allocationInfo.SetExternalMemoryHandleType(device, info.ExternalMemoryHandleType)))
+	if (bcInfos.ExtMemHandleType)
+		if (NOS_VULKAN_FAILED(*outVkRes = allocationInfo.SetExternalMemoryHandleType(device, bcInfos.ExtMemHandleType)))
 		{
-			assert(!info.Imported);
+			assert(!request.Resource.IsImported());
 			device->DestroyBuffer(handle, 0);
 			return "Error while setting external memory handle type.";
 		}
 
-	return FromExisting(device, handle, info.Usage, info.MemProps.Alignment, info.ElementType, std::move(allocationInfo), info.Size);
+	return FromExisting(device, handle, request.Usage, request.MemProps.Alignment, request.ElementType, std::move(allocationInfo), request.Size);
 }
 
 Buffer::Buffer(Device* device, VkBuffer buffer, VkBufferUsageFlags usage, uint32_t alignment, int elementType, std::optional<Allocation> alloc, VkDeviceSize size)
@@ -177,12 +183,12 @@ Result<BufferCreateRequest> Buffer::TryGetRelaxedSuitableCreateRequest(Device* V
 
 	if (auto res = CalculateBufferCreationInfos(Vk, request); auto err = res.Error())
 	{
-		if (request.Imported)
+		if (request.Resource.IsImported())
 			return *err;
-		if (!request.ExternalMemoryHandleType)
+		if (!request.Resource.ShouldExport())
 			return *err;
 		GLog.W("CreateBuffer: Failed to calculate buffer creation info(%s), trying without exporting memory.", err->c_str());
-		request.ExternalMemoryHandleType = 0;
+		request.Resource.ExternalMemory = VkExternalMemoryHandleTypeFlags(0);
 		if (auto res = CalculateBufferCreationInfos(Vk, request); auto err = res.Error())
 			return *err;
 	}

@@ -23,11 +23,13 @@ rc<Buffer> Basepass::CreateUniformSizedBuffer()
 {
 	// TODO: Use the resource pool for uniform buffers
 	auto bufRes = Buffer::CreateRelaxed(Vk, vk::BufferCreateRequest{
+		.Resource = {
+			.ExternalMemory = VkExternalMemoryHandleTypeFlags(0),
+		},
 		.Size = PL->Layout->UniformSize,
 		.Usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-		.MemProps = {.Mapped = true, .Download = false},
-		.ExternalMemoryHandleType = 0
-		});
+		.MemProps = {.Mapped = true, .Download = false}
+	});
     if(auto err = bufRes.Error())
 	{
 		GLog.E("Basepass::CreateUniformSizedBuffer: Failed to create buffer: %s", err->c_str());
@@ -38,11 +40,13 @@ rc<Buffer> Basepass::CreateUniformSizedBuffer()
 
 rc<Buffer> Basepass::CreateStorageBuffer(u64 size) {
 	auto bufRes = Buffer::CreateRelaxed(Vk, vk::BufferCreateRequest{
+		.Resource = {
+			.ExternalMemory = VkExternalMemoryHandleTypeFlags(0),
+		},
 		.Size = size,
 		.Usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-		.MemProps = {.Mapped = true, .Download = false},
-		.ExternalMemoryHandleType = 0
-		});
+		.MemProps = {.Mapped = true, .Download = false}
+	});
 	if (auto err = bufRes.Error())
 	{
 		GLog.E("Basepass::CreateStorageBuffer: Failed to create buffer: %s", err->c_str());
@@ -235,12 +239,15 @@ std::optional<std::string> Renderpass::Begin(rc<CommandBuffer> cmd, const BeginP
 	rc<Image> localMsBuffer = nullptr;
     if(PL->MS > 1)
     {
-        auto relaxedRequest = Image::TryGetRelaxedSuitableCreateRequest(Vk, ImageCreateRequest{
-                                       .Extent = info.OutImage->GetEffectiveExtent(),
-                                       .Format = info.OutImage->GetEffectiveFormat(),
-                                       .Usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-                                       .Samples = (VkSampleCountFlagBits)PL->MS,
-                                       .ExternalMemoryHandleType = 0 });
+		auto relaxedRequest = Image::TryGetRelaxedSuitableCreateRequest(Vk, ImageCreateRequest{
+			.Resource = {
+				.ExternalMemory = VkExternalMemoryHandleTypeFlags(0),
+			},
+			.Extent = info.OutImage->GetEffectiveExtent(),
+			.Format = info.OutImage->GetEffectiveFormat(),
+			.Usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+			.Samples = (VkSampleCountFlagBits)PL->MS
+		});
 		if (auto err = relaxedRequest.Error())
 			return "Failed to create temporary multisample resource: " + *err;
         auto result = GetDevice()->ResourcePools.Image->Get(*relaxedRequest.Get(), "Temporary Multisample Resource");

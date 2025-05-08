@@ -91,19 +91,23 @@ ImageCreationInfos::ImageCreationInfos(ImageCreationInfos&& o) noexcept
 Result<ImageCreationInfos> CalculateImageCreationInfos(vk::Device* device, ImageCreateRequest const& request)
 {
 	ImageCreationInfos ret;
-	auto& extMemHandleType = (ret.ExtMemHandleType = request.ExternalMemoryHandleType);
+	uint32_t extMemHandleType = 0;
+	if (auto importInfo = request.Resource.GetImportInfo())
+		extMemHandleType = importInfo->HandleType;
+	else if (request.Resource.GetExportHandleTypes())
+		extMemHandleType = request.Resource.GetExportHandleTypes();
 	auto& extMemCreateInfo = ret.ExtMemCreateInfo;
 	auto& imageCreateInfo = ret.ImgCreateInfo;
 	auto& allocCreateInfo = ret.AllocCreateInfo;
 
-	VkPhysicalDeviceExternalImageFormatInfo externalimageFormatInfo = {
-	.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_IMAGE_FORMAT_INFO,
-	.handleType = VkExternalMemoryHandleTypeFlagBits(extMemHandleType),
+	VkPhysicalDeviceExternalImageFormatInfo extImageFormatInfo = {
+		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_IMAGE_FORMAT_INFO,
+		.handleType = VkExternalMemoryHandleTypeFlagBits(extMemHandleType),
 	};
 
 	VkPhysicalDeviceImageFormatInfo2 formatInfo = {
 		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_FORMAT_INFO_2,
-		.pNext = extMemHandleType ? &externalimageFormatInfo : nullptr,
+		.pNext = extMemHandleType ? &extImageFormatInfo : nullptr,
 		.format = GetEffectiveFormat(request.Format),
 		.type = GetImageType(),
 		.tiling = request.Tiling,
@@ -118,7 +122,7 @@ Result<ImageCreationInfos> CalculateImageCreationInfos(vk::Device* device, Image
 	VkImageFormatProperties2 props
 	{
 		.sType = VK_STRUCTURE_TYPE_IMAGE_FORMAT_PROPERTIES_2,
-		.pNext = request.ExternalMemoryHandleType ? &extProps : nullptr,
+		.pNext = extMemHandleType ? &extProps : nullptr,
 	};
 
 	auto res = vkGetPhysicalDeviceImageFormatProperties2(device->PhysicalDevice, &formatInfo, &props);
@@ -127,7 +131,7 @@ Result<ImageCreationInfos> CalculateImageCreationInfos(vk::Device* device, Image
 
 	if (extMemHandleType)
 	{
-		if (request.Imported)
+		if (request.Resource.IsImported())
 		{
 			if(!(extProps.externalMemoryProperties.externalMemoryFeatures & VK_EXTERNAL_MEMORY_FEATURE_IMPORTABLE_BIT))
 				return "External memory not importable.";
@@ -163,7 +167,7 @@ Result<ImageCreationInfos> CalculateImageCreationInfos(vk::Device* device, Image
 
 	ret.MemProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
-	if (auto* imported = request.Imported)
+	if (request.Resource.IsImported())
 	{
 		imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_PREINITIALIZED;
 		return ret;
@@ -187,12 +191,14 @@ Result<ImageCreationInfos> CalculateImageCreationInfos(vk::Device* device, Image
 ImageCreateRequest GetTempImageCreateRequest(VkExtent2D extent, VkFormat format)
 {
 	return {
+		.Resource = {
+			.Temporary = true,
+			.ExternalMemory = VkExternalMemoryHandleTypeFlags(0),
+		},
 		.Extent = {extent.width, extent.height},
 		.Format = (VkFormat)format,
-		.Usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT |
-		VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-		.ExternalMemoryHandleType = 0,
-		.Temporary = true
+		.Usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | 
+			VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
 	};
 }
 
@@ -591,7 +597,7 @@ Result<rc<Image>> Image::Create(Device* Vk, ImageCreateRequest const& createInfo
 	auto allocationInfo = vk::Allocation{};
 
 	VkImage handle{};
-	if (auto* imported = createInfo.Imported)
+	if (auto* imported = createInfo.Resource.GetImportInfo())
 	{
 		if(NOS_VULKAN_FAILED(*outVkRes = Vk->CreateImage(&icInfos.ImgCreateInfo, 0, &handle)))
 			return "Error while creating imported image.";
@@ -603,7 +609,7 @@ Result<rc<Image>> Image::Create(Device* Vk, ImageCreateRequest const& createInfo
 	}
 	else // Exported
 	{
-		if (icInfos.MemoryTypeIndex != UINT32_MAX && createInfo.Temporary)
+		if (icInfos.MemoryTypeIndex != UINT32_MAX && createInfo.Resource.Temporary)
 		{
 			auto it = Vk->TempMemoryPools.find(icInfos.MemoryTypeIndex);
 			if (it != Vk->TempMemoryPools.end())
@@ -626,7 +632,7 @@ Result<rc<Image>> Image::Create(Device* Vk, ImageCreateRequest const& createInfo
 	if (icInfos.ExtMemHandleType)
 		if (NOS_VULKAN_FAILED(*outVkRes = allocationInfo.SetExternalMemoryHandleType(Vk, icInfos.ExtMemHandleType)))
 		{
-			assert(!createInfo.Imported);
+			assert(!createInfo.Resource.GetImportInfo());
 			Vk->DestroyImage(handle, 0);
 			return "Error while setting external memory handle type.";
 		}
@@ -687,12 +693,12 @@ Result<ImageCreateRequest> Image::TryGetRelaxedSuitableCreateRequest(Device* Vk,
 
 	if (auto res = CalculateImageCreationInfos(Vk, request); auto err = res.Error())
 	{
-		if(request.Imported)
+		if(request.Resource.GetImportInfo())
 			return *err;
-		if(!request.ExternalMemoryHandleType)
+		if(!request.Resource.GetExportHandleTypes())
 			return *err;
 		GLog.W("CreateImage: Failed to calculate image creation info(%s), trying without exporting memory.", err->c_str());
-		request.ExternalMemoryHandleType = 0;
+		request.Resource.ExternalMemory = VkExternalMemoryHandleTypeFlags(0);
 		if (auto res = CalculateImageCreationInfos(Vk, request); auto err = res.Error())
 			return *err;
 	}

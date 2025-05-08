@@ -18,10 +18,12 @@ static f64 GetPeriod(Device* Vk)
 }
 
 QueryPool::QueryPool(Device* Vk) : DeviceChild(Vk), Results(*Buffer::Create(Vk, BufferCreateRequest {
+		.Resource = {
+			.ExternalMemory = VkExternalMemoryHandleTypeFlags(0),
+		},
         .Size = (1<<16)*8,
         .Usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT,
         .MemProps = { .Mapped = true, .Download = true },
-		.ExternalMemoryHandleType = 0
     }).Get()), Period(GetPeriod(Vk)), Queries(1<<16)
 {
     VkQueryPoolCreateInfo info = {
