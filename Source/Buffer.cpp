@@ -36,11 +36,9 @@ BufferCreateRequest GetBufferCreateRequestForTempUploadBuffer(uint64_t size)
 Result<BufferCreationInfos> CalculateBufferCreationInfos(vk::Device* device, BufferCreateRequest const& request)
 {
 	BufferCreationInfos ret;
-	uint32_t extMemHandleType = 0;
+	uint32_t extMemHandleType = request.Resource.GetExportHandleTypes();
 	if (auto importInfo = request.Resource.GetImportInfo())
 		extMemHandleType = importInfo->HandleType;
-	else if (request.Resource.GetExportHandleTypes())
-		extMemHandleType = request.Resource.GetExportHandleTypes();
 	auto requestedMemProps = request.MemProps;
 	auto& extMemCreateInfo = ret.ExtMemCreateInfo;
 	auto& bufferCreateInfo = ret.BufCreateInfo;

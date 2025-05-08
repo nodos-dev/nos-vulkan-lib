@@ -91,11 +91,9 @@ ImageCreationInfos::ImageCreationInfos(ImageCreationInfos&& o) noexcept
 Result<ImageCreationInfos> CalculateImageCreationInfos(vk::Device* device, ImageCreateRequest const& request)
 {
 	ImageCreationInfos ret;
-	uint32_t extMemHandleType = 0;
+	uint32_t extMemHandleType = request.Resource.GetExportHandleTypes();
 	if (auto importInfo = request.Resource.GetImportInfo())
 		extMemHandleType = importInfo->HandleType;
-	else if (request.Resource.GetExportHandleTypes())
-		extMemHandleType = request.Resource.GetExportHandleTypes();
 	auto& extMemCreateInfo = ret.ExtMemCreateInfo;
 	auto& imageCreateInfo = ret.ImgCreateInfo;
 	auto& allocCreateInfo = ret.AllocCreateInfo;
