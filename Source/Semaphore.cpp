@@ -105,7 +105,7 @@ Semaphore::Semaphore(Device* Vk, VkSemaphoreType type, bool shouldExport, std::o
 				.sType = VK_STRUCTURE_TYPE_IMPORT_SEMAPHORE_FD_INFO_KHR,
 				.semaphore = Handle,
 				.handleType = HANDLE_TYPE,
-				.fd = int(Imported.OsHandle),
+				.fd = int(*OsHandle),
 			};
 			NOSVK_ASSERT(Vk->ImportSemaphoreFdKHR(&importInfo));
 #endif
@@ -132,7 +132,7 @@ Semaphore::Semaphore(Device* Vk, VkSemaphoreType type, bool shouldExport, std::o
         
             int fd = 0;
             NOSVK_ASSERT(Vk->GetSemaphoreFdKHR(&getHandleInfo, &fd));
-            OSHandle = NOS_HANDLE(fd);
+            OsHandle = NOS_HANDLE(fd);
         #endif
     }
 }
