@@ -137,6 +137,7 @@ struct nosVulkan_API Renderpass : SharedFactory<Renderpass>, Basepass
 		bool Clear = true;
 		u64 FrameNumber = 0;
 		std::array<float, 4> ClearCol = {0.0f};
+		VkCullModeFlagBits CullMode = VK_CULL_MODE_BACK_BIT;
     };
 
     rc<GraphicsPipeline> GetPL() const { return ((GraphicsPipeline*)PL.get())->shared_from_this(); }

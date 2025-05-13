@@ -376,13 +376,14 @@ std::optional<std::string> Renderpass::Begin(rc<CommandBuffer> cmd, const BeginP
             .pColorAttachments = &Attachment,
             .pDepthAttachment = optionalDepthBuffer ? &DepthAttachment : nullptr,
         };
-
         cmd->BeginRendering(&renderInfo);
     }
 
     auto& handle = PL->Handles[img->GetEffectiveFormat()];
     cmd->BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, info.Wireframe ? handle.wpl : handle.pl);
     cmd->AddDependency(shared_from_this());
+	if (Vk->Features.dynamicRendering)
+		cmd->SetCullMode(info.CullMode);
 	
     struct Constants
 	{
