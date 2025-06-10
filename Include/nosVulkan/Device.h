@@ -384,7 +384,7 @@ struct nosVulkan_API Context : SharedFactory<Context>
 
     ~Context();
 	Context(DebugCallback* = 0, const char* CacheFolder = nullptr, bool enableValidationLayer = false);
-	void OrderDevices(std::vector<VkPhysicalDevice>& PhysicalDevices);
+	void OrderAndFilterDevices(std::vector<VkPhysicalDevice>& PhysicalDevices);
 	static void EnableValidationLayers(bool enable);
 };
 } // namespace nos::vk
