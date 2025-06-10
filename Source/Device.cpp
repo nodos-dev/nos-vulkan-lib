@@ -186,7 +186,7 @@ bool Device::CheckSupport(VkPhysicalDevice PhysicalDevice)
 
     //TODO: add mechanism to fallback into non-dynamic pipeline 
     // when no device suitable for vulkan 1.3 extensions is found 
-    supported = true;
+    //supported = true;
 
     return supported;
 }
@@ -528,8 +528,19 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, const nos::
     Devices.insert(this);
 }
 
-void Context::OrderDevices(std::vector<VkPhysicalDevice>& PhysicalDevices)
+void Context::OrderAndFilterDevices(std::vector<VkPhysicalDevice>& PhysicalDevices)
 {
+	for (auto it = PhysicalDevices.begin(); it != PhysicalDevices.end();)
+	{
+		GLog.I("Checking device %s for support", GetName(*it).c_str());
+		if (Device::CheckSupport(*it))
+			++it;
+		else
+		{
+			GLog.W("Device %s does not support required features, skipping", GetName(*it).c_str());
+			it = PhysicalDevices.erase(it);
+		}
+	}
     //TODO: Order devices in order to best device to work on is in the first index (Devices[0])
 	std::sort(PhysicalDevices.begin(), PhysicalDevices.end(), [](auto a, auto b) {
         VkPhysicalDeviceProperties props[2] = {};
@@ -668,7 +679,7 @@ Context::Context(DebugCallback* debugCallback, const char* cacheFolder, bool ena
 	}
 
     // Detect the proper Vulkan instance version with most capable Vulkan device
-	OrderDevices(pDevices);
+	OrderAndFilterDevices(pDevices);
 	{
 		VkPhysicalDeviceProperties props;
 		vkGetPhysicalDeviceProperties(pDevices[0], &props);
@@ -688,7 +699,7 @@ Context::Context(DebugCallback* debugCallback, const char* cacheFolder, bool ena
     if (Instance == NOS_VULKAN_INVALID_HANDLE(VkInstance))
         return;
 
-	OrderDevices(pDevices);
+	OrderAndFilterDevices(pDevices);
 
 
     if(!debugCallback)
