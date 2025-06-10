@@ -556,7 +556,7 @@ void Context::OrderAndFilterDevices(std::vector<VkPhysicalDevice>& PhysicalDevic
 					   (VK_API_VERSION_MAJOR(props[1].apiVersion) == VK_API_VERSION_MAJOR(MAX_API_VERSION_USED));
 			// Prefer the GPU with bigger minor version
 			if (VK_API_VERSION_MINOR(props[0].apiVersion) != VK_API_VERSION_MINOR(props[1].apiVersion))
-				return VK_API_VERSION_MINOR(props[0].apiVersion) < VK_API_VERSION_MINOR(props[1].apiVersion);
+				return VK_API_VERSION_MINOR(props[0].apiVersion) > VK_API_VERSION_MINOR(props[1].apiVersion);
 			return false;
 		}
         return
