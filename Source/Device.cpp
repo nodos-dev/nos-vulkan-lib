@@ -672,14 +672,16 @@ Context::Context(DebugCallback* debugCallback, const char* cacheFolder, bool ena
 	if (Instance == NOS_VULKAN_INVALID_HANDLE(VkInstance))
 		return;
 
-	if (pDevices.size() == 0)
-	{
-		GLog.E("No Vulkan devices found\n");
-		return;
-	}
 
     // Detect the proper Vulkan instance version with most capable Vulkan device
 	OrderAndFilterDevices(pDevices);
+
+	if (pDevices.size() == 0)
+	{
+		GLog.E("No suitable Vulkan devices found\n");
+		return;
+	}
+
 	{
 		VkPhysicalDeviceProperties props;
 		vkGetPhysicalDeviceProperties(pDevices[0], &props);
