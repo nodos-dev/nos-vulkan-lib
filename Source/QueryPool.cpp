@@ -17,14 +17,7 @@ static f64 GetPeriod(Device* Vk)
     return props.limits.timestampPeriod;
 }
 
-QueryPool::QueryPool(Device* Vk) : DeviceChild(Vk), Results(*Buffer::Create(Vk, BufferCreateRequest {
-		.Resource = {
-			.ExternalMemory = VkExternalMemoryHandleTypeFlags(0),
-		},
-        .Size = (1<<16)*8,
-        .Usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-        .MemProps = { .Mapped = true, .Download = true },
-    }).Get()), Period(GetPeriod(Vk)), Queries(1<<16)
+QueryPool::QueryPool(Device* Vk) : DeviceChild(Vk), Period(GetPeriod(Vk)), Queries(1<<16)
 {
     VkQueryPoolCreateInfo info = {
         .sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO,
@@ -53,18 +46,28 @@ std::optional<std::chrono::nanoseconds> QueryPool::PerfEnd(uint64_t key, Command
 	auto endQuery = Queries++;
 	auto beginQuery = BeginQueryIdx[key];
 	cmd->WriteTimestamp(VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, Handle, endQuery);
-	cmd->CopyQueryPoolResults(Handle, beginQuery, 1, Results->Handle, beginQuery * 8, 8, VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT);
-	cmd->CopyQueryPoolResults(Handle, endQuery, 1, Results->Handle, endQuery * 8, 8, VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT);
-	cmd->ResetQueryPool(Handle, beginQuery, 1);
-	cmd->ResetQueryPool(Handle, endQuery, 1);
 	cmd->Callbacks.push_back([this, beginQuery, endQuery, key, callbackFunc = std::move(callbackFunc)] {
-		u64* ptr = (u64*)Results->Map();
-		u64 start = u64(ptr[beginQuery]) * Period + 0.5;
-		u64 end = u64(ptr[endQuery]) * Period + 0.5;
-		QueryResult result = { .Timestamp = start, .Duration = end - start };
-		ReadyQueries[key].push_back(std::chrono::nanoseconds(end-start));
-		ptr[endQuery] = 0;
-		ptr[beginQuery] = 0;
+		uint64_t beginTimestamp = 0, endTimestamp = 0;
+		Vk->GetQueryPoolResults(Handle,
+								beginQuery,
+								1,
+								sizeof(beginTimestamp),
+								&beginTimestamp,
+								8,
+								VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT);
+		Vk->GetQueryPoolResults(Handle,
+								endQuery,
+								1,
+								sizeof(endTimestamp),
+								&endTimestamp,
+								8,
+								VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT);
+		Vk->ResetQueryPool(Handle, beginQuery, 1);
+		Vk->ResetQueryPool(Handle, endQuery, 1);
+		u64 start = u64(beginTimestamp) * Period + 0.5;
+		u64 end = u64(endTimestamp) * Period + 0.5;
+		QueryResult result = {.Timestamp = start, .Duration = end - start};
+		ReadyQueries[key].push_back(std::chrono::nanoseconds(end - start));
 		if (callbackFunc)
 			callbackFunc(result);
 	});
