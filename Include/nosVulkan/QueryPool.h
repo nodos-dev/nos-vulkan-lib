@@ -20,7 +20,6 @@ struct nosVulkan_API QueryPool: SharedFactory<QueryPool>, DeviceChild
 {
     VkQueryPool Handle = 0;
     CircularIndex<uint32_t> Queries;
-    rc<Buffer> Results;
     const f64 Period = 1;
     std::unordered_map<uint64_t, std::vector<std::chrono::nanoseconds>> ReadyQueries;
     
