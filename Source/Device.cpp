@@ -597,6 +597,9 @@ Device::~Device()
     {
         vmaDestroyPool(Allocator, pool);
     }
+    MainQueue = nullptr;
+	TransferQueue = nullptr;
+    Globals.clear();
     vmaDestroyAllocator(Allocator);
     DestroyDevice(0);
 }
