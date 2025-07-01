@@ -145,7 +145,7 @@ struct ImageState
     VkAccessFlags2 AccessMask;
     VkImageLayout Layout;
 	uint32_t QueueFamilyIndex = VK_QUEUE_FAMILY_EXTERNAL;
-	rc<CommandBuffer> PreviousCmd = nullptr;
+	std::weak_ptr<CommandBuffer> PreviousCmd;
 };
 
 union DescriptorResourceInfo {

@@ -267,10 +267,10 @@ void Buffer::Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src, const VkBufferCopy* R
 void Buffer::Transition(rc<CommandBuffer> curCmd, BufferMemoryState dst, VkDeviceSize offset, VkDeviceSize size)
 {
 	dst.QueueFamilyIndex = curCmd->Pool->PoolQueue->FamilyIndex;
-	if (State.PreviousCmd && State.PreviousCmd->Pool->PoolQueue->FamilyIndex != dst.QueueFamilyIndex)
+	if (auto prevCmd = State.PreviousCmd.lock(); prevCmd && prevCmd->Pool->PoolQueue->FamilyIndex != dst.QueueFamilyIndex)
 	{
 		// Previous command buffer is in a different queue family. Add wait semaphore to current command buffer.
-		curCmd->WaitGroup[State.PreviousCmd->FinishedSem->Handle] = {State.PreviousCmd->SubmitCount, 0};
+		curCmd->WaitGroup[prevCmd->FinishedSem->Handle] = {prevCmd->SubmitCount, 0};
 	}
 	if (Vk->Features.synchronization2)
 	{
@@ -301,8 +301,8 @@ void Buffer::Transition(rc<CommandBuffer> curCmd, BufferMemoryState dst, VkDevic
 	State = dst;
 	State.PreviousCmd = curCmd;
 	curCmd->Callbacks.push_back([this, cmd=curCmd.get()] {
-		if (State.PreviousCmd.get() == cmd)
-			State.PreviousCmd = nullptr;
+		if (State.PreviousCmd.lock().get() == cmd)
+			State.PreviousCmd.reset();
 	});
 	curCmd->AddDependency(shared_from_this());
 }
