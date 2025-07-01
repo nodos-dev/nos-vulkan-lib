@@ -259,7 +259,7 @@ Device* CommandPool::GetDevice()
 CommandPool::~CommandPool()
 {
     for(auto& cmd : Buffers)
-        cmd->Pool = 0;
+        cmd->WaitAndClear();
 
     Buffers.clear();
     GetDevice()->DestroyCommandPool(Handle, 0);
