@@ -14,7 +14,7 @@ struct BufferMemoryState
 	VkPipelineStageFlags2 StageMask;
 	VkAccessFlags2 AccessMask; // Assumes VkAccessFlagsBits same as 2
 	uint32_t QueueFamilyIndex = VK_QUEUE_FAMILY_EXTERNAL;
-	rc<CommandBuffer> PreviousCmd = nullptr;
+	std::weak_ptr<CommandBuffer> PreviousCmd;
 };
 
 struct nosVulkan_API BufferCreationInfos
