@@ -358,6 +358,8 @@ struct nosVulkan_API Device : SharedFactory<Device>,
 
     static bool CheckSupport(VkPhysicalDevice PhysicalDevice);
     std::string GetName() const;
+	std::string GetVendorName() const;
+    std::string GetModelName() const;
     void PreAllocateTempMemoryPools();
     void OnMemoryFreed(VkDeviceMemory memory);
 protected:
