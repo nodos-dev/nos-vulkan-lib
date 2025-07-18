@@ -226,7 +226,7 @@ std::optional<std::string> Renderpass::Begin(rc<CommandBuffer> cmd, const BeginP
 	if (!info.OutImage)
 		return "No output image provided";
 	if (info.OutImage->ImageType != VK_IMAGE_TYPE_2D)
-		return "Output image is not suitable as a rendering target since its not a 2D image.";
+		return "Output image is not suitable as a rendering target since it's not a 2D image.";
 
     rc<ImageView> img = info.OutImage->GetView(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
 
