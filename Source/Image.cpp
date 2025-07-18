@@ -8,20 +8,15 @@
 
 namespace nos::vk
 {
-static VkImageType GetImageType()
-{
-	return VK_IMAGE_TYPE_2D; // Temporary fix for color nodes.
-	// return (1 >= Extent.height) ? VK_IMAGE_TYPE_1D : VK_IMAGE_TYPE_2D;
-}
 
 static VkFormat GetEffectiveFormat(VkFormat format)
 {
 	return IsYCbCr(format) ? VK_FORMAT_R8G8B8A8_UNORM : format;
 }
 
-static VkExtent2D GetEffectiveExtent(VkExtent2D extent, VkFormat format)
+static VkExtent3D GetEffectiveExtent(VkExtent3D extent, VkFormat format)
 {
-	return { extent.width / (1 + IsYCbCr(format)), extent.height};
+	return {extent.width / (1 + IsYCbCr(format)), extent.height, extent.depth};
 }
 
 Image::~Image()
@@ -63,7 +58,7 @@ ImageView::ImageView(struct Image* Src, VkFormat Format, VkImageUsageFlags Usage
 		.sType      = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
 		.pNext      = &usageInfo,
 		.image      = Src->Handle,
-		.viewType   = VkImageViewType(Src->GetImageType()),
+		.viewType   = VkImageViewType(Src->ImageType),
 		.format     = IsYCbCr(this->Format) ? VK_FORMAT_R8G8B8A8_UNORM : this->Format,
 		.components = {},
 		.subresourceRange = {
@@ -107,7 +102,7 @@ Result<ImageCreationInfos> CalculateImageCreationInfos(vk::Device* device, Image
 		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_FORMAT_INFO_2,
 		.pNext = extMemHandleType ? &extImageFormatInfo : nullptr,
 		.format = GetEffectiveFormat(request.Format),
-		.type = GetImageType(),
+		.type = request.ImageType,
 		.tiling = request.Tiling,
 		.usage = request.Usage,
 		.flags = request.Flags,
@@ -149,9 +144,9 @@ Result<ImageCreationInfos> CalculateImageCreationInfos(vk::Device* device, Image
 		.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
 		.pNext = extMemHandleType ? &extMemCreateInfo : 0,
 		.flags = request.Flags,
-		.imageType = GetImageType(),
+		.imageType = request.ImageType,
 		.format = GetEffectiveFormat(request.Format),
-		.extent = {GetEffectiveExtent(request.Extent, request.Format).width, request.Extent.height, 1},
+		.extent = {GetEffectiveExtent(request.Extent, request.Format).width, request.Extent.height, request.ImageType == VK_IMAGE_TYPE_3D ? request.Extent.depth : 1},
 		.mipLevels = 1,
 		.arrayLayers = 1,
 		.samples = request.Samples,
@@ -186,7 +181,7 @@ Result<ImageCreationInfos> CalculateImageCreationInfos(vk::Device* device, Image
 	}
 }
 
-ImageCreateRequest GetTempImageCreateRequest(VkExtent2D extent, VkFormat format)
+ImageCreateRequest GetTempImageCreateRequest(VkExtent3D extent, VkFormat format)
 {
 	return {
 		.Resource = {
@@ -202,14 +197,17 @@ ImageCreateRequest GetTempImageCreateRequest(VkExtent2D extent, VkFormat format)
 
 Image::Image(Device* vk,
 			 VkImage img,
-			 VkExtent2D extent,
+			 VkExtent3D extent,
 			 VkFormat format,
 			 VkImageUsageFlags usage,
 			 ImageState state,
 			 std::optional<Allocation> allocation,
-			 VkDeviceSize size)
-	: ResourceBase(vk), Extent(extent), Format(format), Usage(usage), State(state)
+			 VkDeviceSize size,
+			 VkImageType imageType)
+	: ResourceBase(vk), Extent(imageType == VK_IMAGE_TYPE_3D ? extent : VkExtent3D{extent.width, extent.height, 1}), Format(format), Usage(usage),
+	  ImageType(imageType), State(state)
 {
+	assert(imageType == VK_IMAGE_TYPE_3D || Extent.depth == 1);
 	AllocationInfo = std::move(allocation);
 	Size = size;
 	Handle = img;
@@ -285,7 +283,7 @@ void Image::Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src, u32 bufferRowLength, u
 		.imageExtent = {
 			.width  = GetEffectiveExtent().width,
 			.height = Extent.height,
-			.depth  = 1,
+			.depth  = Extent.depth,
 		},
 	};
 
@@ -374,7 +372,7 @@ void Image::Download(rc<CommandBuffer> Cmd, rc<Buffer> Buffer)
 		.imageExtent = {
 			.width  = GetEffectiveExtent().width,
 			.height = Extent.height,
-			.depth  = 1,
+			.depth  = Extent.depth,
 		},
 	};
 
@@ -391,6 +389,11 @@ void Image::BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src, VkFilter Filter)
 		GLog.E("Image::BlitFrom: Src and Dst are the same image");
 		return;
 	}
+	if (Src->ImageType != ImageType)
+	{
+		GLog.E("Image::BlitFrom: Source image type does not match destination image type");
+		return;
+	}
 
 	Src->Transition(Cmd, ImageState{
 							 .StageMask  = VK_PIPELINE_STAGE_TRANSFER_BIT,
@@ -400,40 +403,62 @@ void Image::BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src, VkFilter Filter)
 
 	Dst->Transition(Cmd, ImageState{
 							 .StageMask  = VK_PIPELINE_STAGE_TRANSFER_BIT,
-							 .AccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
-							 .Layout     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-						 });
+						.AccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+						.Layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+					});
 
 	if (!Vk->Features.synchronization2)
 	{
 		VkImageBlit region = {
-			.srcSubresource = {
-				.aspectMask = Src->GetAspect(),
-				.layerCount = 1,
-			},
-			.srcOffsets = {{}, {(i32)Src->Extent.width / (IsYCbCr(Src->Format) + 1), (i32)Src->Extent.height, 1}},
-			.dstSubresource = {
-				.aspectMask = Dst->GetAspect(),
-				.layerCount = 1,
-			},
-			.dstOffsets = {{}, {(i32)Dst->Extent.width / (IsYCbCr(Dst->Format) + 1), (i32)Dst->Extent.height, 1}},
+			.srcSubresource =
+				{
+					.aspectMask = Src->GetAspect(),
+					.layerCount = 1,
+				},
+			.srcOffsets = {{},
+						   {(i32)Src->Extent.width / (IsYCbCr(Src->Format) + 1),
+							(i32)Src->Extent.height,
+							(i32)Src->Extent.depth}},
+			.dstSubresource =
+				{
+					.aspectMask = Dst->GetAspect(),
+					.layerCount = 1,
+				},
+			.dstOffsets = {{},
+						   {(i32)Dst->Extent.width / (IsYCbCr(Dst->Format) + 1),
+							(i32)Dst->Extent.height,
+							(i32)Dst->Extent.depth}},
 		};
-		Cmd->BlitImage(Src->Handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, Dst->Handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1 , &region, Filter);
+		Cmd->BlitImage(Src->Handle,
+					   VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+					   Dst->Handle,
+					   VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+					   1,
+					   &region,
+					   Filter);
 	}
 	else
 	{
 		VkImageBlit2 region = {
 			.sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2,
-			.srcSubresource = {
-				.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-				.layerCount = 1,
-			},
-			.srcOffsets = {{}, {(i32)Src->Extent.width / (IsYCbCr(Src->Format) + 1), (i32)Src->Extent.height, 1}},
-			.dstSubresource = {
-				.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-				.layerCount = 1,
-			},
-			.dstOffsets = {{}, {(i32)Dst->Extent.width / (IsYCbCr(Dst->Format) + 1), (i32)Dst->Extent.height, 1}},
+			.srcSubresource =
+				{
+					.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+					.layerCount = 1,
+				},
+			.srcOffsets = {{},
+						   {(i32)Src->Extent.width / (IsYCbCr(Src->Format) + 1),
+							(i32)Src->Extent.height,
+							(i32)Src->Extent.depth}},
+			.dstSubresource =
+				{
+					.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+					.layerCount = 1,
+				},
+			.dstOffsets = {{},
+						   {(i32)Dst->Extent.width / (IsYCbCr(Dst->Format) + 1),
+							(i32)Dst->Extent.height,
+							(i32)Dst->Extent.depth}},
 		};
 
 		VkBlitImageInfo2 blitInfo = {
@@ -458,11 +483,16 @@ void Image::CopyFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
 		GLog.E("Trying to copy to and copy from same resource!");
 		return;
 	}
+	if (ImageType != Src->ImageType)
+	{
+		GLog.E("Image::CopyFrom: Source image type does not match destination image type");
+		return;
+	}
 
 	Image* Dst = this;
 
 	assert(
-		(Dst->Extent.width == Src->Extent.width && Dst->Extent.height == Src->Extent.height) ||
+		(Dst->Extent.width == Src->Extent.width && Dst->Extent.height == Src->Extent.height && Dst->Extent.depth == Src->Extent.depth) ||
 		Dst->Size >= Src->Size
 	);
 
@@ -487,7 +517,7 @@ void Image::CopyFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
 			.aspectMask = Dst->GetAspect(),
 			.layerCount = 1,
 		},
-		.extent = {GetEffectiveExtent().width, Extent.height, 1},
+		.extent = GetEffectiveExtent(),
 	};
 
 	Cmd->CopyImage(Src->Handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, Dst->Handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
@@ -498,7 +528,7 @@ void Image::ResolveFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
 {
 	Image* Dst = this;
 	
-	assert(Dst->Extent.width == Src->Extent.width && Dst->Extent.height == Src->Extent.height);
+	assert(Dst->Extent.width == Src->Extent.width && Dst->Extent.height == Src->Extent.height && Dst->Extent.depth == Src->Extent.depth);
 	
 	Src->Transition(Cmd, ImageState{
 							 .StageMask  = VK_PIPELINE_STAGE_TRANSFER_BIT,
@@ -522,7 +552,7 @@ void Image::ResolveFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
 			.aspectMask = Dst->GetAspect(),
 			.layerCount = 1,
 		},
-		.extent = {GetEffectiveExtent().width, Extent.height, 1},
+		.extent = GetEffectiveExtent(),
 	};
 
 	VkResolveImageInfo2 resolveInfo = {
@@ -538,7 +568,7 @@ void Image::ResolveFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
 	Cmd->ResolveImage2(&resolveInfo);
 }
 
-VkExtent2D Image::GetEffectiveExtent() const
+VkExtent3D Image::GetEffectiveExtent() const
 {
 	return vk::GetEffectiveExtent(Extent, Format);
 }
@@ -571,10 +601,6 @@ rc<ImageView> Image::GetView(VkFormat Format, VkImageUsageFlags Usage)
 	return Views[hash] = ImageView::New(this, Format, Usage);
 }
 
-VkImageType Image::GetImageType() const
-{
-	return vk::GetImageType();
-}
 Result<rc<Image>> Image::Create(Device* Vk, ImageCreateRequest const& createInfo, VkResult* outVkRes)
 {
 	VkResult res{};
@@ -635,18 +661,27 @@ Result<rc<Image>> Image::Create(Device* Vk, ImageCreateRequest const& createInfo
 			return "Error while setting external memory handle type.";
 		}
 
-	return FromExisting(Vk, handle, createInfo.Extent, createInfo.Format, createInfo.Usage, state, std::move(allocationInfo), allocationInfo.GetSize());
+	return FromExisting(Vk,
+						handle,
+						createInfo.Extent,
+						createInfo.Format,
+						createInfo.Usage,
+						state,
+						std::move(allocationInfo),
+						allocationInfo.GetSize(),
+						createInfo.ImageType);
 }
 rc<Image> Image::FromExisting(Device* Vk,
 							  VkImage img,
-							  VkExtent2D extent,
+							  VkExtent3D extent,
 							  VkFormat format,
 							  VkImageUsageFlags usage,
 							  ImageState state,
 							  std::optional<Allocation> allocation,
-							  VkDeviceSize size)
+							  VkDeviceSize size,
+							  VkImageType imageType)
 {
-	return New(Vk, img, extent, format, usage, state, std::move(allocation), size);
+	return New(Vk, img, extent, format, usage, state, std::move(allocation), size, imageType);
 }
 Result<ImageCreateRequest> Image::TryGetRelaxedSuitableCreateRequest(Device* Vk, ImageCreateRequest const& info)
 {
