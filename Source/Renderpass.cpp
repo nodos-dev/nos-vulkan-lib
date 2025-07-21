@@ -223,9 +223,11 @@ void Basepass::BindResources(rc<vk::CommandBuffer> Cmd)
 
 std::optional<std::string> Renderpass::Begin(rc<CommandBuffer> cmd, const BeginPassInfo& info)
 {
-    if(!info.OutImage)
+	if (!info.OutImage)
 		return "No output image provided";
-    
+	if (info.OutImage->ImageType != VK_IMAGE_TYPE_2D)
+		return "Output image is not suitable as a rendering target since it's not a 2D image.";
+
     rc<ImageView> img = info.OutImage->GetView(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
 
     auto PL = ((GraphicsPipeline*)this->PL.get());
@@ -294,7 +296,7 @@ std::optional<std::string> Renderpass::Begin(rc<CommandBuffer> cmd, const BeginP
         .maxDepth = 1.f,
     };
 
-    VkRect2D scissor = {.extent = extent};
+    const VkRect2D scissor = {.extent = {extent.width, extent.height}};
 
     cmd->SetViewport(0, 1, &viewport);
     cmd->SetScissor(0, 1, &scissor);
@@ -331,7 +333,7 @@ std::optional<std::string> Renderpass::Begin(rc<CommandBuffer> cmd, const BeginP
             .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
             .renderPass = rp,
             .framebuffer = FrameBuffer,
-            .renderArea = {{0, 0}, extent},
+            .renderArea = scissor,
             .clearValueCount = 1,
             .pClearValues = &clear,
         };
@@ -369,7 +371,7 @@ std::optional<std::string> Renderpass::Begin(rc<CommandBuffer> cmd, const BeginP
         
         VkRenderingInfo renderInfo = {
             .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
-            .renderArea = {.extent = extent},
+            .renderArea = scissor,
             .layerCount = 1,
             .colorAttachmentCount = 1,
             .pColorAttachments = &Attachment,
@@ -387,8 +389,9 @@ std::optional<std::string> Renderpass::Begin(rc<CommandBuffer> cmd, const BeginP
 	{
 		VkExtent2D Extent;
 		u64 FrameNumber;
-	}
-	constants = { img->Src->GetExtent(), info.FrameNumber };
+		u32 Depth;
+	} constants = {
+		{img->Src->GetExtent().width, img->Src->GetExtent().height}, info.FrameNumber, img->Src->GetExtent().depth};
 	PL->PushConstants(cmd, constants);
 	if (localMsBuffer)
 		GetDevice()->ResourcePools.Image->Release(uint64_t(localMsBuffer->Handle));

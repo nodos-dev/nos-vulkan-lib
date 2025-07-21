@@ -279,6 +279,7 @@ static void BuildType(spirv_cross::Compiler const& cc, u32 typeId, SVType* ty)
         ty->Size = 0;
 
         ty->Img = {
+            .Dimension = (SVType::Image::ImageDimension)type.image.dim,
             .Depth   = type.image.depth,
             .Array   = type.image.arrayed,
             .MS      = type.image.ms,

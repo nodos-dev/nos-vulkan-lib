@@ -232,12 +232,13 @@ struct BufferCreateRequest
 struct ImageCreateRequest
 {
 	ResourceCreateRequest Resource;
-    VkExtent2D Extent;
+	VkExtent3D Extent;
     VkFormat Format;
     VkImageUsageFlags Usage;
     VkSampleCountFlagBits Samples = VK_SAMPLE_COUNT_1_BIT;
     VkImageTiling Tiling = VK_IMAGE_TILING_OPTIMAL;
     VkImageCreateFlags Flags = VK_IMAGE_CREATE_ALIAS_BIT;
+	VkImageType ImageType = VK_IMAGE_TYPE_2D;
 };
 
 struct nosVulkan_API SVType
@@ -257,7 +258,13 @@ struct nosVulkan_API SVType
     u32 z = 1; // matsize
 
     struct Image
-    {
+	{
+		enum ImageDimension
+		{
+			Dim1D,
+			Dim2D,
+			Dim3D
+		} Dimension;
         bool Depth;
         bool Array;
         bool MS;
