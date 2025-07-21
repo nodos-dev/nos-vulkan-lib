@@ -54,29 +54,31 @@ struct ImageCreationInfos
     
 Result<ImageCreationInfos> nosVulkan_API CalculateImageCreationInfos(vk::Device* device, ImageCreateRequest const& info);
 
-ImageCreateRequest nosVulkan_API GetTempImageCreateRequest(VkExtent2D extent, VkFormat format);
+ImageCreateRequest nosVulkan_API GetTempImageCreateRequest(VkExtent3D extent, VkFormat format);
     
 struct nosVulkan_API Image : SharedFactory<Image>, ResourceBase<VkImage>
 {
 protected:
-    VkExtent2D Extent = {0, 0};
-    VkFormat Format = VK_FORMAT_UNDEFINED;
-	Image(Device* Vk,
+    const VkExtent3D Extent = {};
+    const VkFormat Format = VK_FORMAT_UNDEFINED;
+    Image(Device* Vk,
 		  VkImage img,
-		  VkExtent2D extent,
+		  VkExtent3D extent,
 		  VkFormat format,
 		  VkImageUsageFlags usage,
 		  ImageState state,
           std::optional<Allocation> allocation,
-		  VkDeviceSize size);
+		  VkDeviceSize size,
+		  VkImageType imageType);
 
 public:
     static Result<rc<Image>> Create(Device* Vk, ImageCreateRequest const& createInfo, VkResult* outVkRes = nullptr);
-    static rc<Image> FromExisting(Device* Vk, VkImage img, VkExtent2D extent, VkFormat format, VkImageUsageFlags usage, ImageState state, std::optional<Allocation> allocation, VkDeviceSize size);
+    static rc<Image> FromExisting(Device* Vk, VkImage img, VkExtent3D extent, VkFormat format, VkImageUsageFlags usage, ImageState state, std::optional<Allocation> allocation, VkDeviceSize size, VkImageType imageType);
     static Result<ImageCreateRequest> TryGetRelaxedSuitableCreateRequest(Device* Vk, ImageCreateRequest const& info);
     static Result<rc<Image>> CreateRelaxed(Device* Vk, ImageCreateRequest const& createInfo, VkResult* vkRes = nullptr);
 	vk::Image* AsImage() override { return this; }
-    VkImageUsageFlags Usage = 0;
+    const VkImageUsageFlags Usage = 0;
+	const VkImageType ImageType = VK_IMAGE_TYPE_2D;
 
     ImageState State = {}; // This is not thread safe.
     std::map<u64, rc<ImageView>> Views;
@@ -86,10 +88,10 @@ public:
     void CopyFrom(rc<CommandBuffer> Cmd, rc<Image> Src);
     void ResolveFrom(rc<CommandBuffer> Cmd, rc<Image> Src);
 
-    VkExtent2D GetEffectiveExtent() const;
+    VkExtent3D GetEffectiveExtent() const;
     VkFormat GetEffectiveFormat() const;
     VkFormat GetFormat() const { return Format; }
-    VkExtent2D GetExtent() const { return Extent; }
+    VkExtent3D GetExtent() const { return Extent; }
 
     void Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src, u32 bufferRowLength = 0, u32 bufferImageHeight = 0);
     rc<Image> Copy(rc<CommandBuffer> Cmd);
@@ -115,10 +117,6 @@ public:
     {
         return (Format == VK_FORMAT_D32_SFLOAT) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
     }
-
-    VkImageType GetImageType() const;
-
-
 };
 
 }; // namespace nos::vk

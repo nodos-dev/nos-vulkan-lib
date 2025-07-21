@@ -309,7 +309,7 @@ std::optional<std::string> Renderpass::Begin(rc<CommandBuffer> cmd, const BeginP
         .maxDepth = 1.f,
     };
 
-    VkRect2D scissor = {.extent = extent};
+    const VkRect2D scissor = {.extent = {extent.width, extent.height}};
 
     cmd->SetViewport(0, 1, &viewport);
     cmd->SetScissor(0, 1, &scissor);
@@ -345,7 +345,7 @@ std::optional<std::string> Renderpass::Begin(rc<CommandBuffer> cmd, const BeginP
             .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
             .renderPass = data.rp,
             .framebuffer = FrameBuffer,
-            .renderArea = {{0, 0}, extent},
+            .renderArea = scissor,
             .clearValueCount = 1,
             .pClearValues = &clear,
         };
@@ -391,7 +391,7 @@ std::optional<std::string> Renderpass::Begin(rc<CommandBuffer> cmd, const BeginP
         
         VkRenderingInfo renderInfo = {
             .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
-            .renderArea = {.extent = extent},
+            .renderArea = scissor,
             .layerCount = 1,
             .colorAttachmentCount = (u32)attachments.size(),
             .pColorAttachments = attachments.data(),
