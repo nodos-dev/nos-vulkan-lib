@@ -63,7 +63,7 @@ public:
 
     ~Buffer();
 
-    void Upload(rc<CommandBuffer> Cmd, rc<Buffer> Buffer, const VkBufferCopy* Region = 0);
+    void Upload(rc<CommandBuffer> Cmd, rc<Buffer> Buffer, std::optional<std::vector<VkBufferCopy>> regions);
 
 	void Transition(rc<CommandBuffer> curCmd, BufferMemoryState dst, VkDeviceSize offset, VkDeviceSize size);
 	uint32_t Alignment;
