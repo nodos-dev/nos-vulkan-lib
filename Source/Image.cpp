@@ -259,7 +259,7 @@ void Image::Clear(rc<CommandBuffer> Cmd, VkClearColorValue value)
 	Cmd->ClearColorImage(Handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &value, 1, &range);
 }
 
-void Image::Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src, u32 bufferRowLength, u32 bufferImageHeight)
+void Image::Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src, std::optional<std::vector<VkBufferImageCopy>> regions)
 {
 	assert(Usage & VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 	assert(Src->Usage & VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
@@ -273,9 +273,9 @@ void Image::Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src, u32 bufferRowLength, u
 						.Layout     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 					});
 
-	VkBufferImageCopy region = {
-		.bufferRowLength = bufferRowLength,
-		.bufferImageHeight = bufferImageHeight,
+	VkBufferImageCopy defaultRegion = {
+		.bufferRowLength = 0,
+		.bufferImageHeight = 0,
 		.imageSubresource = {
 			.aspectMask = GetAspect(),
 			.layerCount = 1,
@@ -287,8 +287,9 @@ void Image::Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src, u32 bufferRowLength, u
 		},
 	};
 
-	Cmd->CopyBufferToImage(Src->Handle, Handle, State.Layout, 1, &region);
+	auto regionList = regions.value_or(std::vector<VkBufferImageCopy>{defaultRegion});
 
+	Cmd->CopyBufferToImage(Src->Handle, Handle, State.Layout, regionList.size(), regionList.data());
 }
 
 rc<Image> Image::Copy(rc<CommandBuffer> Cmd)
@@ -355,7 +356,7 @@ rc<Buffer> Image::Download(rc<CommandBuffer> Cmd)
 	return *stagingBufferRes.Get();
 }
 
-void Image::Download(rc<CommandBuffer> Cmd, rc<Buffer> Buffer)
+void Image::Download(rc<CommandBuffer> Cmd, rc<Buffer> Buffer, std::optional<std::vector<VkBufferImageCopy>> regions)
 {
 	// assert(Buffer->Allocation.LocalSize() >= Allocation.LocalSize());
 	Transition(Cmd, ImageState{
@@ -364,7 +365,7 @@ void Image::Download(rc<CommandBuffer> Cmd, rc<Buffer> Buffer)
 						.Layout     = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
 					});
 
-	VkBufferImageCopy region = {
+	VkBufferImageCopy defaultRegion = {
 		.imageSubresource = {
 			.aspectMask = GetAspect(),
 			.layerCount = 1,
@@ -376,11 +377,13 @@ void Image::Download(rc<CommandBuffer> Cmd, rc<Buffer> Buffer)
 		},
 	};
 
-	Cmd->CopyImageToBuffer(Handle, State.Layout, Buffer->Handle, 1, &region);
+	auto regionList = regions.value_or(std::vector<VkBufferImageCopy>{defaultRegion});
+
+	Cmd->CopyImageToBuffer(Handle, State.Layout, Buffer->Handle, regionList.size(), regionList.data());
 	Cmd->AddDependency(shared_from_this(), Buffer);
 }
 
-void Image::BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src, VkFilter Filter)
+void Image::BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src, VkFilter Filter, std::optional<std::vector<VkImageCopy>> regions)
 {
 	Image* Dst = this;
 
@@ -409,7 +412,7 @@ void Image::BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src, VkFilter Filter)
 
 	if (!Vk->Features.synchronization2)
 	{
-		VkImageBlit region = {
+		VkImageBlit defaultRegion = {
 			.srcSubresource =
 				{
 					.aspectMask = Src->GetAspect(),
@@ -429,17 +432,52 @@ void Image::BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src, VkFilter Filter)
 							(i32)Dst->Extent.height,
 							(i32)Dst->Extent.depth}},
 		};
+		std::vector<VkImageBlit> regionList;
+		if (regions)
+		{
+			for (auto& region : *regions)
+			{
+				regionList.push_back(VkImageBlit{
+					.srcSubresource =
+					{
+						.aspectMask = Src->GetAspect(),
+						.layerCount = 1,
+					},
+					.srcOffsets = {region.srcOffset,
+						VkOffset3D{
+							region.srcOffset.x + (i32)region.extent.width,
+							region.srcOffset.y + (i32)region.extent.height,
+							region.srcOffset.z + (i32)region.extent.depth
+						}},
+					.dstSubresource =
+					{
+						.aspectMask = Dst->GetAspect(),
+						.layerCount = 1,
+					},
+					.dstOffsets = {region.dstOffset,
+						VkOffset3D{
+							region.dstOffset.x + (i32)region.extent.width,
+							region.dstOffset.y + (i32)region.extent.height,
+							region.dstOffset.z + (i32)region.extent.depth
+						}}
+				});
+			}
+		}
+		else
+		{
+			regionList.push_back(defaultRegion);
+		}
 		Cmd->BlitImage(Src->Handle,
 					   VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
 					   Dst->Handle,
 					   VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-					   1,
-					   &region,
+					   regionList.size(),
+					   regionList.data(),
 					   Filter);
 	}
 	else
 	{
-		VkImageBlit2 region = {
+		VkImageBlit2 defaultRegion = {
 			.sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2,
 			.srcSubresource =
 				{
@@ -461,14 +499,51 @@ void Image::BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src, VkFilter Filter)
 							(i32)Dst->Extent.depth}},
 		};
 
+		std::vector<VkImageBlit2> regionList;
+		if (regions)
+		{
+			for (auto& region : *regions)
+			{
+				regionList.push_back(VkImageBlit2{
+					.sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2,
+					.srcSubresource =
+					{
+						.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+						.layerCount = 1,
+					},
+					.srcOffsets = {region.srcOffset,
+						VkOffset3D{
+							region.srcOffset.x + (i32)region.extent.width,
+							region.srcOffset.y + (i32)region.extent.height,
+							region.srcOffset.z + (i32)region.extent.depth
+						}},
+					.dstSubresource =
+					{
+						.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+						.layerCount = 1,
+					},
+					.dstOffsets = {region.dstOffset,
+						VkOffset3D{
+							region.dstOffset.x + (i32)region.extent.width,
+							region.dstOffset.y + (i32)region.extent.height,
+							region.dstOffset.z + (i32)region.extent.depth
+						}}
+				});
+			}
+		}
+		else
+		{
+			regionList.push_back(defaultRegion);
+		}
+
 		VkBlitImageInfo2 blitInfo = {
 			.sType = VK_STRUCTURE_TYPE_BLIT_IMAGE_INFO_2,
 			.srcImage = Src->Handle,
 			.srcImageLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
 			.dstImage = Dst->Handle,
 			.dstImageLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-			.regionCount = 1,
-			.pRegions = &region,
+			.regionCount = (uint32_t)regionList.size(),
+			.pRegions = regionList.data(),
 			.filter = Filter,
 		};
 
@@ -476,7 +551,7 @@ void Image::BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src, VkFilter Filter)
 	}
 }
 
-void Image::CopyFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
+void Image::CopyFrom(rc<CommandBuffer> Cmd, rc<Image> Src, std::optional<std::vector<VkImageCopy>> regionsOpt)
 {
 	if(this == Src.get())
 	{
@@ -508,7 +583,7 @@ void Image::CopyFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
 							 .Layout     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 						 });
 
-	VkImageCopy region = {
+	std::vector<VkImageCopy> regions = regionsOpt.value_or(std::vector<VkImageCopy>{{
 		.srcSubresource = {
 			.aspectMask = Src->GetAspect(),
 			.layerCount = 1,
@@ -518,9 +593,9 @@ void Image::CopyFrom(rc<CommandBuffer> Cmd, rc<Image> Src)
 			.layerCount = 1,
 		},
 		.extent = GetEffectiveExtent(),
-	};
+	}});
 
-	Cmd->CopyImage(Src->Handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, Dst->Handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+	Cmd->CopyImage(Src->Handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, Dst->Handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, regions.size(), regions.data());
 
 }
 
