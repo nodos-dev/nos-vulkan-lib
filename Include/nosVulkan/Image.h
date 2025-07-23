@@ -84,8 +84,8 @@ public:
     std::map<u64, rc<ImageView>> Views;
 
     void Transition(rc<CommandBuffer> curCmd, ImageState Dst);
-    void BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src, VkFilter Filter);
-    void CopyFrom(rc<CommandBuffer> Cmd, rc<Image> Src);
+    void BlitFrom(rc<CommandBuffer> Cmd, rc<Image> Src, VkFilter Filter, std::optional<std::vector<VkImageCopy>> regions = std::nullopt);
+    void CopyFrom(rc<CommandBuffer> Cmd, rc<Image> Src, std::optional<std::vector<VkImageCopy>> regions = std::nullopt);
     void ResolveFrom(rc<CommandBuffer> Cmd, rc<Image> Src);
 
     VkExtent3D GetEffectiveExtent() const;
@@ -93,10 +93,10 @@ public:
     VkFormat GetFormat() const { return Format; }
     VkExtent3D GetExtent() const { return Extent; }
 
-    void Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src, u32 bufferRowLength = 0, u32 bufferImageHeight = 0);
+    void Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src, std::optional<std::vector<VkBufferImageCopy>> regions = std::nullopt);
     rc<Image> Copy(rc<CommandBuffer> Cmd);
     rc<Buffer> Download(rc<CommandBuffer> Cmd);
-    void Download(rc<CommandBuffer> Cmd, rc<Buffer>);
+    void Download(rc<CommandBuffer> Cmd, rc<Buffer>, std::optional<std::vector<VkBufferImageCopy>> regions = std::nullopt);
     void Clear(rc<CommandBuffer> Cmd, VkClearColorValue value);
 
     ~Image();

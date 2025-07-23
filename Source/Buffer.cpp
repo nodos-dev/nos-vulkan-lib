@@ -224,7 +224,7 @@ void Buffer::Bind(VkDescriptorType type, u32 bind, VkDescriptorSet set)
 }
 
 
-void Buffer::Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src, const VkBufferCopy* Region)
+void Buffer::Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src, std::optional<std::vector<VkBufferCopy>> regions)
 {
     // if this buffer has already been mapped you could simply use the mapped pointer instead of creating a temporary buffer
 
@@ -238,30 +238,32 @@ void Buffer::Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src, const VkBufferCopy* R
     //     UNREACHABLE;
     // }
 
-    assert(Usage & VK_BUFFER_USAGE_TRANSFER_DST_BIT);
-    assert(Src->Usage & VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+	assert(Usage & VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+	assert(Src->Usage & VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
 
-    VkBufferCopy DefaultRegion = {
-        .srcOffset = 0,
-        .dstOffset = 0,
-        .size      = Src->Size,
-    };
+	VkBufferCopy defaultRegion = {
+		.srcOffset = 0,
+		.dstOffset = 0,
+		.size = Src->Size,
+	};
 
-	if (!Region)
-		Region = &DefaultRegion;
+	std::vector<VkBufferCopy> regionList = regions.value_or(std::vector{{defaultRegion}});
 
-	Src->Transition(Cmd,
-					BufferMemoryState{.StageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-									  .AccessMask = VK_ACCESS_2_TRANSFER_READ_BIT},
-					Region->srcOffset,
-					Region->size);
-	Transition(Cmd,
-			   BufferMemoryState{.StageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-								 .AccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT},
-			   Region->dstOffset,
-			   Region->size);
+	for (auto& region : regionList)
+	{
+		Src->Transition(Cmd,
+			BufferMemoryState{ .StageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+							  .AccessMask = VK_ACCESS_2_TRANSFER_READ_BIT },
+			region.srcOffset,
+			region.size);
+		Transition(Cmd,
+			BufferMemoryState{ .StageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+							  .AccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT },
+			region.dstOffset,
+			region.size);
+	}
 	
-    Cmd->CopyBuffer(Src->Handle, this->Handle, 1, Region);
+    Cmd->CopyBuffer(Src->Handle, this->Handle, regionList.size(), regionList.data());
 }
 
 void Buffer::Transition(rc<CommandBuffer> curCmd, BufferMemoryState dst, VkDeviceSize offset, VkDeviceSize size)
