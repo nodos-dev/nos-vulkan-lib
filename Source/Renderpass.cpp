@@ -224,12 +224,13 @@ void Basepass::BindResources(rc<vk::CommandBuffer> Cmd)
 
 std::optional<std::string> Renderpass::Begin(rc<CommandBuffer> cmd, const BeginPassInfo& info)
 {
-    if(info.OutImages.empty())
+    if(!info.OutImages.empty())
 		return "No output image provided";
-    
+    for(auto& img : info.OutImages)
+        if (img->ImageType != VK_IMAGE_TYPE_2D)
+            return "Output image is not suitable as a rendering target since it's not a 2D image.";
+
     auto PL = ((GraphicsPipeline*)this->PL.get());
-
-
     
     std::vector<rc<ImageView>> images;
     std::vector<VkImageView> rawViews;
@@ -409,8 +410,8 @@ std::optional<std::string> Renderpass::Begin(rc<CommandBuffer> cmd, const BeginP
 	{
 		VkExtent2D Extent;
 		u64 FrameNumber;
-	}
-	constants = { extent, info.FrameNumber };
+		u32 Depth;
+	} constants = { {extent.width, extent.height}, info.FrameNumber, extent.depth};
 	PL->PushConstants(cmd, constants);
 	if (!localMsBuffers.empty())
     {
