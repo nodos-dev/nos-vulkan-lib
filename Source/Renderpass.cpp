@@ -224,59 +224,72 @@ void Basepass::BindResources(rc<vk::CommandBuffer> Cmd)
 
 std::optional<std::string> Renderpass::Begin(rc<CommandBuffer> cmd, const BeginPassInfo& info)
 {
-	if (!info.OutImage)
+
+    if(!info.OutImages.empty())
 		return "No output image provided";
-	if (info.OutImage->ImageType != VK_IMAGE_TYPE_2D)
+    for(auto& img : info.OutImages)
+        if (img->ImageType != VK_IMAGE_TYPE_2D)
 		return "Output image is not suitable as a rendering target since it's not a 2D image.";
 
-    rc<ImageView> img = info.OutImage->GetView(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
-
     auto PL = ((GraphicsPipeline*)this->PL.get());
-
-    VkImageView           imageView          = img->Handle;
-    VkResolveModeFlagBits resolveMode        = VK_RESOLVE_MODE_NONE;
-    VkImageView           resolveImageView   = 0;
-    VkImageLayout         resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     
-	rc<Image> localMsBuffer = nullptr;
+    std::vector<rc<ImageView>> images;
+    std::vector<VkImageView> rawViews;
+    
+    for(auto& img : info.OutImages)
+    {
+        auto view = img->GetView(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
+        images.push_back(img->GetView(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT));
+        rawViews.push_back(view->Handle);
+    }
+
+    std::vector<VkImageView> resolveViews;
+    std::vector<rc<Image>> localMsBuffers;
+    
     if(PL->MS > 1)
     {
-		auto relaxedRequest = Image::TryGetRelaxedSuitableCreateRequest(Vk, ImageCreateRequest{
-			.Resource = {
-				.ExternalMemory = VkExternalMemoryHandleTypeFlags(0),
-			},
-			.Extent = info.OutImage->GetEffectiveExtent(),
-			.Format = info.OutImage->GetEffectiveFormat(),
-			.Usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-			.Samples = (VkSampleCountFlagBits)PL->MS
-		});
-		if (auto err = relaxedRequest.Error())
-			return "Failed to create temporary multisample resource: " + *err;
-        auto result = GetDevice()->ResourcePools.Image->Get(*relaxedRequest.Get(), "Temporary Multisample Resource");
-        if(auto err = result.Error())
-			return "Failed to create temporary multisample resource: " + *err;
-        localMsBuffer = *result.Get();
-        localMsBuffer->Transition(cmd, ImageState{
+        resolveViews = std::move(rawViews);
+        for(auto& img : info.OutImages)
+        {
+            auto relaxedRequest = Image::TryGetRelaxedSuitableCreateRequest(Vk, ImageCreateRequest{
+                .Resource = {
+                    .ExternalMemory = VkExternalMemoryHandleTypeFlags(0),
+                },
+                .Extent = img->GetEffectiveExtent(),
+                .Format = img->GetEffectiveFormat(),
+                .Usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+                .Samples = (VkSampleCountFlagBits)PL->MS
+            });
+            if (auto err = relaxedRequest.Error())
+                return "Failed to create temporary multisample resource: " + *err;
+            auto result = GetDevice()->ResourcePools.Image->Get(*relaxedRequest.Get(), "Temporary Multisample Resource");
+            if(auto err = result.Error())
+                return "Failed to create temporary multisample resource: " + *err;
+
+            auto tex = *result.Get();
+            tex->Transition(cmd, ImageState{
+                                                .StageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                                                .AccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                                                .Layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                                            });
+            localMsBuffers.push_back(tex);
+            rawViews.push_back(tex->GetView(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)->Handle);
+        }
+    }
+    GraphicsPipeline::PipelineKey formats;
+    for(auto& img : info.OutImages)
+        formats.push_back(img->GetEffectiveFormat());
+    
+    PL->Recreate(formats);
+    
+    for(auto& img : images)
+        img->Src->Transition(cmd, ImageState{
                                             .StageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                                             .AccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                                             .Layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                                         });
 
-        resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-        resolveImageView = imageView;
-        resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
-        imageView = localMsBuffer->GetView(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)->Handle;
-    }
-    
-    PL->Recreate(img->GetEffectiveFormat());
-
-    img->Src->Transition(cmd, ImageState{
-                                           .StageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-                                           .AccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-                                           .Layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                                       });
-
-    auto extent = img->Src->GetEffectiveExtent();
+    auto extent = images[0]->Src->GetEffectiveExtent();
 	rc<Image> optionalDepthBuffer = info.DepthAttachment ? info.DepthAttachment->DepthBuffer : nullptr;
 	bool depthClear = true;
 	float depthClearVal = 1.0f;
@@ -305,13 +318,12 @@ std::optional<std::string> Renderpass::Begin(rc<CommandBuffer> cmd, const BeginP
     cmd->SetDepthWriteEnable(false);
     cmd->SetDepthCompareOp(VK_COMPARE_OP_NEVER);
 
+    auto data = PL->GetPipelineData(formats);
     if (!Vk->Features.dynamicRendering)
     {
-        VkRenderPass rp = PL->Handles[img->GetEffectiveFormat()].rp;
-
-        if (ImgView != img)
+        if (Views != images)
         {
-            ImgView = img;
+            Views = images;
             if (FrameBuffer)
             {
                 Vk->DestroyFramebuffer(FrameBuffer, 0);
@@ -319,9 +331,9 @@ std::optional<std::string> Renderpass::Begin(rc<CommandBuffer> cmd, const BeginP
             
             VkFramebufferCreateInfo framebufferInfo{
                 .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
-                .renderPass = rp,
-                .attachmentCount = 1,
-                .pAttachments = &img->Handle,
+                .renderPass = data.rp,
+                .attachmentCount = (u32)rawViews.size(),
+                .pAttachments = rawViews.data(),
                 .width = extent.width,
                 .height = extent.height,
                 .layers = 1,
@@ -332,7 +344,7 @@ std::optional<std::string> Renderpass::Begin(rc<CommandBuffer> cmd, const BeginP
         VkClearValue clear = {.color = {.float32 = {0,0,0,0}}};
         VkRenderPassBeginInfo renderPassInfo = {
             .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-            .renderPass = rp,
+            .renderPass = data.rp,
             .framebuffer = FrameBuffer,
             .renderArea = scissor,
             .clearValueCount = 1,
@@ -343,18 +355,26 @@ std::optional<std::string> Renderpass::Begin(rc<CommandBuffer> cmd, const BeginP
     }
     else
     {
-        VkRenderingAttachmentInfo Attachment = {
-            .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-            .imageView = imageView,
-            .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-            .resolveMode = resolveMode,
-            .resolveImageView = resolveImageView,
-            .resolveImageLayout = resolveImageLayout,
-            .loadOp = info.Clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD,
-            .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-			.clearValue =
-				{.color = {.float32 = {info.ClearCol[0], info.ClearCol[1], info.ClearCol[2], info.ClearCol[3]}}},
+        std::vector<VkRenderingAttachmentInfo> attachments;
+        for(u32 i = 0; i < rawViews.size(); ++i)
+        {
+            VkRenderingAttachmentInfo att = {
+                .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+                .imageView = rawViews[i],
+                .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                .loadOp = info.Clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD,
+                .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+                .clearValue =
+                    {.color = {.float32 = {info.ClearCol[0], info.ClearCol[1], info.ClearCol[2], info.ClearCol[3]}}},
             };
+            if(PL->MS > 1)
+            {
+                att.resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
+                att.resolveImageView = resolveViews[i];
+                att.resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            }
+            attachments.push_back(att);
+        }
 
         VkRenderingAttachmentInfo DepthAttachment;
 
@@ -374,15 +394,14 @@ std::optional<std::string> Renderpass::Begin(rc<CommandBuffer> cmd, const BeginP
             .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
             .renderArea = scissor,
             .layerCount = 1,
-            .colorAttachmentCount = 1,
-            .pColorAttachments = &Attachment,
+            .colorAttachmentCount = (u32)attachments.size(),
+            .pColorAttachments = attachments.data(),
             .pDepthAttachment = optionalDepthBuffer ? &DepthAttachment : nullptr,
         };
         cmd->BeginRendering(&renderInfo);
     }
 
-    auto& handle = PL->Handles[img->GetEffectiveFormat()];
-    cmd->BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, info.Wireframe ? handle.wpl : handle.pl);
+    cmd->BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, info.Wireframe ? data.wpl : data.pl);
     cmd->AddDependency(shared_from_this());
 	if (Vk->Features.dynamicRendering)
 		cmd->SetCullMode(info.CullMode);
@@ -393,10 +412,14 @@ std::optional<std::string> Renderpass::Begin(rc<CommandBuffer> cmd, const BeginP
 		u64 FrameNumber;
 		u32 Depth;
 	} constants = {
-		{img->Src->GetExtent().width, img->Src->GetExtent().height}, info.FrameNumber, img->Src->GetExtent().depth};
+		{extent.width, extent.height}, info.FrameNumber, extent.depth};
 	PL->PushConstants(cmd, constants);
-	if (localMsBuffer)
-		GetDevice()->ResourcePools.Image->Release(uint64_t(localMsBuffer->Handle));
+	if (!localMsBuffers.empty())
+    {
+        auto dev = GetDevice();
+        for(auto buf : localMsBuffers)
+            dev->ResourcePools.Image->Release(uint64_t(buf->Handle));
+    }
     return std::nullopt;
 }
 

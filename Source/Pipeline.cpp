@@ -92,9 +92,24 @@ rc<Shader> GraphicsPipeline::GetVS()
     return VS;
 }
 
-void GraphicsPipeline::Recreate(VkFormat fmt)
+GraphicsPipeline::PerFormat GraphicsPipeline::GetPipelineData(GraphicsPipeline::PipelineKey const& key)
 {
-    if(Handles[fmt].pl)
+    if(key.size() != Layout->RTCount)
+        return {};
+
+    
+    if(auto it = Handles.find(key); it != Handles.end())
+        return it->second;
+
+    return {};
+}
+
+void GraphicsPipeline::Recreate(GraphicsPipeline::PipelineKey const& key)
+{
+    NOS_ASSERT(key.size() == Layout->RTCount);
+
+    
+    if(Handles[key].pl)
     {
         return;
     }
@@ -102,7 +117,7 @@ void GraphicsPipeline::Recreate(VkFormat fmt)
     VkPipelineRenderingCreateInfo renderInfo = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
         .colorAttachmentCount = Layout->RTCount,
-        .pColorAttachmentFormats = &fmt,
+        .pColorAttachmentFormats = key.data(),
         .depthAttachmentFormat = VK_FORMAT_D32_SFLOAT,
     };
 
@@ -152,39 +167,50 @@ void GraphicsPipeline::Recreate(VkFormat fmt)
 		.colorWriteMask = (VkColorComponentFlags)Blend.ColorMask,
     };
 
+    std::vector<VkPipelineColorBlendAttachmentState> blendAttachments(Layout->RTCount, attachment);
+
     VkPipelineColorBlendStateCreateInfo colorBlendState = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
         .attachmentCount = Layout->RTCount,
-        .pAttachments = &attachment,
+        .pAttachments = blendAttachments.data(),
     };
     
     if (!Vk->Features.dynamicRendering)
     {
-        VkAttachmentDescription colorAttachment{};
-        colorAttachment.format = fmt;
-        colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-        colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+        std::vector<VkAttachmentDescription> colorAttachments;
+        std::vector<VkAttachmentReference> colorAttachmentRefs;
+        colorAttachments.resize(Layout->RTCount);
+        colorAttachmentRefs.resize(Layout->RTCount);
 
-        VkAttachmentReference colorAttachmentRef{};
-        colorAttachmentRef.attachment = 0;
-        colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
+        for(u32 i = 0; i < Layout->RTCount; ++i)
+        {
+            colorAttachments[i] = {
+                .format = key[i],
+                .samples = VkSampleCountFlagBits(this->MS),
+                .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+                .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+                .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+                .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+            };
+            colorAttachmentRefs[i] = {
+                .attachment = i,
+                .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+            };
+        }
+        
         VkSubpassDescription subpass{};
         subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-        subpass.colorAttachmentCount = 1;
-        subpass.pColorAttachments = &colorAttachmentRef;
+        subpass.colorAttachmentCount = Layout->RTCount;
+        subpass.pColorAttachments = colorAttachmentRefs.data();
 
         VkRenderPassCreateInfo renderPassInfo{};
         renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-        renderPassInfo.attachmentCount = 1;
-        renderPassInfo.pAttachments = &colorAttachment;
+        renderPassInfo.attachmentCount = Layout->RTCount;
+        renderPassInfo.pAttachments = colorAttachments.data();
         renderPassInfo.subpassCount = 1;
         renderPassInfo.pSubpasses = &subpass;
 
-        NOSVK_ASSERT(Vk->CreateRenderPass(&renderPassInfo, nullptr, &Handles[fmt].rp));
+        NOSVK_ASSERT(Vk->CreateRenderPass(&renderPassInfo, nullptr, &Handles[key].rp));
     }
 
     VkDynamicState states[] = { VK_DYNAMIC_STATE_VIEWPORT, 
@@ -232,12 +258,12 @@ void GraphicsPipeline::Recreate(VkFormat fmt)
     
     if (!Vk->Features.dynamicRendering)
     {
-        info.renderPass = Handles[fmt].rp;
+        info.renderPass = Handles[key].rp;
         info.pNext = 0;
     }
-    NOSVK_ASSERT(Vk->CreateGraphicsPipelines(Vk->PipelineCache, 1, &info, 0, &Handles[fmt].pl));
+    NOSVK_ASSERT(Vk->CreateGraphicsPipelines(Vk->PipelineCache, 1, &info, 0, &Handles[key].pl));
     rasterizationState.polygonMode = VK_POLYGON_MODE_LINE;
-    NOSVK_ASSERT(Vk->CreateGraphicsPipelines(Vk->PipelineCache, 1, &info, 0, &Handles[fmt].wpl));
+    NOSVK_ASSERT(Vk->CreateGraphicsPipelines(Vk->PipelineCache, 1, &info, 0, &Handles[key].wpl));
 }
 
 
