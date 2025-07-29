@@ -116,7 +116,7 @@ struct nosVulkan_API Computepass : SharedFactory<Computepass>, Basepass
 struct nosVulkan_API Renderpass : SharedFactory<Renderpass>, Basepass
 {
     VkFramebuffer FrameBuffer = 0;
-    rc<ImageView> ImgView;
+    std::vector<rc<ImageView>> Views;
 
     Renderpass(rc<GraphicsPipeline> PL);
     Renderpass(Device* Vk, std::vector<u8> const& src);
@@ -131,7 +131,7 @@ struct nosVulkan_API Renderpass : SharedFactory<Renderpass>, Basepass
 
     struct BeginPassInfo
     {
-		rc<Image> OutImage;
+		std::vector<rc<Image>> OutImages;
 		std::optional<DepthAttachmentInfo> DepthAttachment;
 		bool Wireframe = false;
 		bool Clear = true;
