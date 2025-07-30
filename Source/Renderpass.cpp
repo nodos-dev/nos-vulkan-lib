@@ -224,7 +224,7 @@ void Basepass::BindResources(rc<vk::CommandBuffer> Cmd)
 
 std::optional<std::string> Renderpass::Begin(rc<CommandBuffer> cmd, const BeginPassInfo& info)
 {
-    if(!info.OutImages.empty())
+    if(info.OutImages.empty())
 		return "No output image provided";
     
     auto PL = ((GraphicsPipeline*)this->PL.get());
