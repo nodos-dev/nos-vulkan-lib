@@ -92,34 +92,24 @@ rc<Shader> GraphicsPipeline::GetVS()
     return VS;
 }
 
-GraphicsPipeline::PerFormat GraphicsPipeline::GetPipelineData(VkFormat* formats, u32 formatCount)
+GraphicsPipeline::PerFormat GraphicsPipeline::GetPipelineData(GraphicsPipeline::PipelineKey const& key)
 {
-    if(formatCount != Layout->RTCount)
+    if(key.size() != Layout->RTCount)
         return {};
 
-    size_t hash = 0;
-    for(u32 i = 0; i < formatCount; ++i)
-    {
-        hash_combine(hash, (u32)formats[i]);
-    }
     
-    if(!Handles.contains(hash))
-        return {};
+    if(auto it = Handles.find(key); it != Handles.end())
+        return it->second;
 
-    return Handles[hash];
+    return {};
 }
 
-void GraphicsPipeline::Recreate(VkFormat* formats, u32 formatCount)
+void GraphicsPipeline::Recreate(GraphicsPipeline::PipelineKey const& key)
 {
-    NOS_ASSERT(formatCount == Layout->RTCount);
+    NOS_ASSERT(key.size() == Layout->RTCount);
 
-    size_t hash = 0;
-    for(u32 i = 0; i < formatCount; ++i)
-    {
-        hash_combine(hash, (u32)formats[i]);
-    }
     
-    if(Handles[hash].pl)
+    if(Handles[key].pl)
     {
         return;
     }
@@ -127,7 +117,7 @@ void GraphicsPipeline::Recreate(VkFormat* formats, u32 formatCount)
     VkPipelineRenderingCreateInfo renderInfo = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
         .colorAttachmentCount = Layout->RTCount,
-        .pColorAttachmentFormats = formats,
+        .pColorAttachmentFormats = key.data(),
         .depthAttachmentFormat = VK_FORMAT_D32_SFLOAT,
     };
 
@@ -195,7 +185,7 @@ void GraphicsPipeline::Recreate(VkFormat* formats, u32 formatCount)
         for(u32 i = 0; i < Layout->RTCount; ++i)
         {
             colorAttachments[i] = {
-                .format = formats[i],
+                .format = key[i],
                 .samples = VkSampleCountFlagBits(this->MS),
                 .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
                 .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
@@ -220,7 +210,7 @@ void GraphicsPipeline::Recreate(VkFormat* formats, u32 formatCount)
         renderPassInfo.subpassCount = 1;
         renderPassInfo.pSubpasses = &subpass;
 
-        NOSVK_ASSERT(Vk->CreateRenderPass(&renderPassInfo, nullptr, &Handles[hash].rp));
+        NOSVK_ASSERT(Vk->CreateRenderPass(&renderPassInfo, nullptr, &Handles[key].rp));
     }
 
     VkDynamicState states[] = { VK_DYNAMIC_STATE_VIEWPORT, 
@@ -268,12 +258,12 @@ void GraphicsPipeline::Recreate(VkFormat* formats, u32 formatCount)
     
     if (!Vk->Features.dynamicRendering)
     {
-        info.renderPass = Handles[hash].rp;
+        info.renderPass = Handles[key].rp;
         info.pNext = 0;
     }
-    NOSVK_ASSERT(Vk->CreateGraphicsPipelines(Vk->PipelineCache, 1, &info, 0, &Handles[hash].pl));
+    NOSVK_ASSERT(Vk->CreateGraphicsPipelines(Vk->PipelineCache, 1, &info, 0, &Handles[key].pl));
     rasterizationState.polygonMode = VK_POLYGON_MODE_LINE;
-    NOSVK_ASSERT(Vk->CreateGraphicsPipelines(Vk->PipelineCache, 1, &info, 0, &Handles[hash].wpl));
+    NOSVK_ASSERT(Vk->CreateGraphicsPipelines(Vk->PipelineCache, 1, &info, 0, &Handles[key].wpl));
 }
 
 

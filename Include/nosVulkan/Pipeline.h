@@ -60,8 +60,13 @@ struct nosVulkan_API GraphicsPipeline : SharedFactory<GraphicsPipeline>, Pipelin
         VkPipeline wpl;
         VkRenderPass rp;
     };
+
+    struct PipelineKey : std::vector<VkFormat>
+    {
+        using std::vector<VkFormat>::vector;
+    };
     
-    std::map<size_t, PerFormat> Handles;
+    std::map<PipelineKey, PerFormat> Handles;
 
     GraphicsPipeline(Device* Vk, std::vector<u8> const&, BlendMode blend = BlendMode(), u32 MS = 1);
     GraphicsPipeline(Device* Vk, rc<Shader> PS, rc<Shader> VS = 0, BlendMode blend = BlendMode(), u32 MS = 1);
@@ -69,9 +74,23 @@ struct nosVulkan_API GraphicsPipeline : SharedFactory<GraphicsPipeline>, Pipelin
 
     rc<Shader> GetVS();
 
-    void Recreate(VkFormat* formats, u32 formatCount);
+    void Recreate(PipelineKey const& key);
 
-    PerFormat GetPipelineData(VkFormat* formats, u32 formatCount);
+    PerFormat GetPipelineData(PipelineKey const& key);
 };
 
 } // namespace nos::vk
+
+template<>
+struct std::hash<nos::vk::GraphicsPipeline::PipelineKey>
+{
+    std::size_t operator()(const nos::vk::GraphicsPipeline::PipelineKey& key) const
+    {
+        std::size_t hash = 0;
+        for (const auto& format : key)
+        {
+            hash ^= std::hash<VkFormat>()(format);
+        }
+        return hash;
+    }
+};

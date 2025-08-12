@@ -276,11 +276,11 @@ std::optional<std::string> Renderpass::Begin(rc<CommandBuffer> cmd, const BeginP
             rawViews.push_back(tex->GetView(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)->Handle);
         }
     }
-    std::vector<VkFormat> formats;
+    GraphicsPipeline::PipelineKey formats;
     for(auto& img : info.OutImages)
         formats.push_back(img->GetEffectiveFormat());
     
-    PL->Recreate(&formats[0], formats.size());
+    PL->Recreate(formats);
     
     for(auto& img : images)
         img->Src->Transition(cmd, ImageState{
@@ -318,7 +318,7 @@ std::optional<std::string> Renderpass::Begin(rc<CommandBuffer> cmd, const BeginP
     cmd->SetDepthWriteEnable(false);
     cmd->SetDepthCompareOp(VK_COMPARE_OP_NEVER);
 
-    auto data = PL->GetPipelineData(&formats[0], formats.size());
+    auto data = PL->GetPipelineData(formats);
     if (!Vk->Features.dynamicRendering)
     {
         if (Views != images)
