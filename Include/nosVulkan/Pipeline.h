@@ -89,7 +89,7 @@ struct std::hash<nos::vk::GraphicsPipeline::PipelineKey>
         std::size_t hash = 0;
         for (const auto& format : key)
         {
-            hash ^= std::hash<VkFormat>()(format);
+            nos::hash_combine(hash, (u32)format);
         }
         return hash;
     }
