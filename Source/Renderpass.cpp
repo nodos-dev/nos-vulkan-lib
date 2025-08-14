@@ -225,7 +225,7 @@ void Basepass::BindResources(rc<vk::CommandBuffer> Cmd)
 std::optional<std::string> Renderpass::Begin(rc<CommandBuffer> cmd, const BeginPassInfo& info)
 {
 
-    if(!info.OutImages.empty())
+    if(info.OutImages.empty())
 		return "No output image provided";
     for(auto& img : info.OutImages)
         if (img->ImageType != VK_IMAGE_TYPE_2D)
