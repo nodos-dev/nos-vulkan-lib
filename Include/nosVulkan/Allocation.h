@@ -57,7 +57,6 @@ struct nosVulkan_API ResourceBase : DeviceChild
 			.PID    = AllocationInfo->Imported ? AllocationInfo->Imported->PID : PlatformGetCurrentProcessId(),
 			.Handle = AllocationInfo->OsHandle,
 			.Offset = AllocationInfo->GetOffset(),
-			.Size = Size,
 			.AllocationSize = AllocationInfo->GetAllocationSize(),
 			.MemProps = AllocationInfo->MemProps,
 		};
