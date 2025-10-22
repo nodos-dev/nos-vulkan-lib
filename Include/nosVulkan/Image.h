@@ -93,10 +93,9 @@ public:
     VkFormat GetFormat() const { return Format; }
     VkExtent3D GetExtent() const { return Extent; }
 
-    void Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src, std::optional<std::vector<VkBufferImageCopy>> regions = std::nullopt);
     rc<Image> Copy(rc<CommandBuffer> Cmd);
-    rc<Buffer> Download(rc<CommandBuffer> Cmd);
-    void Download(rc<CommandBuffer> Cmd, rc<Buffer>, std::optional<std::vector<VkBufferImageCopy>> regions = std::nullopt);
+    void CopyFromBuffer(rc<CommandBuffer> Cmd, rc<Buffer> Src, std::optional<std::vector<VkBufferImageCopy>> regions = std::nullopt);
+    void CopyToBuffer(rc<CommandBuffer> Cmd, rc<Buffer>, std::optional<std::vector<VkBufferImageCopy>> regions = std::nullopt);
     void Clear(rc<CommandBuffer> Cmd, VkClearColorValue value);
 
     ~Image();

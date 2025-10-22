@@ -259,7 +259,7 @@ void Image::Clear(rc<CommandBuffer> Cmd, VkClearColorValue value)
 	Cmd->ClearColorImage(Handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &value, 1, &range);
 }
 
-void Image::Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src, std::optional<std::vector<VkBufferImageCopy>> regions)
+void Image::CopyFromBuffer(rc<CommandBuffer> Cmd, rc<Buffer> Src, std::optional<std::vector<VkBufferImageCopy>> regions)
 {
 	assert(Usage & VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 	assert(Src->Usage & VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
@@ -336,27 +336,7 @@ rc<Image> Image::Copy(rc<CommandBuffer> Cmd)
 	return img;
 }
 
-
-rc<Buffer> Image::Download(rc<CommandBuffer> Cmd)
-{
-	assert(Usage & VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
-
-	auto stagingBufferRes = Buffer::Create(Vk, BufferCreateRequest { 
-		.Size = (u32)Size, 
-		.Usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT, 
-	});
-
-	if(auto err = stagingBufferRes.Error())
-	{
-		GLog.E("Image::Download: Failed to create staging buffer");
-		return nullptr;
-	}
-	
-	Download(Cmd, *stagingBufferRes.Get());
-	return *stagingBufferRes.Get();
-}
-
-void Image::Download(rc<CommandBuffer> Cmd, rc<Buffer> Buffer, std::optional<std::vector<VkBufferImageCopy>> regions)
+void Image::CopyToBuffer(rc<CommandBuffer> Cmd, rc<Buffer> Buffer, std::optional<std::vector<VkBufferImageCopy>> regions)
 {
 	// assert(Buffer->Allocation.LocalSize() >= Allocation.LocalSize());
 	Transition(Cmd, ImageState{
