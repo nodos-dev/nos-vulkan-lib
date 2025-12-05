@@ -183,12 +183,19 @@ void Renderpass::Draw(rc<vk::CommandBuffer> Cmd, const VertexData* Verts)
 {
     if(Verts)
     {
-        Cmd->SetDepthWriteEnable(Verts->DepthWrite);
-        Cmd->SetDepthTestEnable(Verts->DepthTest);
-        Cmd->SetDepthCompareOp(Verts->DepthFunc);
-        Cmd->BindVertexBuffers(0, 1, &Verts->Buffer->Handle, &Verts->VertexOffset);
-        Cmd->BindIndexBuffer(Verts->Buffer->Handle, Verts->IndexOffset, VK_INDEX_TYPE_UINT32);
-        Cmd->DrawIndexed(Verts->NumIndices, 1, 0, 0, 0);
+		Cmd->SetDepthWriteEnable(Verts->DepthWrite);
+		Cmd->SetDepthTestEnable(Verts->DepthTest);
+		Cmd->SetDepthCompareOp(Verts->DepthFunc);
+		if (Verts->Buffer)
+		{
+			Cmd->BindVertexBuffers(0, 1, &Verts->Buffer->Handle, &Verts->VertexOffset);
+			Cmd->BindIndexBuffer(Verts->Buffer->Handle, Verts->IndexOffset, VK_INDEX_TYPE_UINT32);
+			Cmd->DrawIndexed(Verts->NumIndices, 1, 0, 0, 0);
+		}
+		else
+		{
+			Cmd->Draw(Verts->NumIndices, 1, 0, 0);
+		}
     }
     else
     {
