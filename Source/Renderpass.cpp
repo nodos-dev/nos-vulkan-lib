@@ -179,7 +179,7 @@ void Basepass::BindData(std::string const& name, const void* data, uint32_t sz)
     memcpy(ptr, data, copySize);
 }
 
-void Renderpass::Draw(rc<vk::CommandBuffer> Cmd, const VertexData* Verts)
+void Renderpass::Draw(rc<vk::CommandBuffer> Cmd, std::optional<VertexData> const& Verts)
 {
     if(Verts)
     {
