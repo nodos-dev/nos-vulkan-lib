@@ -199,7 +199,7 @@ constexpr auto PLATFORM_EXTERNAL_MEMORY_HANDLE_TYPE = VK_EXTERNAL_MEMORY_HANDLE_
 struct ResourceCreateRequest
 {
 	bool Temporary = false;
-	std::variant<VkExternalMemoryHandleTypeFlags, MemoryExportInfo> ExternalMemory = (VkExternalMemoryHandleTypeFlags)PLATFORM_EXTERNAL_MEMORY_HANDLE_TYPE;
+	std::variant<VkExternalMemoryHandleTypeFlags, MemoryExportInfo> ExternalMemory = VkExternalMemoryHandleTypeFlags(0);
 	const MemoryExportInfo* GetImportInfo() const
 	{
 		return std::get_if<MemoryExportInfo>(&ExternalMemory);
