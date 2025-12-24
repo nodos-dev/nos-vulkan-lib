@@ -361,17 +361,20 @@ ShaderLayout GetShaderLayouts(std::vector<u8> const& src, VkShaderStageFlags& st
             u32 set = cc.get_decoration(res.id, spv::DecorationDescriptorSet);
             u32 binding = cc.get_decoration(res.id, spv::DecorationBinding);
             u32 count = std::accumulate(type.array.begin(), type.array.end(), 1u, [](u32 a, u32 b) { return a * b; });
+            auto bindingName = cc.get_name(res.id);
+            if (bindingName.empty())
+                bindingName = res.name;
             NamedDSLBinding dsl = {
                 .Binding         = binding,
                 .DescriptorType  = ty,
                 .DescriptorCount = count ? count : 16,
-                .Name            = cc.get_name(res.id),
+                .Name            = bindingName,
                 .Type            = GetType(cc, res.type_id),
                 .StageMask       = stage
             };
             
             ShaderLayout::Index idx = {set, binding, 0};
-            layout.BindingsByName[cc.get_name(res.id)] = idx;
+            layout.BindingsByName[bindingName] = idx;
             if(SVType::Struct == dsl.Type->Tag)
             {
 				auto flags = cc.get_buffer_block_flags(res.id);

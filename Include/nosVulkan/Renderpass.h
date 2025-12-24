@@ -146,9 +146,9 @@ struct nosVulkan_API Renderpass : SharedFactory<Renderpass>, Basepass
 	struct ExecPassInfo
 	{
 		BeginPassInfo BeginInfo = {};
-		const VertexData* VtxData = 0;
+		std::optional<VertexData> VtxData = std::nullopt;
 	};
     std::optional<std::string> Exec(rc<vk::CommandBuffer> Cmd, const ExecPassInfo& info);
-    void Draw(rc<vk::CommandBuffer> Cmd, const VertexData* Verts = 0);
+	void Draw(rc<vk::CommandBuffer> Cmd, const std::optional<VertexData>& Verts = std::nullopt);
 };
 }
