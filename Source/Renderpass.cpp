@@ -334,11 +334,10 @@ std::optional<std::string> Renderpass::Begin(rc<CommandBuffer> cmd, const BeginP
 			depthImageView = localMsDepthBuffer->GetView(VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)->Handle;
         }
     }
-	GraphicsPipelineKey plKey = {.OutputFormat = img->GetEffectiveFormat(),
-								 .DepthFormat = optionalDepthBuffer
-													? std::optional<VkFormat>(optionalDepthBuffer->GetEffectiveFormat())
-													: std::nullopt};
-	auto const& pipelineObjects = PL->CreateOrGet(plKey);
+	auto const& pipelineObjects = PL->CreateOrGet(GraphicsPipelineKey{
+		.OutputFormat = img->GetEffectiveFormat(),
+		.DepthFormat =
+			optionalDepthBuffer ? std::optional<VkFormat>(optionalDepthBuffer->GetEffectiveFormat()) : std::nullopt});
 
     VkViewport viewport = {
         .width = (f32)extent.width,
