@@ -92,18 +92,20 @@ rc<Shader> GraphicsPipeline::GetVS()
     return VS;
 }
 
-void GraphicsPipeline::Recreate(VkFormat fmt)
+GraphicsPipeline::PerFormat GraphicsPipeline::CreateOrGet(GraphicsPipelineKey const& key)
 {
-    if(Handles[fmt].pl)
+	auto it = Handles.emplace(key, PerFormat{});
+	auto& perFormat = it.first->second;
+	if (!it.second)
     {
-        return;
+		return perFormat;
     }
 
     VkPipelineRenderingCreateInfo renderInfo = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
         .colorAttachmentCount = Layout->RTCount,
-        .pColorAttachmentFormats = &fmt,
-        .depthAttachmentFormat = VK_FORMAT_D32_SFLOAT,
+        .pColorAttachmentFormats = &key.OutputFormat,
+		.depthAttachmentFormat = key.DepthFormat.value_or(VK_FORMAT_UNDEFINED),
     };
 
     VkPipelineVertexInputStateCreateInfo inputLayout = {};
@@ -161,7 +163,7 @@ void GraphicsPipeline::Recreate(VkFormat fmt)
     if (!Vk->Features.dynamicRendering)
     {
         VkAttachmentDescription colorAttachment{};
-        colorAttachment.format = fmt;
+        colorAttachment.format = key.OutputFormat;
         colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
         colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -184,7 +186,7 @@ void GraphicsPipeline::Recreate(VkFormat fmt)
         renderPassInfo.subpassCount = 1;
         renderPassInfo.pSubpasses = &subpass;
 
-        NOSVK_ASSERT(Vk->CreateRenderPass(&renderPassInfo, nullptr, &Handles[fmt].rp));
+        NOSVK_ASSERT(Vk->CreateRenderPass(&renderPassInfo, nullptr, &perFormat.rp));
     }
 
     VkDynamicState states[] = { VK_DYNAMIC_STATE_VIEWPORT, 
@@ -232,12 +234,13 @@ void GraphicsPipeline::Recreate(VkFormat fmt)
     
     if (!Vk->Features.dynamicRendering)
     {
-        info.renderPass = Handles[fmt].rp;
+		info.renderPass = perFormat.rp;
         info.pNext = 0;
     }
-    NOSVK_ASSERT(Vk->CreateGraphicsPipelines(Vk->PipelineCache, 1, &info, 0, &Handles[fmt].pl));
+	NOSVK_ASSERT(Vk->CreateGraphicsPipelines(Vk->PipelineCache, 1, &info, 0, &perFormat.pl));
     rasterizationState.polygonMode = VK_POLYGON_MODE_LINE;
-    NOSVK_ASSERT(Vk->CreateGraphicsPipelines(Vk->PipelineCache, 1, &info, 0, &Handles[fmt].wpl));
+	NOSVK_ASSERT(Vk->CreateGraphicsPipelines(Vk->PipelineCache, 1, &info, 0, &perFormat.wpl));
+	return perFormat;
 }
 
 
