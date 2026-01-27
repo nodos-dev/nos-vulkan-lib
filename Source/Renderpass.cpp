@@ -324,12 +324,12 @@ std::optional<std::string> Renderpass::Begin(rc<CommandBuffer> cmd, const BeginP
 			localMsDepthBuffer = *result.Get();
 			localMsDepthBuffer->Transition(cmd,
 									  ImageState{
-										  .StageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+											   .StageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
 										  .AccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-										  .Layout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+											   .Layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
 									  });
 
-			depthResolveImageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
+			depthResolveImageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 			depthResolveImageView = imageView;
 			depthResolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
 			depthImageView = localMsDepthBuffer->GetView(VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)->Handle;
