@@ -330,7 +330,7 @@ std::optional<std::string> Renderpass::Begin(rc<CommandBuffer> cmd, const BeginP
 									  });
 
 			depthResolveImageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-			depthResolveImageView = imageView;
+			depthResolveImageView = depthImageView;
 			depthResolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
 			depthImageView = localMsDepthBuffer->GetView(VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)->Handle;
         }
