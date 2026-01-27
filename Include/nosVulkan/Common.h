@@ -165,7 +165,7 @@ struct HandleExportInfo
 };
 */
 bool nosVulkan_API IsYCbCr(VkFormat);
-
+bool nosVulkan_API IsDepthFormat(VkFormat format);
 bool nosVulkan_API IsFormatSupportedByDevice(const VkFormat&, const VkPhysicalDevice&);
 
 struct MemoryProperties

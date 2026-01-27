@@ -51,19 +51,19 @@ ComputePipeline::~ComputePipeline() {
 
 GraphicsPipeline::~GraphicsPipeline()
 {
-    for(auto [_, handl]: Handles)
+    for(auto [_, specializedPipeline]: SpecializedPipelines)
     {
-        if(handl.pl)
+		if (specializedPipeline.pl)
         {
-            Vk->DestroyPipeline(handl.pl, 0);
+			Vk->DestroyPipeline(specializedPipeline.pl, 0);
         }
-        if(handl.wpl)
+		if (specializedPipeline.wpl)
         {
-            Vk->DestroyPipeline(handl.wpl, 0);
+			Vk->DestroyPipeline(specializedPipeline.wpl, 0);
         }
-        if(handl.rp)
+		if (specializedPipeline.rp)
         {
-            Vk->DestroyRenderPass(handl.rp, 0);
+			Vk->DestroyRenderPass(specializedPipeline.rp, 0);
         }
     }
 }
@@ -92,33 +92,21 @@ rc<Shader> GraphicsPipeline::GetVS()
     return VS;
 }
 
-GraphicsPipeline::PerFormat GraphicsPipeline::GetPipelineData(GraphicsPipeline::PipelineKey const& key)
+GraphicsPipeline::SpecializedPipeline const& GraphicsPipeline::CreateOrGetSpecializedPipeline(GraphicsPipelineKey const& key)
 {
-    if(key.size() != Layout->RTCount)
-        return {};
-
-    
-    if(auto it = Handles.find(key); it != Handles.end())
-        return it->second;
-
-    return {};
-}
-
-void GraphicsPipeline::Recreate(GraphicsPipeline::PipelineKey const& key)
-{
-    NOS_ASSERT(key.size() == Layout->RTCount);
-
-    
-    if(Handles[key].pl)
+    NOS_ASSERT(key.OutputFormats.size() == Layout->RTCount);
+    auto it = SpecializedPipelines.emplace(key, SpecializedPipeline{});
+	auto& specializedPipeline = it.first->second;
+	if (!it.second)
     {
-        return;
+		return specializedPipeline;
     }
 
     VkPipelineRenderingCreateInfo renderInfo = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
         .colorAttachmentCount = Layout->RTCount,
-        .pColorAttachmentFormats = key.data(),
-        .depthAttachmentFormat = VK_FORMAT_D32_SFLOAT,
+        .pColorAttachmentFormats = key.OutputFormats.data(),
+		.depthAttachmentFormat = key.DepthFormat.value_or(VK_FORMAT_UNDEFINED),
     };
 
     VkPipelineVertexInputStateCreateInfo inputLayout = {};
@@ -185,7 +173,7 @@ void GraphicsPipeline::Recreate(GraphicsPipeline::PipelineKey const& key)
         for(u32 i = 0; i < Layout->RTCount; ++i)
         {
             colorAttachments[i] = {
-                .format = key[i],
+                .format = key.OutputFormats[i],
                 .samples = VkSampleCountFlagBits(this->MS),
                 .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
                 .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
@@ -210,7 +198,7 @@ void GraphicsPipeline::Recreate(GraphicsPipeline::PipelineKey const& key)
         renderPassInfo.subpassCount = 1;
         renderPassInfo.pSubpasses = &subpass;
 
-        NOSVK_ASSERT(Vk->CreateRenderPass(&renderPassInfo, nullptr, &Handles[key].rp));
+        NOSVK_ASSERT(Vk->CreateRenderPass(&renderPassInfo, nullptr, &specializedPipeline.rp));
     }
 
     VkDynamicState states[] = { VK_DYNAMIC_STATE_VIEWPORT, 
@@ -258,12 +246,13 @@ void GraphicsPipeline::Recreate(GraphicsPipeline::PipelineKey const& key)
     
     if (!Vk->Features.dynamicRendering)
     {
-        info.renderPass = Handles[key].rp;
+		info.renderPass = specializedPipeline.rp;
         info.pNext = 0;
     }
-    NOSVK_ASSERT(Vk->CreateGraphicsPipelines(Vk->PipelineCache, 1, &info, 0, &Handles[key].pl));
+	NOSVK_ASSERT(Vk->CreateGraphicsPipelines(Vk->PipelineCache, 1, &info, 0, &specializedPipeline.pl));
     rasterizationState.polygonMode = VK_POLYGON_MODE_LINE;
-    NOSVK_ASSERT(Vk->CreateGraphicsPipelines(Vk->PipelineCache, 1, &info, 0, &Handles[key].wpl));
+	NOSVK_ASSERT(Vk->CreateGraphicsPipelines(Vk->PipelineCache, 1, &info, 0, &specializedPipeline.wpl));
+	return specializedPipeline;
 }
 
 

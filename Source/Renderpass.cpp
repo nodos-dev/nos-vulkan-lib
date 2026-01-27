@@ -231,13 +231,12 @@ void Basepass::BindResources(rc<vk::CommandBuffer> Cmd)
 
 std::optional<std::string> Renderpass::Begin(rc<CommandBuffer> cmd, const BeginPassInfo& info)
 {
-
     if(info.OutImages.empty())
 		return "No output image provided";
     for(auto& img : info.OutImages)
         if (img->ImageType != VK_IMAGE_TYPE_2D)
 		return "Output image is not suitable as a rendering target since it's not a 2D image.";
-
+	
     auto PL = ((GraphicsPipeline*)this->PL.get());
     
     std::vector<rc<ImageView>> images;
@@ -283,11 +282,6 @@ std::optional<std::string> Renderpass::Begin(rc<CommandBuffer> cmd, const BeginP
             rawViews.push_back(tex->GetView(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)->Handle);
         }
     }
-    GraphicsPipeline::PipelineKey formats;
-    for(auto& img : info.OutImages)
-        formats.push_back(img->GetEffectiveFormat());
-    
-    PL->Recreate(formats);
     
     for(auto& img : images)
         img->Src->Transition(cmd, ImageState{
@@ -350,6 +344,13 @@ std::optional<std::string> Renderpass::Begin(rc<CommandBuffer> cmd, const BeginP
         }
     }
 
+	GraphicsPipelineKey pipelineKey{
+		.DepthFormat =
+			optionalDepthBuffer ? std::optional<VkFormat>(optionalDepthBuffer->GetEffectiveFormat()) : std::nullopt};
+	for (auto& img : info.OutImages)
+		pipelineKey.OutputFormats.push_back(img->GetEffectiveFormat());
+	auto const& specializedPipeline = PL->CreateOrGetSpecializedPipeline(pipelineKey);
+
     VkViewport viewport = {
         .width = (f32)extent.width,
         .height = (f32)extent.height,
@@ -364,7 +365,6 @@ std::optional<std::string> Renderpass::Begin(rc<CommandBuffer> cmd, const BeginP
     cmd->SetDepthWriteEnable(false);
     cmd->SetDepthCompareOp(VK_COMPARE_OP_NEVER);
 
-    auto data = PL->GetPipelineData(formats);
     if (!Vk->Features.dynamicRendering)
     {
         if (Views != images)
@@ -377,7 +377,7 @@ std::optional<std::string> Renderpass::Begin(rc<CommandBuffer> cmd, const BeginP
             
             VkFramebufferCreateInfo framebufferInfo{
                 .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
-                .renderPass = data.rp,
+				.renderPass = specializedPipeline.rp,
                 .attachmentCount = (u32)rawViews.size(),
                 .pAttachments = rawViews.data(),
                 .width = extent.width,
@@ -390,7 +390,7 @@ std::optional<std::string> Renderpass::Begin(rc<CommandBuffer> cmd, const BeginP
         VkClearValue clear = {.color = {.float32 = {0,0,0,0}}};
         VkRenderPassBeginInfo renderPassInfo = {
             .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-            .renderPass = data.rp,
+			.renderPass = specializedPipeline.rp,
             .framebuffer = FrameBuffer,
             .renderArea = scissor,
             .clearValueCount = 1,
@@ -450,7 +450,8 @@ std::optional<std::string> Renderpass::Begin(rc<CommandBuffer> cmd, const BeginP
         cmd->BeginRendering(&renderInfo);
     }
 
-    cmd->BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, info.Wireframe ? data.wpl : data.pl);
+    cmd->BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS,
+					  info.Wireframe ? specializedPipeline.wpl : specializedPipeline.pl);
     cmd->AddDependency(shared_from_this());
 	if (Vk->Features.dynamicRendering)
 		cmd->SetCullMode(info.CullMode);
