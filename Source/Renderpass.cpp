@@ -286,6 +286,13 @@ std::optional<std::string> Renderpass::Begin(rc<CommandBuffer> cmd, const BeginP
 	rc<Image> optionalDepthBuffer = info.DepthAttachment ? info.DepthAttachment->DepthBuffer : nullptr;
 	bool depthClear = true;
 	float depthClearVal = 1.0f;
+
+    VkImageView depthImageView = 0;
+	VkResolveModeFlagBits depthResolveMode = VK_RESOLVE_MODE_NONE;
+	VkImageView depthResolveImageView = 0;
+	VkImageLayout depthResolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+	rc<Image> localMsDepthBuffer = nullptr;
 	if (optionalDepthBuffer)
 	{
 		depthClear = info.DepthAttachment->Clear;
@@ -295,6 +302,38 @@ std::optional<std::string> Renderpass::Begin(rc<CommandBuffer> cmd, const BeginP
 												.AccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
 												.Layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
 			});
+		depthImageView = optionalDepthBuffer->GetView(VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)->Handle;
+        if (PL->MS > 1)
+        {
+			auto relaxedRequest = Image::TryGetRelaxedSuitableCreateRequest(
+				Vk,
+				ImageCreateRequest{.Resource =
+									   {
+										   .ExternalMemory = VkExternalMemoryHandleTypeFlags(0),
+									   },
+								   .Extent = optionalDepthBuffer->GetEffectiveExtent(),
+								   .Format = optionalDepthBuffer->GetEffectiveFormat(),
+								   .Usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+								   .Samples = (VkSampleCountFlagBits)PL->MS});
+			if (auto err = relaxedRequest.Error())
+				return "Failed to create temporary multisample depth buffer resource: " + *err;
+			auto result =
+				GetDevice()->ResourcePools.Image->Get(*relaxedRequest.Get(), "Temporary Multisample Depth Buffer Resource");
+			if (auto err = result.Error())
+				return "Failed to create temporary multisample depth buffer resource: " + *err;
+			localMsDepthBuffer = *result.Get();
+			localMsDepthBuffer->Transition(cmd,
+									  ImageState{
+										  .StageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+										  .AccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+										  .Layout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+									  });
+
+			depthResolveImageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
+			depthResolveImageView = imageView;
+			depthResolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
+			depthImageView = localMsDepthBuffer->GetView(VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)->Handle;
+        }
     }
 
     VkViewport viewport = {
@@ -368,8 +407,11 @@ std::optional<std::string> Renderpass::Begin(rc<CommandBuffer> cmd, const BeginP
         {
             DepthAttachment = {
                 .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-                .imageView = optionalDepthBuffer->GetView()->Handle,
+				.imageView = depthImageView,
                 .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+				.resolveMode = depthResolveMode,
+				.resolveImageView = depthResolveImageView,
+				.resolveImageLayout = depthResolveImageLayout,
                 .loadOp = depthClear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD,
                 .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
                 .clearValue = {.depthStencil = { .depth = depthClearVal }},
@@ -402,6 +444,8 @@ std::optional<std::string> Renderpass::Begin(rc<CommandBuffer> cmd, const BeginP
 	PL->PushConstants(cmd, constants);
 	if (localMsBuffer)
 		GetDevice()->ResourcePools.Image->Release(uint64_t(localMsBuffer->Handle));
+	if (localMsDepthBuffer)
+		GetDevice()->ResourcePools.Image->Release(uint64_t(localMsDepthBuffer->Handle));
     return std::nullopt;
 }
 
