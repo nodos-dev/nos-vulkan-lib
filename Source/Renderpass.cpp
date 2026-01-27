@@ -234,6 +234,7 @@ std::optional<std::string> Renderpass::Begin(rc<CommandBuffer> cmd, const BeginP
 		return "No output image provided";
 	if (info.OutImage->ImageType != VK_IMAGE_TYPE_2D)
 		return "Output image is not suitable as a rendering target since it's not a 2D image.";
+	
 
     rc<ImageView> img = info.OutImage->GetView(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
 
@@ -274,8 +275,6 @@ std::optional<std::string> Renderpass::Begin(rc<CommandBuffer> cmd, const BeginP
         imageView = localMsBuffer->GetView(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)->Handle;
     }
     
-    PL->Recreate(img->GetEffectiveFormat());
-
     img->Src->Transition(cmd, ImageState{
                                            .StageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                                            .AccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
@@ -335,6 +334,10 @@ std::optional<std::string> Renderpass::Begin(rc<CommandBuffer> cmd, const BeginP
 			depthImageView = localMsDepthBuffer->GetView(VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)->Handle;
         }
     }
+	auto const& pipelineObjects = PL->CreateOrGet(GraphicsPipelineKey{
+		.OutputFormat = img->GetEffectiveFormat(),
+		.DepthFormat =
+			optionalDepthBuffer ? std::optional<VkFormat>(optionalDepthBuffer->GetEffectiveFormat()) : std::nullopt});
 
     VkViewport viewport = {
         .width = (f32)extent.width,
@@ -352,7 +355,7 @@ std::optional<std::string> Renderpass::Begin(rc<CommandBuffer> cmd, const BeginP
 
     if (!Vk->Features.dynamicRendering)
     {
-        VkRenderPass rp = PL->Handles[img->GetEffectiveFormat()].rp;
+		VkRenderPass rp = pipelineObjects.rp;
 
         if (ImgView != img)
         {
@@ -430,8 +433,7 @@ std::optional<std::string> Renderpass::Begin(rc<CommandBuffer> cmd, const BeginP
         cmd->BeginRendering(&renderInfo);
     }
 
-    auto& handle = PL->Handles[img->GetEffectiveFormat()];
-    cmd->BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, info.Wireframe ? handle.wpl : handle.pl);
+    cmd->BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, info.Wireframe ? pipelineObjects.wpl : pipelineObjects.pl);
     cmd->AddDependency(shared_from_this());
 	
     struct Constants
