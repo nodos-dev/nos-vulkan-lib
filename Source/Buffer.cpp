@@ -224,7 +224,7 @@ void Buffer::Bind(VkDescriptorType type, u32 bind, VkDescriptorSet set)
 }
 
 
-void Buffer::Upload(rc<CommandBuffer> Cmd, rc<Buffer> Src, std::optional<std::vector<VkBufferCopy>> regions)
+void Buffer::CopyFrom(rc<CommandBuffer> Cmd, rc<Buffer> Src, std::optional<std::vector<VkBufferCopy>> regions)
 {
     // if this buffer has already been mapped you could simply use the mapped pointer instead of creating a temporary buffer
 
