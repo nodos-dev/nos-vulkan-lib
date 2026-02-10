@@ -3,9 +3,6 @@
  */
 
 #pragma once
-// External
-#include <vulkan/vulkan.hpp>
-
 // nosVulkan
 #include "Common.h"
 #include "Allocation.h"
@@ -17,6 +14,11 @@
 #include <shared_mutex>
 #include <cstring>
 #include <memory>
+namespace vk
+{
+class DynamicLoader;
+}
+
 template<>
 struct std::hash<VkSamplerCreateInfo>
 {

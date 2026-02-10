@@ -3,6 +3,7 @@
 
 // External
 #include <vulkan/vulkan_core.h>
+#include <vulkan/vulkan.hpp>
 
 // nosVulkan
 #include "nosVulkan/Common.h"
