@@ -383,11 +383,11 @@ struct nosVulkan_API Context : SharedFactory<Context>
     VkInstance Instance;
     VkDebugUtilsMessengerEXT Msger = 0;
     std::vector<rc<Device>> Devices;
-    std::string CacheFolder;
+    std::optional<std::filesystem::path> CacheFolder;
 	uint32_t ApiVersion = VK_API_VERSION_1_0; // It will be decided by the devices on the system
 
     ~Context();
-	Context(DebugCallback* = 0, const char* CacheFolder = nullptr, bool enableValidationLayer = false);
+	Context(DebugCallback* = nullptr, std::optional<std::filesystem::path> cacheFolder = std::nullopt, bool enableValidationLayer = false);
 	void OrderAndFilterDevices(std::vector<VkPhysicalDevice>& PhysicalDevices);
 	static void EnableValidationLayers(bool enable);
 };

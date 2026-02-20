@@ -238,12 +238,35 @@ std::string Device::GetModelName() const
 	}
 }
 
-std::string GetPipelineCacheFilePath(Device* Vk)
+std::optional<std::filesystem::path> GetPipelineCacheFilePath(Device* Vk)
 {
-	return Vk->Context->CacheFolder + "/" + PIPELINE_CACHE_FILE_PREFIX + Vk->GetName() + ".bin";
+	if (!Vk->Context->CacheFolder)
+		return std::nullopt;
+	std::error_code ec;
+	if (!std::filesystem::exists(*Vk->Context->CacheFolder, ec))
+	{
+		if (!ec)
+			std::filesystem::create_directories(*Vk->Context->CacheFolder, ec);
+	}
+	if (ec)
+	{
+		GLog.E("Failed to create cache folder at %s. Pipeline cache will not be used. Error: %s", Vk->Context->CacheFolder->string().c_str(), ec.message().c_str());
+		return std::nullopt;
+	}
+	std::string fileName = PIPELINE_CACHE_FILE_PREFIX + Vk->GetName() + ".bin";
+	SanitizeCacheFileName(fileName);
+	return *Vk->Context->CacheFolder / fileName;
 }
-void CreateDevicePipelineCache(Device* Vk) {
-	std::ifstream file(GetPipelineCacheFilePath(Vk), std::ios::binary | std::ios::ate);
+
+void CreateDevicePipelineCache(Device* Vk)
+{
+	auto cacheFile = GetPipelineCacheFilePath(Vk);
+	if (!cacheFile)
+	{
+		GLog.D("Pipeline cache file path is not available for device %s. Pipeline cache will not be used.", Vk->GetName().c_str());
+		return;
+	}
+	std::ifstream file(*cacheFile, std::ios::binary | std::ios::ate);
 	std::vector<char> buffer;
 	if (file.is_open())
 	{
@@ -264,18 +287,22 @@ void CreateDevicePipelineCache(Device* Vk) {
 		GLog.E("Failed to create pipeline cache for device %s", Vk->GetName().c_str());
 }
 
-void DestroyDevicePipelineCache(Device* Vk) {
+void DestroyDevicePipelineCache(Device* Vk)
+{
 	if (Vk->PipelineCache == VK_NULL_HANDLE)
 		return;
 	size_t size = 0;
 	vkGetPipelineCacheData(Vk->handle, Vk->PipelineCache, &size, nullptr);
 	std::vector<char> buffer(size);
 	vkGetPipelineCacheData(Vk->handle, Vk->PipelineCache, &size, buffer.data());
-
-	std::ofstream file(GetPipelineCacheFilePath(Vk), std::ios::binary);
-	if (file.is_open())
+	
+	if (auto cacheFile = GetPipelineCacheFilePath(Vk))
 	{
-		file.write(buffer.data(), size);
+		std::ofstream file(*cacheFile, std::ios::binary);
+		if (file.is_open())
+		{
+			file.write(buffer.data(), size);
+		}
 	}
 
 	vkDestroyPipelineCache(Vk->handle, Vk->PipelineCache, nullptr);
@@ -672,8 +699,8 @@ void Context::EnableValidationLayers(bool enable)
 		"VK_LAYER_KHRONOS_synchronization2",
 	};
 }
-Context::Context(DebugCallback* debugCallback, const char* cacheFolder, bool enableValidationLayer)
-	: CacheFolder(cacheFolder ? cacheFolder : "")
+Context::Context(DebugCallback* debugCallback, std::optional<std::filesystem::path> cacheFolder, bool enableValidationLayer)
+	: CacheFolder(std::move(cacheFolder))
 {
 	std::vector<VkPhysicalDevice> pDevices;
 	auto createInstance = [&]() {

@@ -292,6 +292,18 @@ const char* descriptor_type_to_string(VkDescriptorType ty)
         return "";
     }
 }
+
+void SanitizeCacheFileName(std::string& inout)
+{
+	// Convert to lowercase and replace invalid characters with '_'
+	std::transform(inout.begin(), inout.end(), inout.begin(), [](unsigned char c) {
+		if (std::isalnum(c) || c == '-' || c == '_')
+			return c;
+		else
+			return (unsigned char)'_';
+	});
+}
+
 nosVulkan_API bool IsDepthFormat(VkFormat format)
 {
 	switch (format)

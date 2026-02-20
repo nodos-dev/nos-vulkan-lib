@@ -379,4 +379,6 @@ nosVulkan_API void ImageLayoutTransition2(VkImage Image,
 
 nosVulkan_API const char* vk_result_string(VkResult re);
 nosVulkan_API const char* descriptor_type_to_string(VkDescriptorType ty);
+
+nosVulkan_API void SanitizeCacheFileName(std::string& inout);
 } // namespace nos::vk
