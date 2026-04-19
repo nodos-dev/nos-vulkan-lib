@@ -1,3 +1,4 @@
 *.spv.dat
 *.spv
 *Build
+.DS_Store

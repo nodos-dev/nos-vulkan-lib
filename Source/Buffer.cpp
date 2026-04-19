@@ -39,6 +39,14 @@ Result<BufferCreationInfos> CalculateBufferCreationInfos(vk::Device* device, Buf
 	auto& extMemHandleType = (ret.ExtMemHandleType = request.Resource.GetExportHandleTypes());
 	if (auto importInfo = request.Resource.GetImportInfo())
 		extMemHandleType = importInfo->HandleType;
+#if defined(__APPLE__)
+	// MoltenVK accepts MTLBUFFER/MTLHEAP for buffer memory, not MTLTEXTURE (our
+	// platform default, which is texture-specific). We don't need cross-process
+	// buffer sharing for the viewer use case, so drop the flag and create buffers
+	// as non-exported.
+	if (extMemHandleType == VK_EXTERNAL_MEMORY_HANDLE_TYPE_MTLTEXTURE_BIT_EXT)
+		extMemHandleType = 0;
+#endif
 	auto requestedMemProps = request.MemProps;
 	auto& extMemCreateInfo = ret.ExtMemCreateInfo;
 	auto& bufferCreateInfo = ret.BufCreateInfo;

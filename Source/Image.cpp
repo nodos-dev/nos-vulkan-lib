@@ -1,6 +1,13 @@
 // Copyright MediaZ Teknoloji A.S. All Rights Reserved.
 
 #include "vulkan/vulkan_core.h"
+#if defined(__APPLE__)
+// Must precede nosVulkan/Image.h so VK_EXT_metal_objects is defined before vkl.h
+// gates ExportMetalObjectsEXT in VklDeviceFunctions.
+#include <vulkan/vulkan_metal.h>
+#include <IOSurface/IOSurfaceRef.h>
+#include <CoreFoundation/CoreFoundation.h>
+#endif
 #include <nosVulkan/Image.h>
 #include <nosVulkan/Device.h>
 #include <nosVulkan/Command.h>
@@ -24,6 +31,23 @@ Image::~Image()
 	Views.clear();
 	if (AllocationInfo)
 	{
+#if defined(__APPLE__)
+		if (AllocationInfo->MetalIOSurface)
+		{
+			if (AllocationInfo->Imported)
+			{
+				// IOSurface-imported: driver owns the Metal memory binding;
+				// we just destroy the image and release our IOSurface retain.
+				Vk->DestroyImage(Handle, 0);
+			}
+			else if (AllocationInfo->Handle)
+			{
+				vmaDestroyImage(Vk->Allocator, Handle, AllocationInfo->Handle);
+			}
+			CFRelease(reinterpret_cast<IOSurfaceRef>(AllocationInfo->MetalIOSurface));
+		}
+		else
+#endif
 		if (AllocationInfo->Imported)
 		{
 			Vk->DestroyImage(Handle, 0);
@@ -676,14 +700,74 @@ Result<rc<Image>> Image::Create(Device* Vk, ImageCreateRequest const& createInfo
 	auto allocationInfo = vk::Allocation{};
 
 	VkImage handle{};
+
+#if defined(__APPLE__)
+	// On Apple, Vulkan external-memory-handle-based export (GetMemoryFdKHR etc.) is
+	// unavailable. Sharing is done via IOSurface: at image-create time we chain an
+	// extra pNext telling MoltenVK to IOSurface-back the Metal texture, and we retrieve
+	// the IOSurfaceRef afterward via vkExportMetalObjectsEXT. The Vulkan handle type
+	// stays VK_EXTERNAL_MEMORY_HANDLE_TYPE_MTLTEXTURE_BIT_EXT — it's the cross-process
+	// handle (IOSurfaceID) we carry in MemoryExportInfo::Handle, not the MTLTexture.
+	VkExportMetalObjectCreateInfoEXT appleExportMO = {
+		.sType = VK_STRUCTURE_TYPE_EXPORT_METAL_OBJECT_CREATE_INFO_EXT,
+		.exportObjectType = VK_EXPORT_METAL_OBJECT_TYPE_METAL_IOSURFACE_BIT_EXT,
+	};
+	VkImportMetalIOSurfaceInfoEXT appleImportIOS = {
+		.sType = VK_STRUCTURE_TYPE_IMPORT_METAL_IO_SURFACE_INFO_EXT,
+	};
+	IOSurfaceRef appleImportedSurf = nullptr;
+	const bool appleUseIOSurface = (icInfos.ExtMemHandleType == VK_EXTERNAL_MEMORY_HANDLE_TYPE_MTLTEXTURE_BIT_EXT);
+	if (appleUseIOSurface)
+	{
+		if (auto* imported = createInfo.Resource.GetImportInfo())
+		{
+			appleImportedSurf = IOSurfaceLookup(static_cast<IOSurfaceID>(imported->Handle));
+			if (!appleImportedSurf)
+				return "IOSurfaceLookup failed for incoming IOSurfaceID.";
+			appleImportIOS.ioSurface = appleImportedSurf;
+			appleImportIOS.pNext = icInfos.ImgCreateInfo.pNext;
+			icInfos.ImgCreateInfo.pNext = &appleImportIOS;
+		}
+		else if (Vk->pfn_vkExportMetalObjectsEXT)
+		{
+			appleExportMO.pNext = icInfos.ImgCreateInfo.pNext;
+			icInfos.ImgCreateInfo.pNext = &appleExportMO;
+		}
+		// If the proc addr isn't loaded, fall through; image will be created without
+		// IOSurface backing and sharing simply won't work for this process.
+	}
+#endif
+
 	if (auto* imported = createInfo.Resource.GetImportInfo())
 	{
-		if(NOS_VULKAN_FAILED(*outVkRes = Vk->CreateImage(&icInfos.ImgCreateInfo, 0, &handle)))
-			return "Error while creating imported image.";
-		if (NOS_VULKAN_FAILED(*outVkRes = allocationInfo.Import(Vk, handle, *imported, icInfos.MemProps)))
+#if defined(__APPLE__)
+		if (appleUseIOSurface)
 		{
-			Vk->DestroyImage(handle, 0);
-			return "Error while importing image memory.";
+			// IOSurface-backed images are memory-bound by the driver; no
+			// Allocation::Import (which uses fd-based import) is needed or possible.
+			if (NOS_VULKAN_FAILED(*outVkRes = Vk->CreateImage(&icInfos.ImgCreateInfo, 0, &handle)))
+			{
+				CFRelease(appleImportedSurf);
+				return "Error while creating IOSurface-imported image.";
+			}
+			VkMemoryRequirements mr = {};
+			Vk->GetImageMemoryRequirements(handle, &mr);
+			allocationInfo.Info.size = mr.size;
+			allocationInfo.Imported = {.AllocationSize = mr.size, .PID = imported->PID};
+			allocationInfo.ExternalMemoryHandleType = imported->HandleType;
+			allocationInfo.OsHandle = NOS_HANDLE(IOSurfaceGetID(appleImportedSurf));
+			allocationInfo.MetalIOSurface = appleImportedSurf;
+		}
+		else
+#endif
+		{
+			if(NOS_VULKAN_FAILED(*outVkRes = Vk->CreateImage(&icInfos.ImgCreateInfo, 0, &handle)))
+				return "Error while creating imported image.";
+			if (NOS_VULKAN_FAILED(*outVkRes = allocationInfo.Import(Vk, handle, *imported, icInfos.MemProps)))
+			{
+				Vk->DestroyImage(handle, 0);
+				return "Error while importing image memory.";
+			}
 		}
 	}
 	else // Exported
@@ -703,12 +787,47 @@ Result<rc<Image>> Image::Create(Device* Vk, ImageCreateRequest const& createInfo
 	}
 
 #ifndef NDEBUG
-	VkMemoryRequirements memReq = {};
-	Vk->GetImageMemoryRequirements(handle, &memReq);
-	assert(memReq.size == allocationInfo.GetSize());
+#if defined(__APPLE__)
+	if (!(appleUseIOSurface && createInfo.Resource.IsImported()))
+#endif
+	{
+		VkMemoryRequirements memReq = {};
+		Vk->GetImageMemoryRequirements(handle, &memReq);
+		assert(memReq.size == allocationInfo.GetSize());
+	}
 #endif
 
-	if (icInfos.ExtMemHandleType)
+#if defined(__APPLE__)
+	if (appleUseIOSurface && !createInfo.Resource.IsImported() && Vk->pfn_vkExportMetalObjectsEXT)
+	{
+		// Retrieve the IOSurface MoltenVK auto-created for this image, then keep our
+		// own retain; use its IOSurfaceID as the cross-process handle we ship out.
+		VkExportMetalIOSurfaceInfoEXT ioInfo = {
+			.sType = VK_STRUCTURE_TYPE_EXPORT_METAL_IO_SURFACE_INFO_EXT,
+			.image = handle,
+		};
+		VkExportMetalObjectsInfoEXT objs = {
+			.sType = VK_STRUCTURE_TYPE_EXPORT_METAL_OBJECTS_INFO_EXT,
+			.pNext = &ioInfo,
+		};
+		Vk->ExportMetalObjectsEXT(&objs);
+		if (ioInfo.ioSurface)
+		{
+			CFRetain(ioInfo.ioSurface);
+			allocationInfo.MetalIOSurface = ioInfo.ioSurface;
+			allocationInfo.ExternalMemoryHandleType = icInfos.ExtMemHandleType;
+			allocationInfo.OsHandle = NOS_HANDLE(IOSurfaceGetID(ioInfo.ioSurface));
+		}
+	}
+#endif
+
+	if (icInfos.ExtMemHandleType
+#if defined(__APPLE__)
+		// On Apple, OsHandle is an IOSurfaceID that's already been set above; there is
+		// no GetMemoryFdKHR/Win32 equivalent to fetch from the VkDeviceMemory.
+		&& !appleUseIOSurface
+#endif
+	)
 		if (NOS_VULKAN_FAILED(*outVkRes = allocationInfo.SetExternalMemoryHandleType(Vk, icInfos.ExtMemHandleType)))
 		{
 			assert(!createInfo.Resource.GetImportInfo());

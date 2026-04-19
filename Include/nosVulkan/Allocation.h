@@ -23,6 +23,12 @@ struct nosVulkan_API Allocation
 	MemoryProperties MemProps;
 	NOS_HANDLE OsHandle = 0;
 	uint32_t ExternalMemoryHandleType;
+#if defined(__APPLE__)
+	// When set, the image is IOSurface-backed (no VkDeviceMemory to free). Typed
+	// as void* to avoid pulling IOSurface.h into public headers. Releasing is
+	// handled in ~Image. OsHandle holds the IOSurfaceID.
+	void* MetalIOSurface = nullptr;
+#endif
 	struct ImportInfo
 	{
 		VkDeviceSize AllocationSize = 0;

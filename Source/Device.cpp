@@ -16,6 +16,11 @@
 #include <bit>
 #include <memory>
 #include <fstream>
+#if defined(__APPLE__)
+#include <mach-o/dyld.h>
+#include <filesystem>
+#include <system_error>
+#endif
 
 #define ENABLE_RENDERDOC_SUPPORT 0
 
@@ -30,6 +35,9 @@ static std::vector<const char*> extensions = {
 	"VK_KHR_win32_surface",
 #elif defined (__linux__)
 	"VK_KHR_xcb_surface",
+#elif defined (__APPLE__)
+	"VK_EXT_metal_surface",
+	"VK_KHR_portability_enumeration",
 #endif
 	"VK_KHR_external_memory_capabilities",
 	"VK_KHR_external_semaphore_capabilities",
@@ -46,6 +54,9 @@ static std::vector<const char*> deviceExtensions = {
 #elif defined (__linux__)
 	"VK_KHR_external_semaphore_fd",
 	"VK_KHR_external_memory_fd",
+#elif defined (__APPLE__)
+	"VK_KHR_portability_subset",
+	"VK_EXT_metal_objects",
 #endif
 #if !ENABLE_RENDERDOC_SUPPORT
 	"VK_EXT_external_memory_host",
@@ -171,6 +182,25 @@ bool Device::CheckSupport(VkPhysicalDevice PhysicalDevice)
 	CHECK_SUPPORT(set.features, fillModeNonSolid);
 	CHECK_SUPPORT(set.features, samplerAnisotropy);
 	
+	// External-memory/semaphore interop is optional on the device. A device without
+	// it can still render intra-process; only cross-process resource sharing is
+	// degraded. On MoltenVK these are never exposed (Metal uses Mach ports).
+	static const char* const kOptionalExtensions[] = {
+#if defined(_WIN32)
+		"VK_KHR_external_semaphore_win32",
+		"VK_KHR_external_memory_win32",
+#else
+		"VK_KHR_external_semaphore_fd",
+		"VK_KHR_external_memory_fd",
+#endif
+	};
+	auto isOptional = [](const char* ext) {
+		for (auto* opt : kOptionalExtensions)
+			if (0 == strcmp(ext, opt))
+				return true;
+		return false;
+	};
+
 	for (auto ext : deviceExtensions)
 	{
 		if (std::find_if(extensionProps.begin(), extensionProps.end(), [=](auto& prop) {
@@ -178,9 +208,9 @@ bool Device::CheckSupport(VkPhysicalDevice PhysicalDevice)
 			}) == extensionProps.end())
 		{
 			printf("%s does not support extension: %s\n", name.c_str(), ext);
-			if (ext == "VK_KHR_dynamic_rendering")
+			if (0 == strcmp(ext, "VK_KHR_dynamic_rendering"))
 				GLog.E("Device %s does not support dynamic rendering. Therefore you can't use graphics pipeline related operations.\n", name.c_str());
-			else
+			else if (!isOptional(ext))
 				supported = false;
 		}
 	}
@@ -209,6 +239,7 @@ std::string Device::GetVendorName() const
 		case 0x13B5: return "Qualcomm";
 		case 0x1A03: return "ARM";
 		case 0x102B: return "Matrox Electronic Systems Ltd.";
+		case 0x106B: return "Apple";
 		default: {
 			// Hexadecimal representation of vendor ID
 			std::stringstream ss;
@@ -514,6 +545,17 @@ Device::Device(VkInstance Instance, VkPhysicalDevice PhysicalDevice, const nos::
 				continue;
 			}
 
+			// External-memory/semaphore interop is optional — without it the device
+			// still works intra-process; only cross-process sharing is degraded.
+			if (strcmp(ext, "VK_KHR_external_semaphore_fd") == 0 ||
+				strcmp(ext, "VK_KHR_external_memory_fd") == 0 ||
+				strcmp(ext, "VK_KHR_external_semaphore_win32") == 0 ||
+				strcmp(ext, "VK_KHR_external_memory_win32") == 0)
+			{
+				printf("Device extension %s not available; external-memory sharing disabled for this device\n", ext);
+				continue;
+			}
+
 			printf("Device extension %s requested but not available\n", ext);
 			return;
 		}
@@ -706,7 +748,24 @@ Context::Context(DebugCallback* debugCallback, std::optional<std::filesystem::pa
 	auto createInstance = [&]() {
 		try
 		{
+#if defined(__APPLE__)
+			// macOS has no system Vulkan loader; load the one bundled next to the executable.
+			char execBuf[4096];
+			uint32_t execBufSize = sizeof(execBuf);
+			std::string bundledLoader = "libvulkan.1.dylib";
+			if (_NSGetExecutablePath(execBuf, &execBufSize) == 0)
+			{
+				std::error_code ec;
+				auto canon = std::filesystem::canonical(execBuf, ec);
+				auto dir = (ec ? std::filesystem::path(execBuf) : canon).parent_path();
+				auto candidate = dir / "libvulkan.1.dylib";
+				if (std::filesystem::exists(candidate))
+					bundledLoader = candidate.string();
+			}
+			vkLoader = std::make_unique<::vk::DynamicLoader>(bundledLoader);
+#else
 			vkLoader = std::make_unique<::vk::DynamicLoader>();
+#endif
 			NOSVK_ASSERT(vkl_init(vkLoader->getProcAddress<PFN_vkGetInstanceProcAddr>("vkGetInstanceProcAddr")));
 		}
 		catch (std::exception& e)
@@ -719,6 +778,10 @@ Context::Context(DebugCallback* debugCallback, std::optional<std::filesystem::pa
 
 		VkInstanceCreateInfo info = {
 		.sType                   = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
+#if defined(__APPLE__)
+		// Required by MoltenVK to expose itself as a physical device.
+		.flags                   = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR,
+#endif
 		.pApplicationInfo        = &app,
 		.enabledLayerCount       = (u32)layers.size(),
 		.ppEnabledLayerNames     = layers.data(),

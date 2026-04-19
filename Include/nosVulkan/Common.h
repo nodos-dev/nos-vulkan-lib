@@ -27,7 +27,8 @@
 #if defined(_WIN32)
 typedef void* NOS_HANDLE;
 typedef uint64_t NOS_PID;
-#elif defined(__linux__)
+#elif defined(__linux__) || defined(__APPLE__)
+#include <sys/types.h>
 typedef uint64_t NOS_HANDLE;
 typedef pid_t NOS_PID;
 #else
@@ -191,6 +192,17 @@ struct MemoryExportInfo
 
 #if _WIN32
 constexpr auto PLATFORM_EXTERNAL_MEMORY_HANDLE_TYPE = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+#elif defined(__APPLE__)
+// The bundled Vulkan-Headers pre-date VK_EXT_metal_objects being added to the enum.
+// Define the missing bit inline with its spec value so we can use the standard
+// external-memory flow; MoltenVK still recognizes the bit at runtime.
+#ifndef VK_EXTERNAL_MEMORY_HANDLE_TYPE_MTLTEXTURE_BIT_EXT
+#define VK_EXTERNAL_MEMORY_HANDLE_TYPE_MTLTEXTURE_BIT_EXT ((VkExternalMemoryHandleTypeFlagBits)0x00020000)
+#endif
+// VK_EXT_metal_objects: mark memory as Metal-texture-exportable. Cross-process sharing
+// uses an IOSurface (retrieved via vkExportMetalObjectsEXT) identified by IOSurfaceID —
+// not a raw MTLTexture pointer, which is process-local.
+constexpr auto PLATFORM_EXTERNAL_MEMORY_HANDLE_TYPE = VK_EXTERNAL_MEMORY_HANDLE_TYPE_MTLTEXTURE_BIT_EXT;
 #else
 constexpr auto PLATFORM_EXTERNAL_MEMORY_HANDLE_TYPE = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
 #endif

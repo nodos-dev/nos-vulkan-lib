@@ -35,6 +35,12 @@ if(NOT TARGET "vkl")
 	if(WIN32)
 	    target_compile_definitions(vkl PUBLIC VK_USE_PLATFORM_WIN32_KHR)
 	endif()
+	if(APPLE)
+	    # Must be on the vkl target itself (PUBLIC) so vkl.cpp compiles with the
+	    # same struct layout as every TU that uses VklDeviceFunctions; otherwise
+	    # the pfn_vkExportMetalObjectsEXT slot is never loaded and ODR-skews.
+	    target_compile_definitions(vkl PUBLIC VK_USE_PLATFORM_METAL_EXT=1)
+	endif()
 endif()
 
 # vma
@@ -76,4 +82,10 @@ if(NOT TARGET ${PROJECT_NAME})
 	add_library(${PROJECT_NAME} STATIC ${COLLECTED_SOURCES} ${COLLECTED_HEADERS})
 	target_link_libraries(${PROJECT_NAME} PUBLIC ${DEPENDENCIES})
 	target_include_directories(${PROJECT_NAME} PUBLIC ${INCLUDE_FOLDERS})
+	if(APPLE)
+		# VK_USE_PLATFORM_METAL_EXT is set on the vkl target so it propagates here.
+		target_link_libraries(${PROJECT_NAME} PUBLIC
+			"-framework CoreFoundation"
+			"-framework IOSurface")
+	endif()
 endif()
