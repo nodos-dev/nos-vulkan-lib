@@ -17,7 +17,7 @@
 #include <memory>
 #include <fstream>
 #if defined(__APPLE__)
-#include <mach-o/dyld.h>
+#include <dlfcn.h>
 #include <filesystem>
 #include <system_error>
 #include <cstdlib>
@@ -742,6 +742,23 @@ void Context::EnableValidationLayers(bool enable)
 		"VK_LAYER_KHRONOS_synchronization2",
 	};
 }
+#if defined(__APPLE__)
+// Directory of the binary that contains this code — the nos.sys.vulkan .so or
+// the editor exe, depending on what statically links nosVulkan. Anchored on its
+// own address so dladdr resolves to "us" and not the host exe, letting each
+// consumer find the MoltenVK it bundled next to itself.
+static std::filesystem::path MoltenVKBundleDir()
+{
+	Dl_info info{};
+	if (dladdr(reinterpret_cast<const void*>(&MoltenVKBundleDir), &info) && info.dli_fname)
+	{
+		std::error_code ec;
+		auto canon = std::filesystem::canonical(info.dli_fname, ec);
+		return (ec ? std::filesystem::path(info.dli_fname) : canon).parent_path();
+	}
+	return {};
+}
+#endif
 Context::Context(DebugCallback* debugCallback, std::optional<std::filesystem::path> cacheFolder, bool enableValidationLayer)
 	: CacheFolder(std::move(cacheFolder))
 {
@@ -750,29 +767,23 @@ Context::Context(DebugCallback* debugCallback, std::optional<std::filesystem::pa
 		try
 		{
 #if defined(__APPLE__)
-			// macOS has no system Vulkan loader; load the one bundled next to the executable.
-			char execBuf[4096];
-			uint32_t execBufSize = sizeof(execBuf);
+			// macOS has no system Vulkan loader; load the one bundled next to this
+			// binary (resolved relative to us, not the host exe).
+			auto dir = MoltenVKBundleDir();
 			std::string bundledLoader = "libvulkan.1.dylib";
-			if (_NSGetExecutablePath(execBuf, &execBufSize) == 0)
-			{
-				std::error_code ec;
-				auto canon = std::filesystem::canonical(execBuf, ec);
-				auto dir = (ec ? std::filesystem::path(execBuf) : canon).parent_path();
-				auto candidate = dir / "libvulkan.1.dylib";
-				if (std::filesystem::exists(candidate))
-					bundledLoader = candidate.string();
+			auto candidate = dir / "libvulkan.1.dylib";
+			if (std::filesystem::exists(candidate))
+				bundledLoader = candidate.string();
 
-				// Point the bundled loader at our bundled MoltenVK ICD (next to the
-				// exe, not a default search path) unless the user picked one.
-				auto icd = dir / "MoltenVK_icd.json";
-				if (std::filesystem::exists(icd))
-				{
-					if (!std::getenv("VK_ICD_FILENAMES"))
-						setenv("VK_ICD_FILENAMES", icd.string().c_str(), 1);
-					if (!std::getenv("VK_DRIVER_FILES"))
-						setenv("VK_DRIVER_FILES", icd.string().c_str(), 1);
-				}
+			// Point the bundled loader at our bundled MoltenVK ICD (next to this
+			// binary, not a default search path) unless the user picked one.
+			auto icd = dir / "MoltenVK_icd.json";
+			if (std::filesystem::exists(icd))
+			{
+				if (!std::getenv("VK_ICD_FILENAMES"))
+					setenv("VK_ICD_FILENAMES", icd.string().c_str(), 1);
+				if (!std::getenv("VK_DRIVER_FILES"))
+					setenv("VK_DRIVER_FILES", icd.string().c_str(), 1);
 			}
 			vkLoader = std::make_unique<::vk::DynamicLoader>(bundledLoader);
 #else

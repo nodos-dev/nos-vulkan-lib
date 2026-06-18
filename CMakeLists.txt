@@ -9,6 +9,48 @@ endif()
 
 set(CMAKE_CXX_STANDARD 20)
 
+# Bundle the Vulkan loader + MoltenVK + a flattened ICD next to a consumer's
+# binary so it runs without a system Vulkan install (no-op off macOS). Each
+# consumer (editor exe, nos.sys.vulkan plugin) calls this with its own target
+# and runtime output dir; at runtime the loader/ICD are resolved relative to
+# the consumer's own binary (see MoltenVKBundleDir in Device.cpp), so whoever
+# links nosVulkan owns and ships its own MoltenVK.
+function(bundle_moltenvk_if_apple TGT DEST_DIR)
+	if(NOT APPLE)
+		return()
+	endif()
+	# find_package locates the SDK via $VULKAN_SDK or standard paths; we copy the
+	# versioned loader and the loose MoltenVK dylib from the same lib/ directory.
+	find_package(Vulkan REQUIRED COMPONENTS MoltenVK)
+	get_filename_component(_vk_lib_dir "${Vulkan_LIBRARY}" DIRECTORY)
+	set(_vk_loader "${_vk_lib_dir}/libvulkan.1.dylib")
+	set(_vk_moltenvk "${_vk_lib_dir}/libMoltenVK.dylib")
+	foreach(_f IN ITEMS "${_vk_loader}" "${_vk_moltenvk}")
+		if(NOT EXISTS "${_f}")
+			message(FATAL_ERROR "Bundled Vulkan file missing: ${_f}")
+		endif()
+		add_custom_command(TARGET ${TGT} POST_BUILD
+			COMMAND ${CMAKE_COMMAND} -E copy_if_different "${_f}" "${DEST_DIR}/"
+			COMMENT "Bundling ${_f} -> ${DEST_DIR}/"
+			VERBATIM)
+	endforeach()
+
+	# library_path must contain a '/' so the loader resolves it relative to the
+	# JSON instead of handing a bare name to dlopen. file(GENERATE) so DEST_DIR
+	# may be a generator expression such as $<TARGET_FILE_DIR:...>.
+	string(REGEX MATCH "^([0-9]+)\\.([0-9]+)" _vk_mm "${Vulkan_VERSION}")
+	file(GENERATE OUTPUT "${DEST_DIR}/MoltenVK_icd.json" CONTENT
+"{
+    \"file_format_version\": \"1.0.0\",
+    \"ICD\": {
+        \"library_path\": \"./libMoltenVK.dylib\",
+        \"api_version\": \"${CMAKE_MATCH_1}.${CMAKE_MATCH_2}.0\",
+        \"is_portability_driver\": true
+    }
+}
+")
+endfunction()
+
 # Dependencies
 # ------------
 set(EXTERNAL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/External)
