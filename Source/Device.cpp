@@ -20,6 +20,7 @@
 #include <mach-o/dyld.h>
 #include <filesystem>
 #include <system_error>
+#include <cstdlib>
 #endif
 
 #define ENABLE_RENDERDOC_SUPPORT 0
@@ -761,6 +762,17 @@ Context::Context(DebugCallback* debugCallback, std::optional<std::filesystem::pa
 				auto candidate = dir / "libvulkan.1.dylib";
 				if (std::filesystem::exists(candidate))
 					bundledLoader = candidate.string();
+
+				// Point the bundled loader at our bundled MoltenVK ICD (next to the
+				// exe, not a default search path) unless the user picked one.
+				auto icd = dir / "MoltenVK_icd.json";
+				if (std::filesystem::exists(icd))
+				{
+					if (!std::getenv("VK_ICD_FILENAMES"))
+						setenv("VK_ICD_FILENAMES", icd.string().c_str(), 1);
+					if (!std::getenv("VK_DRIVER_FILES"))
+						setenv("VK_DRIVER_FILES", icd.string().c_str(), 1);
+				}
 			}
 			vkLoader = std::make_unique<::vk::DynamicLoader>(bundledLoader);
 #else
