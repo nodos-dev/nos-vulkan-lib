@@ -10,15 +10,12 @@ endif()
 set(CMAKE_CXX_STANDARD 20)
 
 # Bundle the Vulkan loader + MoltenVK + a flattened ICD next to a consumer's
-# binary so it runs without a system Vulkan install (no-op off macOS). Each
-# consumer (editor exe, nos.sys.vulkan plugin) calls this with its own target
-# and runtime output dir; at runtime the loader/ICD are resolved relative to
-# the consumer's own binary (see MoltenVKBundleDir in Device.cpp), so whoever
-# links nosVulkan owns and ships its own MoltenVK.
-function(bundle_moltenvk_if_apple TGT DEST_DIR)
-	if(NOT APPLE)
-		return()
-	endif()
+# binary so it runs without a system Vulkan install (macOS only; callers guard
+# with if(APPLE)). Each consumer (editor exe, nos.sys.vulkan plugin) calls this
+# with its own target and runtime output dir; at runtime the loader/ICD are
+# resolved relative to the consumer's own binary (see MoltenVKBundleDir in
+# Device.cpp), so whoever links nosVulkan owns and ships its own MoltenVK.
+function(bundle_moltenvk TGT DEST_DIR)
 	# find_package locates the SDK via $VULKAN_SDK or standard paths; we copy the
 	# versioned loader and the loose MoltenVK dylib from the same lib/ directory.
 	find_package(Vulkan REQUIRED COMPONENTS MoltenVK)
@@ -29,11 +26,18 @@ function(bundle_moltenvk_if_apple TGT DEST_DIR)
 		if(NOT EXISTS "${_f}")
 			message(FATAL_ERROR "Bundled Vulkan file missing: ${_f}")
 		endif()
-		add_custom_command(TARGET ${TGT} POST_BUILD
-			COMMAND ${CMAKE_COMMAND} -E copy_if_different "${_f}" "${DEST_DIR}/"
-			COMMENT "Bundling ${_f} -> ${DEST_DIR}/"
-			VERBATIM)
 	endforeach()
+
+	# A standalone target + add_dependencies, NOT add_custom_command(TARGET TGT):
+	# the latter is only legal in the directory where TGT was created, and the
+	# plugin target is created by the toolchain elsewhere. add_dependencies works
+	# cross-directory, so the copy runs whenever TGT builds.
+	add_custom_target(bundle_moltenvk_${TGT}
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different "${_vk_loader}" "${DEST_DIR}/"
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different "${_vk_moltenvk}" "${DEST_DIR}/"
+		COMMENT "Bundling MoltenVK -> ${DEST_DIR}/"
+		VERBATIM)
+	add_dependencies(${TGT} bundle_moltenvk_${TGT})
 
 	# library_path must contain a '/' so the loader resolves it relative to the
 	# JSON instead of handing a bare name to dlopen. file(GENERATE) so DEST_DIR
