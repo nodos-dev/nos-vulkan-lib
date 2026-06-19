@@ -9,6 +9,52 @@ endif()
 
 set(CMAKE_CXX_STANDARD 20)
 
+# Bundle the Vulkan loader + MoltenVK + a flattened ICD next to a consumer's
+# binary so it runs without a system Vulkan install (macOS only; callers guard
+# with if(APPLE)). Each consumer (editor exe, nos.sys.vulkan plugin) calls this
+# with its own target and runtime output dir; at runtime the loader/ICD are
+# resolved relative to the consumer's own binary (see MoltenVKBundleDir in
+# Device.cpp), so whoever links nosVulkan owns and ships its own MoltenVK.
+function(bundle_moltenvk TGT DEST_DIR)
+	# find_package locates the SDK via $VULKAN_SDK or standard paths; we copy the
+	# versioned loader and the loose MoltenVK dylib from the same lib/ directory.
+	find_package(Vulkan REQUIRED COMPONENTS MoltenVK)
+	get_filename_component(_vk_lib_dir "${Vulkan_LIBRARY}" DIRECTORY)
+	set(_vk_loader "${_vk_lib_dir}/libvulkan.1.dylib")
+	set(_vk_moltenvk "${_vk_lib_dir}/libMoltenVK.dylib")
+	foreach(_f IN ITEMS "${_vk_loader}" "${_vk_moltenvk}")
+		if(NOT EXISTS "${_f}")
+			message(FATAL_ERROR "Bundled Vulkan file missing: ${_f}")
+		endif()
+	endforeach()
+
+	# A standalone target + add_dependencies, NOT add_custom_command(TARGET TGT):
+	# the latter is only legal in the directory where TGT was created, and the
+	# plugin target is created by the toolchain elsewhere. add_dependencies works
+	# cross-directory, so the copy runs whenever TGT builds.
+	add_custom_target(bundle_moltenvk_${TGT}
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different "${_vk_loader}" "${DEST_DIR}/"
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different "${_vk_moltenvk}" "${DEST_DIR}/"
+		COMMENT "Bundling MoltenVK -> ${DEST_DIR}/"
+		VERBATIM)
+	add_dependencies(${TGT} bundle_moltenvk_${TGT})
+
+	# library_path must contain a '/' so the loader resolves it relative to the
+	# JSON instead of handing a bare name to dlopen. file(GENERATE) so DEST_DIR
+	# may be a generator expression such as $<TARGET_FILE_DIR:...>.
+	string(REGEX MATCH "^([0-9]+)\\.([0-9]+)" _vk_mm "${Vulkan_VERSION}")
+	file(GENERATE OUTPUT "${DEST_DIR}/MoltenVK_icd.json" CONTENT
+"{
+    \"file_format_version\": \"1.0.0\",
+    \"ICD\": {
+        \"library_path\": \"./libMoltenVK.dylib\",
+        \"api_version\": \"${CMAKE_MATCH_1}.${CMAKE_MATCH_2}.0\",
+        \"is_portability_driver\": true
+    }
+}
+")
+endfunction()
+
 # Dependencies
 # ------------
 set(EXTERNAL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/External)
@@ -34,6 +80,12 @@ if(NOT TARGET "vkl")
 	add_subdirectory(${EXTERNAL_DIR}/vkl)
 	if(WIN32)
 	    target_compile_definitions(vkl PUBLIC VK_USE_PLATFORM_WIN32_KHR)
+	endif()
+	if(APPLE)
+	    # Must be on the vkl target itself (PUBLIC) so vkl.cpp compiles with the
+	    # same struct layout as every TU that uses VklDeviceFunctions; otherwise
+	    # the pfn_vkExportMetalObjectsEXT slot is never loaded and ODR-skews.
+	    target_compile_definitions(vkl PUBLIC VK_USE_PLATFORM_METAL_EXT=1)
 	endif()
 endif()
 
@@ -76,4 +128,10 @@ if(NOT TARGET ${PROJECT_NAME})
 	add_library(${PROJECT_NAME} STATIC ${COLLECTED_SOURCES} ${COLLECTED_HEADERS})
 	target_link_libraries(${PROJECT_NAME} PUBLIC ${DEPENDENCIES})
 	target_include_directories(${PROJECT_NAME} PUBLIC ${INCLUDE_FOLDERS})
+	if(APPLE)
+		# VK_USE_PLATFORM_METAL_EXT is set on the vkl target so it propagates here.
+		target_link_libraries(${PROJECT_NAME} PUBLIC
+			"-framework CoreFoundation"
+			"-framework IOSurface")
+	endif()
 endif()

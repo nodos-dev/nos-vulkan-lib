@@ -384,7 +384,14 @@ struct nosVulkan_API Context : SharedFactory<Context>
     VkDebugUtilsMessengerEXT Msger = 0;
     std::vector<rc<Device>> Devices;
     std::optional<std::filesystem::path> CacheFolder;
+#if defined(__APPLE__)
+	// MoltenVK only populates VkPhysicalDeviceVulkan1{2,3}Features when the instance
+	// apiVersion is >= the feature's promotion version. Starting at 1.3 lets
+	// OrderAndFilterDevices see real device capabilities on macOS.
+	uint32_t ApiVersion = MAX_API_VERSION_USED;
+#else
 	uint32_t ApiVersion = VK_API_VERSION_1_0; // It will be decided by the devices on the system
+#endif
 
     ~Context();
 	Context(DebugCallback* = nullptr, std::optional<std::filesystem::path> cacheFolder = std::nullopt, bool enableValidationLayer = false);

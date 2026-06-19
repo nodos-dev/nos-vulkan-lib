@@ -22,7 +22,7 @@ void CheckOsStatsForSemaphoreCreationFailure();
 #if defined(_WIN32)
 #define HANDLE_TYPE  (VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT)
 void CheckOsStatsForSemaphoreCreationFailure(){}
-#elif defined(__linux__)
+#elif defined(__linux__) || defined(__APPLE__)
 #define HANDLE_TYPE (VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_FD_BIT)
 void CheckOsStatsForSemaphoreCreationFailure(){
     struct rlimit limit;
@@ -53,8 +53,7 @@ Semaphore::Semaphore(Device* Vk, VkSemaphoreType type, bool shouldExport, std::o
         .pNext = &handleInfo,
         .handleTypes = HANDLE_TYPE,
     };
-#elif defined(__linux__)
-
+#elif defined(__linux__) || defined(__APPLE__)
     VkExportSemaphoreCreateInfo exportInfo = {
         .sType = VK_STRUCTURE_TYPE_EXPORT_SEMAPHORE_CREATE_INFO,
         .pNext = NULL,
@@ -100,7 +99,7 @@ Semaphore::Semaphore(Device* Vk, VkSemaphoreType type, bool shouldExport, std::o
 				.handle = *OsHandle,
 			};
 			NOSVK_ASSERT(Vk->ImportSemaphoreWin32HandleKHR(&importInfo));
-#elif defined(__linux__)
+#elif defined(__linux__) || defined(__APPLE__)
 			VkImportSemaphoreFdInfoKHR importInfo = {
 				.sType = VK_STRUCTURE_TYPE_IMPORT_SEMAPHORE_FD_INFO_KHR,
 				.semaphore = Handle,

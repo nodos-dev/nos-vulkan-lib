@@ -71,7 +71,7 @@ VkResult Allocation::Import(Device* device, std::variant<VkBuffer, VkImage> hand
 		.sType = VK_STRUCTURE_TYPE_MEMORY_WIN32_HANDLE_PROPERTIES_KHR
 		};
 		res = device->GetMemoryWin32HandlePropertiesKHR(VkExternalMemoryHandleTypeFlagBits(imported.HandleType), *dupHandle, &extHandleProps);
-#elif defined(__linux__)
+#elif defined(__linux__) || defined(__APPLE__)
 		VkMemoryFdPropertiesKHR extHandleProps{
 		.sType = VK_STRUCTURE_TYPE_MEMORY_FD_PROPERTIES_KHR
 		};
@@ -90,7 +90,7 @@ VkResult Allocation::Import(Device* device, std::variant<VkBuffer, VkImage> hand
 		.handleType = VkExternalMemoryHandleTypeFlagBits(imported.HandleType),
 		.handle = *dupHandle,
 	};
-#elif defined(__linux__)
+#elif defined(__linux__) || defined(__APPLE__)
 	VkImportMemoryFdInfoKHR importInfo = {
 		.sType = VK_STRUCTURE_TYPE_IMPORT_MEMORY_FD_INFO_KHR,
 		.handleType = VkExternalMemoryHandleTypeFlagBits(imported.HandleType),
@@ -158,7 +158,7 @@ VkResult Allocation::SetExternalMemoryHandleType(Device* device, uint32_t handle
 			void* winHandle{};
 			auto ret = device->GetMemoryWin32HandleKHR(&getHandleInfo, &winHandle);
 			handle = NOS_HANDLE(winHandle);
-#elif defined(__linux__)
+#elif defined(__linux__) || defined(__APPLE__)
 			VkMemoryGetFdInfoKHR getHandleInfo = {
 				.sType = VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR,
 				.memory = GetMemory(),
